@@ -1,0 +1,868 @@
+<html>
+<head>
+<title>hc_alarm_management</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+    href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../systemmanagement/common.js"></script>
+
+<script>
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+    'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.selection.CheckboxModel',
+    'Ext.tip.QuickTipManager',
+    'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+} 
+
+Ext.onReady(function() {    
+    Ext.QuickTips.init();
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+                  lang: params, 
+                  path: '../../resources'
+                });
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+            },
+            setup: function() { 
+            	var v_mask = null;
+            	//告警列表Model
+            	var alertModel = Ext.define('alertModel', {
+            		extend : 'Ext.data.Model',
+            		fields : [
+            		          'id','alarm_type','alarm_object','threshold', 'enable_alarm','alarm_frequency','alarm_style','alarm_level','alarm_receiver'
+            		          ]
+            	});
+            	//公告列表Store
+            	var alertStore = Ext.create('Ext.data.Store', {
+            		model : 'alertModel',
+            		autoLoad : true,//true
+            		pageSize : pageSize,//每页显示16条数据
+            		sorters : [ {
+            			property : 'id',
+            			direction : 'DESC'
+            		} ],
+            		//remoteSort : true,
+            		proxy : new Ext.data.proxy.Ajax({
+            			//type : 'ajax',
+            			url : path + '/../monitoring/monitor!findAlarmPage.action',
+            			reader : {
+            				type : 'json',
+            				root : 'resultObject.result',
+            				totalProperty : 'resultObject.totalCount'
+            			},
+            			listeners:{
+            				exception:function(reader, response, error, eOpts){
+            					ajaxException(reader, response, error, eOpts );
+            				}
+            			}
+            		}),	
+            		listeners : {
+            			beforeload : function(store,operation, eOpts ){	
+            				//遮罩层
+            				v_mask = new Ext.LoadMask(Ext.getBody(), {
+            					msg : i18n._('please wait'),
+            					removeMask : true			
+            				});
+            				v_mask.show();
+            			},
+            			load : function(store, records, successful, eOpts ){
+            				v_mask.hide();
+            			}
+            		}
+            	});
+            	//分页序号
+            	Ext.grid.PageRowNumberer = Ext.extend(Ext.grid.RowNumberer, { 
+            		baseCls:Ext.baseCSSPrefix + 'column-header ' + Ext.baseCSSPrefix + 'unselectable',
+            		cls:Ext.baseCSSPrefix + 'row-numberer',
+            		tdCls:Ext.baseCSSPrefix+"grid-cell-special",
+            	    renderer:function(value, cellmeta, record, rowIndex, columnIndex, store){   
+            	        return (store.currentPage - 1) * store.pageSize + rowIndex + 1;  
+            	    }       
+            	});
+            	
+            	//删除后刷新页面
+            	function afterDelete() {
+            	    var count = alertStore.data.length;
+            	    var total = alertStore.getTotalCount();
+            	    if(total != 1 && count == 1) {
+            	    	alertStore.previousPage();
+            	    } else {
+            	    	alertStore.load();
+            	    }
+            	}
+            	
+            	var alertGrid=Ext.create('Ext.grid.Panel', {
+            	    layout:'fit',            		
+            	    store:alertStore,
+            		simpleSelect:true,
+            		selModel: Ext.create('Ext.selection.RowModel'),
+            	    columns: [
+								Ext.create('Ext.grid.PageRowNumberer',{flex : 0.1}),
+								{
+									header: i18n._('Id'),
+									dataIndex:'id',
+									flex:0.1,
+									hidden:true
+								},
+								{
+									header: i18n._('alarm_object'), //阀值
+									dataIndex: 'alarm_object',
+									flex:0.4,
+									renderer:function(value){
+										if(value== 'VM'){
+										  	return "云主机";
+										}else if(value== 'HOST'){
+											return "物理主机";
+										}else if(value== 'ZONE'){
+											return "资源池";
+										}
+									}
+								},
+								{
+									header: i18n._('alarm_type'), //告警类型
+									dataIndex: 'alarm_type',
+									flex:0.5,
+									renderer:function(value,metedata,record,rowIndex,colIndex,store){
+										switch(value){
+											case 1:{metedata.tdAttr = 'data-qtip="' + i18n._('ip_resource_is_not_enough') + '"';
+													return i18n._('ip_resource_is_not_enough');
+													break;
+											}
+											case 2:{
+												 metedata.tdAttr = 'data-qtip="' + i18n._('cpu_resource_is_not_enough') + '"';
+													return i18n._('cpu_resource_is_not_enough');
+													break;
+											}
+											case 3:{
+												metedata.tdAttr = 'data-qtip="' + i18n._('memory_resource_is_not_enough') + '"';
+												return i18n._('memory_resource_is_not_enough');
+												break;
+											}
+											case 4:{
+												metedata.tdAttr = 'data-qtip="' + i18n._('store_resource_is_not_enough') + '"';
+												return i18n._('store_resource_is_not_enough');
+												break;
+											}
+											case 5:{
+												metedata.tdAttr = 'data-qtip="' + i18n._('cpu workload') + '"';
+												return i18n._('cpu workload');
+												break;
+											}
+											case 6:{
+												metedata.tdAttr = 'data-qtip="' + i18n._('内存负载') + '"';
+												return i18n._('内存负载');
+												break;
+											}
+										}
+										
+									}
+								},
+								{
+									header: i18n._('threshold'), //阀值
+									dataIndex: 'threshold',
+									flex:0.4,
+									renderer:function(value){
+									    return value + "%";
+									}
+								},
+								{
+									header: i18n._('enable_alarm'), //启用告警	
+									dataIndex: 'enable_alarm',
+									flex:0.4,
+									renderer:function(value){
+										if(value== '1'){
+											return i18n._('enable');
+										}else if(value== '0'){
+											return i18n._('disable');
+										}
+									}
+								},
+								{
+									header: i18n._('alarm_frequency'), //告警频率	
+									dataIndex: 'alarm_frequency',
+									flex:0.4
+								},
+								{
+		            	        	header: i18n._('alarm_style'), //告警方式
+		            	        	dataIndex: 'alarm_style',
+		            	        	flex:0.4,
+									renderer:function(value){
+										if(value== '1'){
+											return i18n._('alarm_style_1');
+										}else if(value== '2'){
+											return i18n._('alarm_style_2');
+										}else if(value== '3'){
+											return i18n._('alarm_style_3');
+										}
+									}
+		            	        },
+		            	        {
+		            	        	header: i18n._('alarm_level'), //告警级别
+		            	        	dataIndex: 'alarm_level',
+		            	        	flex:0.4,
+									renderer:function(value){
+										if(value== '1'){
+											return i18n._('alarm_level_1');
+										}else if(value== '2'){
+											return i18n._('alarm_level_2');
+										}else if(value== '3'){
+											return i18n._('alarm_level_3');
+										}
+									}
+		            	        },//
+		            	        {
+									header: i18n._('alarm_receiver'), //告警接收人	
+									dataIndex: 'alarm_receiver',
+									flex:0.5,
+									renderer:function(value,metedata,record,rowIndex,colIndex,store){
+										 metedata.tdAttr = 'data-qtip="' + value + '"';
+										 return value;
+									}
+								}
+            		],
+            		bbar: Ext.create('Ext.toolbar.Paging', {
+            	          store:alertStore,
+            	          displayInfo: true,
+            	          beforePageText:i18n._('beforePageText'),//"第"
+            	          firstText: i18n._('firstText'),//"第一页"
+            	          prevText: i18n._('prevText'),//"上一页"
+            	          nextText: i18n._('nextText'),//"下一页"
+            	          lastText: i18n._('lastText'),//"最后页"
+            	          refreshText: i18n._('refreshText')//"刷新"
+            	    }),           	
+            	    viewConfig: {
+            	    	stripeRows: true
+            	    },            		
+            		dockedItems:[
+            		{
+            			xtype:'toolbar',
+            			cls: 'toolbarCSS',
+            			dock: 'top',			
+            			items:[			
+		            			{                				   
+		            				xtype : 'button',									
+		        					text: '<font id="addAlertConfig" color="#ffffff" >' + i18n._('addAlertConfig') + '</font>',//发布公告
+		        					listeners: {
+		        						 "mouseout" : function() {
+		        							 document.getElementById("addAlertConfig").style.color = "white";
+		        						 },
+		        						 "mouseover" : function() {
+		        							 document.getElementById("addAlertConfig").style.color = "black";
+		        						 }
+		        							
+		        					},
+		        					icon : 'images/add.png',
+		            				handler:function(){
+		            					getSessionUser();
+		            					addAlertWin.setTitle(i18n._('addAlertConfig'));
+		            					addAlertWin.show();			
+		            					alarm_frequencySlider.setDisabled(false);
+		            				}            	   
+		            			},
+		            			{                				   
+		            				xtype : 'button',									
+		        					text: '<font id="modifyAlertConfig" color="#ffffff" >' + i18n._('modifyAlertConfig') + '</font>',//编辑告警
+		        					listeners: {
+		        						 "mouseout" : function() {
+		        							 document.getElementById("modifyAlertConfig").style.color = "white";
+		        						 },
+		        						 "mouseover" : function() {
+		        							 document.getElementById("modifyAlertConfig").style.color = "black";
+		        						 }
+		        							
+		        					},
+		        					icon : 'images/edit.png',
+		            				handler:function(){
+		            					getSessionUser();
+		            					// 修改告警
+		        						var rows = alertGrid.getSelectionModel().getSelection();
+		        						var Id;
+		        						if (rows.length > 0) {
+		        							Id = rows[0].get('id');
+		        						} else {
+		        							Ext.MessageBox.show({
+		        								title : i18n._('Prompt'),
+		        								msg : i18n._('selectOne'),
+		        								icon : Ext.MessageBox.INFO,
+		        								buttons : Ext.MessageBox.OK
+		        							});
+		        							return;
+		        						}
+		        						Ext.getCmp('id').setValue(rows[0].get('id'));
+		        						Ext.getCmp('alarm_type').setValue(rows[0].get('alarm_type'));
+		        						Ext.getCmp('alarm_object').setValue(rows[0].get('alarm_object'));
+		        						Ext.getCmp('threshold').setValue(rows[0].get('threshold'));
+		        	            	    Ext.getCmp('enable_alarm').setValue({'enable_alarm':rows[0].get('enable_alarm')});
+		        	            	    Ext.getCmp('alarm_frequency').setValue(rows[0].get('alarm_frequency'));
+		        	            	    Ext.getCmp('alarm_style').setValue({'alarm_style':rows[0].get('alarm_style')});
+		        	            	    Ext.getCmp('alarm_level').setValue({'alarm_level':rows[0].get('alarm_level')});
+		        	            	    Ext.getCmp('alarm_receiver').setValue(rows[0].get('alarm_receiver'));
+		        	            	    addAlertWin.setTitle(i18n._('modifyAlertConfig'));
+		            					addAlertWin.show();	
+		            					alarm_frequencySlider.setDisabled(true);		
+		            				}            	   
+		            			},
+		            			{                				   
+		            				xtype : 'button',									
+		        					text: '<font id="deleteAlertConfig" color="#ffffff" >' + i18n._('deleteAlertConfig') + '</font>',//删除告警
+		        					listeners: {
+		        						 "mouseout" : function() {
+		        							 document.getElementById("deleteAlertConfig").style.color = "white";
+		        						 },
+		        						 "mouseover" : function() {
+		        							 document.getElementById("deleteAlertConfig").style.color = "black";
+		        						 }
+		        							
+		        					},
+		        					icon : 'images/del.png',
+		            				handler:function(){
+		            					getSessionUser();
+		            					// 删除告警
+		        						var rows = alertGrid.getSelectionModel().getSelection();
+		        						var Id;
+		        						if (rows.length > 0) {
+		        							Id = rows[0].get('id');
+		        							var alarm_type = rows[0].get('alarm_type');
+		        							var processCode = null;
+		        							if (alarm_type == 1) {
+		        							    processCode = "autoAlarmForInsufficientIp";
+		        							} else if (alarm_type == 2) {
+		        							    processCode = "autoAlarmForInsufficientCpu";
+		        							} else if (alarm_type == 3) {
+		        							    processCode = "autoAlarmForInsufficientMemory";
+		        							} else if (alarm_type == 4) {
+		        							    processCode = "autoAlarmForInsufficientStore";
+		        							}
+		        							Ext.MessageBox.show({				                  
+		        								title: i18n._('notice'),
+		        								msg:i18n._('Are you sure to delete'),
+		        								buttons: Ext.MessageBox.YESNO,
+		        								icon: Ext.MessageBox.QUESTION,
+		        								fn:function(e){
+		        									if(e=='yes'){
+		        										Ext.Ajax.request({
+		        											url: path + '/../monitoring/monitor!deleteAlarm.action',
+		        											method: 'POST',
+		        											params:{
+		        												'alarmConfig.id': Id
+		        											},
+		        											success: function (response) {
+		        												var result=Ext.JSON.decode(response.responseText);
+		        												if(result.success==true){　　　　　　　
+		        													Ext.MessageBox.show({
+		        														title : i18n._('notice'),
+		        														msg : i18n._('Operating')+i18n._('Successful'),
+		        														icon : Ext.MessageBox.INFO,
+		        														buttons : Ext.MessageBox.OK,
+		        														fn: afterDelete
+		        													});																							
+		        												}else{
+		        													Ext.MessageBox.show({
+		        														title : i18n._('notice'),
+		        														msg : result.resultMsg,
+		        														icon : Ext.MessageBox.INFO,
+		        														buttons : Ext.MessageBox.OK
+		        													});
+		        													return;
+		        												}
+		        											//	alertStore.load();
+		        											}
+		        										});
+		        										// ###############################停止线程并且删除告警配置################################
+														Ext.Ajax.request({
+															url:path+'/../systemmanagement/processOperate!stopProcessAndDeleteConfig.action',
+															method:'POST',
+															params:{
+																'processCode':processCode
+															},
+															success:function(form,action){
+															
+															},   
+															failure:function(form,action){   
+																Ext.MessageBox.show({
+																	title: i18n._('errorNotice'),
+																	msg: i18n._('operateFail'),
+																	buttons: Ext.MessageBox.OK,
+																	icon: Ext.MessageBox.ERROR
+																});  
+															}
+														});		        										
+		        									}
+		        								}
+		        				    		});	
+		        						} else {
+		        							Ext.MessageBox.show({
+		        								title : i18n._('Prompt'),
+		        								msg : i18n._('selectOne'),
+		        								icon : Ext.MessageBox.INFO,
+		        								buttons : Ext.MessageBox.OK
+		        							});
+		        							return;
+		        						}		
+		            				}            	   
+		            			},
+            					{xtype:'tbfill'}
+            				]
+            		}]
+            	});
+            	function reLoadData(){
+            		alertStore.load();
+            	}
+            	function vd(text){
+            	    if(ltrim(rtrim(text)) == '') {
+            	        return i18n._('cannotBeNull');
+            	    } else {
+            	        return true;
+            	    }
+            	}
+				function checkEmail(text){
+					var reg = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+            	    if(ltrim(rtrim(text)) == '') {
+            	        return i18n._('cannotBeNull');
+            	    } else if(text.split(",").length > 0) {
+					    var email_array = text.split(",");
+					    for (var i=0; i<email_array.length;i++) {
+					        if (!reg.test(email_array[i])) {
+				                return i18n._('emailError');
+				            }
+					    }
+					    return true;            	    
+            	    }					
+				};            	
+            	
+            	function resetMethod() {
+            		addAlertForm.getForm().reset();
+            	}
+            	
+            	function clickAddSubmit() {
+            	    var id = Ext.getCmp('id').getValue();
+            	    var alarm_type = Ext.getCmp('alarm_type').getValue();
+            	    var threshold = Ext.getCmp('threshold').getValue();
+            	    var enable_alarm = Ext.getCmp('enable_alarm').getValue();
+            	    var alarm_frequency = Ext.getCmp('alarm_frequency').getValue();
+            	    var alarm_style = Ext.getCmp('alarm_style').getValue();
+            	    var alarm_level = Ext.getCmp('alarm_level').getValue();
+            	    var alarm_receiver = Ext.getCmp('alarm_receiver').getValue();
+            	    var alarm_object = Ext.getCmp('alarm_object').getValue();
+
+            	    if(!Ext.getCmp('alarm_type').isValid() || !Ext.getCmp('alarm_receiver').isValid()||!Ext.getCmp('alarm_object').isValid()){
+                        return;
+                    }
+					var processCode = null;
+					if (alarm_type == 1) {
+					    processCode = "autoAlarmForInsufficientIp";
+					} else if (alarm_type == 2) {
+					    processCode = "autoAlarmForInsufficientCpu";
+					} else if (alarm_type == 3) {
+					    processCode = "autoAlarmForInsufficientMemory";
+					} else if (alarm_type == 4) {
+					    processCode = "autoAlarmForInsufficientStore";
+					}  
+					var v_mask_save = new Ext.LoadMask(Ext.get(addAlertWin.getEl()), {
+    					msg : i18n._('please wait'),
+    					removeMask : true			
+    				});
+    				v_mask_save.show();
+            	    var progress=Ext.Ajax.request({
+            	        url : path + '/../monitoring/monitor!saveAlarm.action',
+            	        method:'POST',
+            	        params:{
+            	        	'alarmConfig.id': id,
+            	        	'alarmConfig.alarm_type': alarm_type,
+            	        	'alarmConfig.threshold': threshold,
+            	            'alarmConfig.enable_alarm': enable_alarm,
+            	            'alarmConfig.alarm_frequency': alarm_frequency,
+            	            'alarmConfig.alarm_style': alarm_style,
+            	            'alarmConfig.alarm_level':alarm_level,
+            	            'alarmConfig.alarm_receiver':alarm_receiver,
+            	            'alarmConfig.alarm_object':alarm_object
+            	        },
+            	        success:function(form,action){
+            	            var obj = Ext.decode(form.responseText);
+            	                if(obj==null || obj.success==null){
+            	                    Ext.MessageBox.show({
+            	                       title: i18n._('errorNotice'),
+            	                       msg: i18n._('returnNull'),
+            	                       buttons: Ext.MessageBox.OK,
+            	                       icon: Ext.MessageBox.ERROR
+            	                    });//INFO,QUESTION,WARNING,ERROR
+            	                    return;
+            	                }
+            	                if(!obj.success){
+            	                    Ext.MessageBox.show({
+            	                       title: i18n._('errorNotice'),
+            	                       msg: obj.resultMsg,
+            	                       buttons: Ext.MessageBox.OK,
+            	                       icon: Ext.MessageBox.ERROR
+            	                    });
+            	                    return;
+            	                }
+            	                Ext.MessageBox.show({
+            	                	title: i18n._('notice'),
+            	                    msg: i18n._('submitSuccess'),
+            	                    buttons: Ext.MessageBox.OK,
+            	                    icon: Ext.MessageBox.INFO,
+            	                    fn: reLoadData
+            	                });
+            	                addAlertForm.getForm().reset();
+            	                addAlertWin.hide();
+            	                v_mask_save.hide();
+            	              //  alertStore.load();
+            	        },   
+            	        failure:function(form,action){   
+            	            Ext.MessageBox.show({
+            	                title: i18n._('errorNotice'),
+            	                msg: i18n._('operateFail'),
+            	                buttons: Ext.MessageBox.OK,
+            	                icon: Ext.MessageBox.ERROR
+            	            });  
+            	        }
+            	    });
+            	    if(alarm_object=='ZONE'){
+            	    	// ###############################添加或修改进程并且处理数据库配置################################
+    					Ext.Ajax.request({
+    						url:path+'/../systemmanagement/processOperate!addProcessAndStartProcess.action',
+    						method:'POST',
+    						params:{
+    							'processCode':processCode,
+    							'alarm_frequency':alarm_frequency,
+    							'enable_alarm':enable_alarm
+    						},
+    						success:function(form,action){
+    						
+    						},   
+    						failure:function(form,action){   
+    							Ext.MessageBox.show({
+    								title: i18n._('errorNotice'),
+    								msg: i18n._('operateFail'),
+    								buttons: Ext.MessageBox.OK,
+    								icon: Ext.MessageBox.ERROR
+    							});  
+    						}
+    					}); 
+            	    }
+ 					           	    
+            	}
+
+				  var thresholdSlider= Ext.create('Ext.slider.Single', {
+				        id:'threshold',
+				        fieldLabel:i18n._('threshold'),
+				        width: 360,
+				        increment: 5,
+				        minValue: 80,
+				        maxValue: 95,
+				        value: 80,
+				        tipText: function(thumb){
+				            return Ext.String.format('<b>{0}%</b>', thumb.value);
+				            },
+				            listeners:{
+				                'change':{
+				                fn:function(){
+				                    var threshold_value = Ext.getCmp('threshold').getValue();
+				                    Ext.getCmp('thresholdValue').setValue(threshold_value+'%');
+				                }
+				            }
+				        }
+			      });    
+			      var thresholdPanel = Ext.create('Ext.panel.Panel',{
+			            xtype:'panel',
+			            height:30,
+			            width:420,
+			            border:false,
+			            layout:'hbox',
+			           items:[thresholdSlider,{
+			                xtype: 'displayfield',
+			                id:'thresholdValue',
+			                value:'80%'
+			         }]
+			      });
+			      
+				  var alarm_frequencySlider = Ext.create('Ext.slider.Single', {
+				        id:'alarm_frequency',
+				        fieldLabel:i18n._('alarm_frequency2'),
+				        width: 360,
+				        increment: 1,
+				        minValue: 1,
+				        maxValue: 60,
+				        value: 1,
+				        tipText: function(thumb){
+				            return Ext.String.format('<b>{0}(Minute)</b>', thumb.value);
+				            },
+				            listeners:{
+				                'change':{
+				                fn:function(){
+				                    var alarm_frequency_value = Ext.getCmp('alarm_frequency').getValue();
+				                    Ext.getCmp('alarm_frequencyValue').setValue(alarm_frequency_value+'(Minute)');
+				                }
+				            }
+				        }
+			      });    
+			      var alarm_frequencyPanel = Ext.create('Ext.panel.Panel',{
+			            xtype:'panel',
+			            height:30,
+			            width:420,
+			            border:false,
+			            layout:'hbox',
+			           items:[alarm_frequencySlider,{
+			                xtype: 'displayfield',
+			                id:'alarm_frequencyValue',
+			                value:'1(Minute)'
+			         }]
+			      });	
+			      
+			      //添加资源警告类型，没有数据库加载
+		          Ext.data.zone_alarm_type = [[1,i18n._('ip_resource_is_not_enough')],
+		                        [2,i18n._('cpu_resource_is_not_enough')],
+		                        [3,i18n._('memory_resource_is_not_enough')],
+		                        [4,i18n._('store_resource_is_not_enough')]];
+			      
+	              var alarm_type_store = new Ext.data.SimpleStore({ 
+	                  fields: ['id', 'name'],
+	                  data:Ext.data.zone_alarm_type
+	              });	
+	              
+	              //alarm_type_store.loadData(Ext.data.vm_alarm_type);
+	              
+	              Ext.data.alarm_object = [["ZONE",'资源池']];
+	              
+	              var alarm_object_store = new Ext.data.SimpleStore({ 
+	                  fields: ['code', 'name'],
+	                  data:Ext.data.alarm_object 
+	              });
+            	
+            	var addAlertForm=Ext.create('Ext.form.FormPanel', {
+            	    width: '450',
+            	    height: '400',
+            	    border:false,
+            	    bodyPadding : 10,
+            	    autoScroll:true,
+            	    fieldDefaults : {
+            			labelAlign : 'right',
+            			labelWidth : 100,
+            			anchor : '100%'
+            		},  
+            	    items: [
+					{
+						emptyText: i18n._('Please Select'),
+						editable: false,					
+						valueNotFoundText:'Not found',
+						listConfig:{maxHeight:100},
+						valueField: 'code',
+						displayField: 'name',
+						store: alarm_object_store,
+						validator : vd,           	    
+						allowBlank:false,
+					    fieldLabel:i18n._('alarm_object'),
+					    name:"alarm_object",
+					    id:'alarm_object',
+					    width:400,
+					    mode: 'local',
+					    margin:'20 0 10 0',
+					    xtype:"combo"
+					},
+            	    {
+						emptyText: i18n._('Please Select'),
+						editable: false,					
+						valueNotFoundText:'Not found',
+						listConfig:{maxHeight:100},
+						valueField: 'id',
+						displayField: 'name',
+						store: alarm_type_store,
+						validator : vd,           	    
+            	        fieldLabel:i18n._('alarm_type'),
+            	        name:"alarm_type",
+            	        id:'alarm_type',
+            	        width:400,
+            	        mode: 'local',
+            	        margin:'20 0 10 0',
+            	        xtype:"combo"
+            	    }, thresholdPanel, {
+            	        xtype:'radiogroup',
+            	        margin:'0 30 10 0',
+            	        columns:3,
+            	        id:'enable_alarm',
+            	        fieldLabel:i18n._('enable_alarm'),
+            	        width:400,
+            	        items:[
+            	            {name:"enable_alarm",inputValue:'1',boxLabel:i18n._('enable'),checked:true},
+            	            {name:"enable_alarm",inputValue:'0',boxLabel:i18n._('disable')}
+            	        ]            	    
+            	    },alarm_frequencyPanel,{
+            	        xtype:'radiogroup',
+            	        margin:'0 30 0 0',
+            	        columns:3,
+            	        id:'alarm_style',
+            	        fieldLabel:i18n._('alarm_style'),
+            	        width:400,
+            	        items:[
+            	            {name:"alarm_style",inputValue:'1',boxLabel:i18n._('alarm_style_1')},
+            	            {name:"alarm_style",inputValue:'2',boxLabel:i18n._('alarm_style_2'),checked:true},
+            	            {name:"alarm_style",inputValue:'3',boxLabel:i18n._('alarm_style_3')}
+            	        ]
+            	    }, {
+            	        xtype:'radiogroup',
+            	        margin:'0 30 0 0',
+            	        columns:1,
+            	        id:'alarm_level',
+            	        fieldLabel:i18n._('alarm_level'),
+            	        width:400,
+            	        items:[
+            	            {name:"alarm_level",inputValue:'1',boxLabel:i18n._('alarm_level_1')},
+            	            {name:"alarm_level",inputValue:'2',boxLabel:i18n._('alarm_level_2')},
+            	            {name:"alarm_level",inputValue:'3',boxLabel:i18n._('alarm_level_3'),checked:true}
+            	        ]            	    
+            	    }, {
+            	        fieldLabel:i18n._('alarm_receiver'),
+            	        name:"alarm_receiver",
+            	        id:'alarm_receiver',
+            	        width:400,
+            	        xtype:"textfield",
+            	        //validator : checkEmail,
+            	        maxLength:100
+            	    },{
+            	    	xtype:'textfield',
+                        fieldLabel:'用户名id',
+                        style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                        id:'id',
+                        hidden: true,
+                        hideLabel: true
+                    }],
+            	    buttons:[
+            	        {text:i18n._('submit'), handler:clickAddSubmit},
+            	        {text:i18n._('reset'), handler:resetMethod}
+            	    ]
+            	    
+            	});
+            	//所有弹出窗
+            	var addAlertWin = Ext.create('Ext.window.Window', {
+            		width : 450,
+            		height : 400,
+            		closable : false,
+            		constrain : true,
+            		//modal : true,
+            		tools : [ {
+            			type : 'close',
+            			handler : function() {
+            				addAlertForm.getForm().reset();
+            				addAlertWin.hide();
+            			}
+            		} ],
+            		layout : 'fit',
+            		defaults : {
+            			split : false
+            		},
+            		items : [addAlertForm]
+            	});
+            	
+            	Ext.create('Ext.Viewport',{//Ext.Viewport
+                    layout:'border',
+                    width:'100%',                   
+                    items:[
+                        {
+                            region:'center',
+                            xtype:'panel',
+                            id:'panel_one',
+                            title:i18n._('systemManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('Alarm-management'),
+                            width:'60%',
+                            layout:'fit',
+                            //autoScroll:true,
+                            items:[
+                                {
+                                    xtype:'panel',
+                                    layout:'fit',
+                                    //
+                                    autoScroll:true,
+                                    items:alertGrid
+                                }
+                            ]
+                        }
+                    ]//panel
+                });         
+                
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+         return null;
+ };
+ 
+</script>
+</head>
+<body>
+</body>
+</html>

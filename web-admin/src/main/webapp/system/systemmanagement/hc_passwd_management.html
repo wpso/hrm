@@ -1,0 +1,414 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>phicloud</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/jquery-1.7.2.min.js" ></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript" src="../systemmanagement/common.js"></script>
+  <script type="text/javascript">
+
+     Ext.onReady(function(){
+    	 Ext.QuickTips.init(true,{dismissDelay:600000});
+    		Ext.apply(Ext.QuickTips.getQuickTip(), {
+    		    maxWidth: 1000,
+    		    trackMouse: true,
+    		    dismissDelay: 0
+    		});
+    	 var params;
+    	 MultiLang =(function(){
+            return {
+                init: function() {
+                    // load ExtJS locale
+                    params = getCookie("lang");
+                    i18n.set({
+      				  lang: params, 
+      				  path: '../../resources'
+      				});
+                    if (params) {
+                        var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                        Ext.Ajax.request({
+                            url: url,
+                            success: this.onLoadExtLocaleSuccess,
+                            failure: this.onLoadExtLocaleFailure,
+                            scope: this
+                        });
+                    } else {
+                    	this.setup();
+                    }
+                },
+                onLoadExtLocaleSuccess: function(response) {
+                    try {
+                        eval(response.responseText);
+                    } catch (e) {
+                        //Ext.Msg.alert('Failure', e.toString());
+                    }
+                    this.setup();
+                },
+                onLoadExtLocaleFailure: function() {
+                    //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                    this.setup();
+                },
+                setup: function() {
+                	//创建虚拟机是否使用公网IP单选框
+                	var passwdStrengthGroup = Ext.create('Ext.form.RadioGroup', {
+                		fieldLabel : i18n._('password'),//公网IP
+                		labelWidth : 140,
+                		width : 500,
+                		columns : 1,
+                		vertical : true,
+                		items : [ {		
+                			boxLabel : i18n._('Passwordsmustincludelettersnumbers'),//不发布
+                			width : 250,
+                			name : 'passwdStrength',
+                			inputValue : 1,		
+                			checked : true
+                		}, {		
+                			boxLabel : i18n._('mustincludeletters'),//发布
+                			name : 'passwdStrength',
+                			width : 250,
+                			inputValue : 2		
+                		},
+                		 {		
+                			boxLabel : i18n._('commonsymbols'),//发布  '密码中须包括字母(大小写)、数字、常用符号'
+                			name : 'passwdStrength',
+                			width : 280,
+                			inputValue : 3	
+                		}	
+                		]
+                	});
+                	var passwdLengthFiled= Ext.create('Ext.form.field.Number', {
+                		labelWidth : 140,
+                		fieldLabel : i18n._('passwdLength'),// 主机名称
+                		allowBlank : false,
+                		//enforceMaxLength:true,
+                		margin:'10 0 10 0',
+                		width : 360,
+                		minValue:6,
+                		maxValue:30,
+                		value:6,
+                		allowDecimals:false,
+                		emptyText : i18n._('passwdLength'),
+                		blankText:i18n._('ernterlength')
+                	});
+                	var validDateField= Ext.create('Ext.form.field.Number', {
+                		labelWidth : 140,
+                		fieldLabel : i18n._('Whentheeffectivelengthofthepassword'),// 主机名称
+                		allowBlank : false,
+                		//enforceMaxLength:true,
+                		margin:'10 0 10 0',
+                		width : 360,
+                		minValue:30,
+                		maxValue:10000,
+                		value:90,
+                		allowDecimals:false,
+                		emptyText : i18n._('Whentheeffectivelengthofthepasswordday'),
+                		blankText: i18n._('Pleaseenteravalidlongtimepassword')
+                	});
+                	
+                	var expireRemindCycleFiled= Ext.create('Ext.form.field.Number', {
+                		labelWidth : 140,
+                		fieldLabel : i18n._('Invalidpasswordremindercycle'),// 主机名称   Invalidpasswordremindercycle
+                		allowBlank : false,
+                		//enforceMaxLength:true,
+                		margin:'10 0 10 0',
+                		width : 360,
+                		hidden:true,
+                		value:1,
+                		allowDecimals:false,
+                		emptyText : i18n._('Invalidpasswordremindercycleday'), //   Invalidpasswordremindercycleday   "密码失效提醒周期（天）"
+                		blankText:	 i18n._('Pleaseenterthepasswordexpirationremindercycle')			//"请输入密码失效提醒周期"
+                	});
+                	
+                	var beginToRemindDaysFiled= Ext.create('Ext.form.field.Number', {
+                		labelWidth : 140,
+                		fieldLabel : i18n._('Passwordexpirationreminderafewdaysinadvance'),// 主机名称    Passwordexpirationreminderafewdaysinadvance
+                		allowBlank : false,
+                		//enforceMaxLength:true,
+                		margin:'10 0 10 0',
+                		width : 360,
+                		value:7,
+                		maxValue:10000,
+                		allowDecimals:false,
+                		emptyText : i18n._('Passwordexpirationreminderinadvancethenumberofdays(days)'),     //  asswordexpirationreminderinadvancethenumberofdays(days)
+                		blankText:i18n._('Pleaseenterapasswordexpirationreminderafewdaysinadvance')   //   
+                	});
+                	
+                	var passwdRepeatTimeFiled= Ext.create('Ext.form.field.Number', {
+                		labelWidth : 140,
+                		fieldLabel : i18n._('Passwordsettingsdonotallowrepetition'),// 主机名称  "密码设置不允许重复次数"
+                		allowBlank : false,
+                		//enforceMaxLength:true,
+                		margin:'10 0 10 0',
+                		width : 360,
+                		value:3,
+                		allowDecimals:false,
+                		emptyText :i18n._('Passwordsettingsdonotallowrepetition'),
+                		blankText: i18n._('Pleaseenterthepasswordsettingsdonotallowrepetition')                          //"请输入密码设置不允许重复次数"
+                	});
+                	
+                	var resetPasswdLinkValidTimeFiled= Ext.create('Ext.form.field.Number', {
+                		labelWidth : 140,
+                		fieldLabel : i18n._('Resetpasswordlinkisactivelength'),// 主机名称   "重置密码链接有效时长"
+                		allowBlank : false,
+                		//enforceMaxLength:true,
+                		margin:'10 0 10 0',
+                		width : 360,
+                		minValue:1,
+                		maxValue:12,
+                		value:2,
+                		allowDecimals:false,
+                		emptyText :i18n._('Resetpasswordlinkisactivelength(hours)') ,       //"重置密码链接有效时长（小时）"
+                		blankText :i18n._('Pleaseenteravalidlinktoresetyourpasswordlength')
+                	});
+                	var pcId=0;
+                	$.ajax({
+                		url:'./../systemmanagement/getPasswordConfig',
+                		async:false,
+                		dataType:'json',
+                		type:'POST',
+                		success:function(resultObj){
+                			if(resultObj.success){
+                				var pcObj=resultObj.resultObject;
+                				if(pcObj){
+                					pcId=pcObj["id"];
+                					passwdStrengthGroup.setValue({"passwdStrength":pcObj.strength});
+                        	    	passwdLengthFiled.setValue(pcObj.length);
+                        	    	validDateField.setValue(pcObj.validTime);
+                        	    	expireRemindCycleFiled.setValue(pcObj.expireRemindCycle);
+                        	    	beginToRemindDaysFiled.setValue(pcObj.beginToRemindDays);
+                        	    	passwdRepeatTimeFiled.setValue(pcObj.passwdRepeatTime);
+                        	    	resetPasswdLinkValidTimeFiled.setValue(pcObj.resetPasswdLinkValidTime);
+                				}
+                			}else{
+                				alert(i18n._('Failuretoobtainthepasswordrules'));  //Failuretoobtainthepasswordrules  获取密码规则失败。
+                			}
+                		},
+                		failure:function(){
+                			alert(i18n._('Failuretoobtainthepasswordrules'));
+                		}
+                	});
+                	
+                	var submitButton=Ext.create('Ext.Button', {
+                	    text    : i18n._('submit'),
+                	    width:100,
+                	    height:30,
+                	    margin:'10 0 0 500',
+                	    renderTo: Ext.getBody(),
+                	    handler : function() {
+                	    	if(passwdStrengthGroup.isValid()&&passwdLengthFiled.isValid()
+                	    			&&validDateField.isValid()&&expireRemindCycleFiled.isValid()
+                	    			&&beginToRemindDaysFiled.isValid()&&passwdRepeatTimeFiled.isValid()
+                	    			&&resetPasswdLinkValidTimeFiled.isValid()){
+                	    		var pcStrength=passwdStrengthGroup.getValue();
+                    	    	var pcLength=passwdLengthFiled.getValue();
+                    	    	var pcValidDate=validDateField.getValue();
+                    	    	var expireRemindCycle=expireRemindCycleFiled.getValue();
+                    	    	var beginToRemind=beginToRemindDaysFiled.getValue();
+                    	    	var passwdRepeatTime=passwdRepeatTimeFiled.getValue();
+                    	    	var resetPasswdLinkValidTime=resetPasswdLinkValidTimeFiled.getValue();
+                    	    	
+                    	    	if(pcValidDate<beginToRemind){
+                    	    		Ext.MessageBox.show({
+    									title : i18n._('errorNotice'),
+    									msg : i18n._('Expirationreminderlessthaneffective'),
+    									buttons : Ext.MessageBox.OK,
+    									icon : Ext.MessageBox.ERROR
+    								});
+    								return;
+                    	    	}
+                    	    	
+                    	    	
+                    	    	var v_mask = new Ext.LoadMask(Ext.getBody(), {
+            						msg : i18n._('please wait'),
+            						removeMask : true
+            					});
+                    	    	
+                    	    	var paramsObj={
+            							'pc.length':pcLength,
+            							'pc.strength':pcStrength['passwdStrength'],
+            							'pc.validTime':pcValidDate,
+            							'pc.expireRemindCycle':expireRemindCycle,
+            							'pc.beginToRemindDays':beginToRemind,
+            							'pc.passwdRepeatTime':passwdRepeatTime,
+            							'pc.resetPasswdLinkValidTime':resetPasswdLinkValidTime
+                        	    }
+                        	
+	                        	if(pcId!=0){
+	                        		paramsObj["pc.id"]=pcId;
+	                        	}
+                    	    	Ext.Ajax.request({
+            						url : path + '/../systemmanagement/sysmgaction!savePasswordConfig.action',
+            						method : 'POST',
+            						params: paramsObj,
+            						success : function(form, action) {
+            							v_mask.hide();
+            							var obj = Ext.decode(form.responseText);
+            							if (obj == null || obj.success == null) {
+            								Ext.MessageBox.show({
+            									title : i18n._('errorNotice'),
+            									msg : i18n._('returnNull'),
+            									buttons : Ext.MessageBox.OK,
+            									icon : Ext.MessageBox.ERROR
+            								});
+            								return;
+            							}
+            							if (!obj.success) {
+            								Ext.MessageBox.show({
+            									title : i18n._('errorNotice'),
+            									msg : obj.resultMsg,
+            									buttons : Ext.MessageBox.OK,
+            									icon : Ext.MessageBox.ERROR
+            								});
+            								return;
+            							}
+            							Ext.MessageBox.show({
+            								title : i18n._('notice'),
+            								msg : i18n._('Passwordrulessetsuccessfully'),                 //'密码规则设置成功。',
+            								buttons : Ext.MessageBox.OK,
+            								icon : Ext.MessageBox.INFO
+            							});								
+            						},
+            						failure : function(form, action) {
+            							v_mask.hide();
+            							Ext.MessageBox.show({
+            								title : i18n._('errorNotice'),
+            								msg : i18n._('operateFail'),
+            								buttons : Ext.MessageBox.OK,
+            								icon : Ext.MessageBox.ERROR
+            							});
+            						}
+            					});	
+                	    	}
+                	    }
+                	});
+                	var setPasswdConfigForm = Ext.create('Ext.form.Panel', {
+                		frame : true,
+                		autoScroll :true,
+                		bodyBorder:true,
+                		width: 300,
+                		//margin:'10 0 0 10',
+                		bodyPadding : 50,
+                		fieldDefaults : {
+                			labelAlign : 'right',
+                			labelWidth : 30,
+                			anchor : '100%'
+                		},
+                		items : [
+							{
+								title:i18n._('PasswordManagement'),
+								xtype:"fieldset",
+								border:true,
+								width:700,
+								anchorSize:'100% 50%',
+								items:[
+								       {
+				                			xtype : 'fieldcontainer',
+				                			layout : 'vbox',
+				                			items : [ passwdStrengthGroup,
+				                			          passwdLengthFiled,
+				                			          {
+				                			      		xtype : 'fieldcontainer',
+				                			      		layout : 'hbox',
+				                			      		items : [ validDateField,{
+				                			      			xtype : 'displayfield',
+				                			      			margin:'10 5 0 15',
+				                			      			width : 250,
+				                			      			value : i18n._('Day')
+				                			      		} ]
+				                			      	  },
+				                			      	  {
+					                			      		xtype : 'fieldcontainer',
+					                			      		layout : 'hbox',
+					                			      		items : [ expireRemindCycleFiled,{
+					                			      			xtype : 'displayfield',
+					                			      			margin:'10 0 0 15',
+					                			      			width : 250,
+					                			      			hidden:true,
+					                			      			value : i18n._('Day')           //请输入一个虚拟机名称
+					                			      		} ]
+					                			      },
+					                			      {
+					                			      		xtype : 'fieldcontainer',
+					                			      		layout : 'hbox',
+					                			      		items : [ beginToRemindDaysFiled,{
+					                			      			xtype : 'displayfield',
+					                			      			margin:'10 0 0 15',
+					                			      			width : 250,
+					                			      			value :i18n._('Thenumberofdaysbeforethepasswordexpiresbegantoremind'), //请输入一个虚拟机名称  Thenumberofdaysbeforethepasswordexpiresbegantoremind
+					                			      		} ]
+					                			      },
+					                			      {
+					                			      		xtype : 'fieldcontainer',
+					                			      		layout : 'hbox',
+					                			      		items : [ passwdRepeatTimeFiled,{
+					                			      			xtype : 'displayfield',
+					                			      			margin:'10 0 0 15',
+					                			      			width : 250,
+					                			      			value : i18n._('Passwordsettingsdonotallowduplicaterecentpassword'),  //'密码设置不允许与最近几次的密码重复'//请输入一个虚拟机名称
+					                			      		} ]
+					                			      },
+					                			      {
+					                			      		xtype : 'fieldcontainer',
+					                			      		layout : 'hbox',
+					                			      		items : [  resetPasswdLinkValidTimeFiled,{
+					                			      			xtype : 'displayfield',
+					                			      			margin:'10 0 0 15',
+					                			      			width : 250,
+					                			      			value :  i18n._('Hour')  //'小时'//请输入一个虚拟机名称  //
+					                			      		} ]
+					                			      },submitButton
+				                			          ]
+				                		}
+								],
+								margin:'3 3 3 3'
+						  }     
+                		    
+                	]
+                	});
+                	
+        			Ext.create('Ext.Viewport',{
+    					layout:'border',
+    					width:'100%',
+    					items:[					      
+    						{
+    							region:'center',
+    							xtype:'panel',
+    							id:'panel_one',
+    							title:i18n._('PasswordManagement'),
+    							width:'100%',//85
+    							layout:'fit',
+    							tools:[],
+    							items:[
+    								{
+    									xtype:'panel',
+    									layout:'fit',
+    									items:setPasswdConfigForm
+    								}
+    							]
+    						}
+    					]
+    				});
+                }
+            };
+         })();
+    	 MultiLang.init();
+     });
+
+	 function getCookie(name){
+	         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+	         if(arr != null) return unescape(arr[2]);
+			 return null;
+	 }
+
+</script>   
+ </head>
+
+ <body>
+ </body>
+</html>

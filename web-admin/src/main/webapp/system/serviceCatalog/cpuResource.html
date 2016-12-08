@@ -1,0 +1,845 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="sccommon.js"></script>
+<style type="text/css">
+ #cpuSlider .x-slider-horz .x-slider-inner{ 
+ 	height:20px;
+ }
+ 
+ #ext-quicktips-tip-body{
+ word-break:break-all;
+ word-wrap:break-word;
+ }
+ </style> 
+<script>
+	Ext.onReady(function() {
+				var params;
+				MultiLang = (function() {
+					return {
+						init : function() {
+							params = getCookie("lang");
+							i18n.set({
+								lang : params,
+								path : '../../resources'
+							});
+							if (params) {
+								var url = Ext.util.Format
+										.format(
+												'../../extjs-4.1.0/locale/ext-lang-{0}.js',
+												params);
+								Ext.Ajax.request({
+									url : url,
+									success : this.onLoadExtLocaleSuccess,
+									failure : this.onLoadExtLocaleFailure,
+									scope : this
+								});
+							} else {
+								// no language found, locale of ExtJS will be english as default
+								//this.loadmyprojectLocale();
+								this.setup();
+							}
+						},
+						onLoadExtLocaleSuccess : function(response) {
+							try {
+								eval(response.responseText);
+							} catch (e) {
+								//Ext.Msg.alert('Failure', e.toString());
+							}
+							//this.loadmyprojectLocale();
+							this.setup();
+						},
+						onLoadExtLocaleFailure : function() {
+							//Ext.Msg.alert('Failure','Failed to load locale file.');
+							this.setup();
+							//this.loadmyprojectLocale();
+						},
+						setup : function() {
+/*********************************************页面渲染开始******************************************************************/
+Ext.regModel("QosPolicy",{
+	fields:[
+	{name:"key",type:"string"},
+	{name:"value",type:"string"}
+	],
+	belongsTo:"ServiceItem"
+});
+Ext.define('ServiceItem', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'name',  type: 'string'},
+	{name: 'serviceType',  type: 'int'},
+	{name: 'createDate',  type: 'date',dateFormat : 'time'},
+	{name: 'updateDate',  type: 'date',dateFormat : 'time'},
+	{name: 'description',  type: 'string'}
+	],
+	hasMany:[{model:"QosPolicy",name:"qosPolicies"}]
+});
+
+ var cpuModel=Ext.define('Cpu', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'model',  type: 'string'},
+	{name: 'frequency',  type: 'float'},
+	{name: 'coreNum',  type: 'int'},
+	{name: 'arch',  type: 'string'},
+	{name: 'vendor',  type: 'string'}
+	]
+});
+ 
+ function tooltipRenderer(value,metedata,record,rowIndex,colIndex,store){
+	 metedata.tdAttr = 'data-qtip="' + value + '"';
+	 return value;
+ }
+ 
+ var cpu_columns=[{xtype:'rownumberer', width: 30},
+                  {"text":i18n._('name'),"dataIndex":"name","flex":1,renderer:tooltipRenderer},
+                  {"text":i18n._('frequency'),"dataIndex":"frequency","flex":1},
+                  {"text":i18n._('core number'),"dataIndex":"coreNum","flex":1},
+                  {"text":i18n._('model'),"dataIndex":"model","flex":1,renderer:tooltipRenderer},
+                  {"text":i18n._('arch'),"dataIndex":"arch","flex":1,renderer:archRenderer},
+                  {"text":i18n._('vendor'),"dataIndex":"vendor","flex":1,renderer:tooltipRenderer},
+                  {"text":i18n._('SCResourceDESC'),"dataIndex":"description","flex":1,renderer:tooltipRenderer},
+                  {"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d H:i:s"}
+                  ];
+ 
+ var v_archStore = Ext.create('Ext.data.Store', {
+     fields: ['id', 'name'],
+     data : [
+             {"id":"1", "name":"x86_32"},
+             {"id":"2", "name":"x86_64"}
+     ]
+});
+ 
+var v_measureTypeStore = Ext.create('Ext.data.Store', {
+     fields: ['id', 'name'],
+     data : [
+             {"id":"1", "name":i18n._('Hour')},
+             {"id":"2", "name":i18n._('times')}
+     ]
+});
+
+var v_proxy=new Ext.create('Ext.data.proxy.Ajax',
+		 {
+		 		//model: 'Cpu',
+		         type: 'ajax',
+		         url : path+'/../sc/serviceItem!pageServiceItem.action',
+		 		//extraParams:{serviceType:1},
+		 		reader: {
+		             type: 'json',
+		 			root:'resultObject.result',
+		 			totalProperty: 'resultObject.totalCount'
+		         }
+		     }
+		 );
+
+		 var v_store=Ext.create('Ext.data.Store', {
+		     pageSize:pageSize,
+		 	width:'100%',
+		 	sorters: [
+		              {
+		                  property : 'createDate',
+		                  direction: 'DESC'
+		              }
+		          ],
+		 	remoteSort:true,
+		 	proxy:v_proxy
+		 });
+		 
+		 
+		 v_proxy.setModel(cpuModel);
+		 v_proxy.setExtraParam('serviceType',1);
+		 v_store.load();
+		 
+
+var trans_arch=function getArch(value){
+return value==1?'x86_32':'x86_64';
+}
+ 
+ function archRenderer(value){
+	 if(value==1){
+		 return 'x86_32';
+	 }else if(value==2){
+		 return 'x86_64';
+	 }else{
+		 return '未知';
+	 }
+ }
+ 
+ 
+ var v_height = 25;
+ var v_width = 290;
+ var v_margin = '1px';
+ 
+ Ext.define('textPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	width:v_width,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		xtype:'textfield',
+ 		enforceMaxLength:true,
+ 		width:235,
+ 		maxLength:50,
+ 		fieldLabel:''
+ 		}]
+ 	
+ });
+ Ext.define('descPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:45,
+ 	width:450,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		height:45,
+ 		width:360,
+ 		xtype:'textarea',
+ 		enforceMaxLength:true,
+ 		maxLength:200,
+ 		fieldLabel:i18n._('ExpensesDesc')
+ 		}]
+ 	
+ });
+ 
+ 
+ Ext.define('numberPanel', {
+	    extend:'Ext.form.FieldContainer',
+		layout : 'hbox',
+		items:[		
+		 		{
+		 	    xtype: 'numberfield',
+		 		fieldLabel:'',
+		 		width:235,
+		 		//anchor: '100%',
+		 		enforceMaxLength:true,
+ 				maxLength:9,
+		 		draggable:false,
+		 		maxValue: 1000000,
+		 		minValue: 0,
+		 		allowBlank: false
+		 	    },
+		 		{
+		 		xtype: 'displayfield',
+		 		draggable:false,
+		 		//anchor: '50%',
+		 		margin:'0 0 0 10',
+		 		value:'G'
+		 		}
+		 		],
+		 	setLabel:function(value){
+		 		this.getComponent(0).setFieldLabel(value);
+		 	},
+		 	setExt:function(value){
+		 		this.getComponent(1).setValue(value);
+		 	}
+	});
+ 
+
+ Ext.define('sliderPanel',{
+ extend:'Ext.panel.Panel',
+ 	height:35,
+ 	width:v_width,
+ 	border:false,
+ 	layout:'hbox',
+ 	items:[
+ 	{
+ 	xtype:'sliderfield',
+ 	fieldLabel: '',
+ 	id:'cpuSlider',
+ 	width:230,
+ 	increment: 1,
+     minValue: 1,
+     maxValue: 48,
+     value:1,
+ 	tipText: function(thumb){
+         return Ext.String.format('<b>{0}</b>', thumb.value);
+ 	},
+ 	listeners:{
+ 		'change':{
+ 			fn:function(){
+ 				this.getBubbleTarget().getComponent(1).setValue(this.getValue());
+ 			}
+ 	  	}
+ 	}
+     },{
+ 		xtype: 'displayfield',
+ 		margin:'0 0 0 8',
+ 		value: '1'
+ 	}],
+ 	setValue:function(value){
+ 	this.getComponent(0).setValue(value);
+ 	this.getComponent(1).setValue(value);
+ 	},
+ 	setLabel:function(label){
+ 	this.getComponent(0).setFieldLabel(label);
+ 	},
+ 	getValue:function(){
+ 	return this.getComponent(0).getValue();
+ 	}
+ });
+
+ Ext.define('archPanel',{
+ extend:'Ext.form.ComboBox',
+ 				height:v_height,
+ 				width:235,
+ 				fieldLabel: i18n._('arch'),
+ 				store: v_archStore,
+ 				displayField: 'name',
+ 				value:v_archStore.getAt(0),
+                 valueField: 'id',
+ 				forceSelection:true
+ });
+
+
+ Ext.define('commonForm',{ 
+ extend:'Ext.form.Panel',	
+                     border: false,
+                     items: [{
+ 					xtype:"fieldset",
+ 					border:true,
+ 					anchor:'100% 100%',
+                     style:{
+ 					 marginLeft:"5px",
+ 					 marginRight:"5px",
+                      marginTop:"5px"
+ 					}
+ 					}]
+
+                    });
+ 				   
+ Ext.define('commonWindow',{
+	 extend:'Ext.window.Window',
+	 title:i18n._('add resource'),
+	 modal:true,
+	 width: 600,
+	 manageHeight:true,
+	 resizable:false,
+	 layout: 'anchor',
+	 closable:false,
+	 constrain:true
+	 });
+ 
+ 
+ //cpu form item define
+ var cpu_name= Ext.create('textPanel');
+ cpu_name.getComponent(0).setFieldLabel(i18n._('name'));
+ var cpu_model= Ext.create('textPanel');
+ cpu_model.getComponent(0).setFieldLabel(i18n._('model'));
+
+ var cpu_frequency= Ext.create('numberPanel');		
+ cpu_frequency.setLabel(i18n._('frequency'));	
+ //cpu_frequency.setExt('G');				 
+ 				
+ var cpu_coreNum=Ext.create('sliderPanel');
+ cpu_coreNum.getComponent(0).setFieldLabel(i18n._('core number'));
+ //cpu_coreNum.getComponent(2).setValue('核');
+
+ var cpu_arch=Ext.create('archPanel');
+ var cpu_vendor= Ext.create('textPanel');
+ cpu_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));
+
+ var cpu_desc= Ext.create('descPanel');
+ var cpuForm = Ext.create('commonForm');		
+ cpuForm.getComponent(0).setTitle(i18n._('cpu info'));
+ cpuForm.getComponent(0).add([cpu_name,cpu_model,cpu_frequency,cpu_coreNum,cpu_arch,cpu_vendor,cpu_desc]);
+ 
+ var addButton=Ext.create('Ext.button.Button',{
+			 style:'margin-right:5',
+			 text: i18n._('Add')
+ });	
+
+////////
+ var cpuQuotaNumField = Ext.create('Ext.form.field.Number', {
+	 allowBlank :false,
+ 	labelWidth : 80,
+ 	fieldLabel : 'CPU配额',//
+ 	allowBlank : false,
+ 	enforceMaxLength:true,
+ 	maxLength : 6,
+ 	width : 200,
+ 	minValue :1000,	
+ 	regex : /(^[0-9]{1,6}$)/,// 禁止输入空白字符/(^[0-9]{1,25}$)/
+ 	regexText : i18n._('InputNumber')
+ });
+ var cpuPeriodNumField = Ext.create('Ext.form.field.Number', {
+	allowBlank :false,
+ 	labelWidth : 80,
+ 	fieldLabel : 'CPU周期',//
+ 	allowBlank : false,
+ 	enforceMaxLength:true,
+ 	maxLength : 6,
+ 	width : 200,
+ 	minValue :1000,	
+ 	regex : /(^[0-9]{1,6}$)/,// 禁止输入空白字符/(^[0-9]{1,25}$)/
+ 	regexText : i18n._('InputNumber')
+ });
+
+ var cpuQuotaContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [cpuQuotaNumField]
+ });
+ var cpuPeriodContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [cpuPeriodNumField]
+ });
+
+ var cpuFieldSet = Ext.create('commonForm');		
+ cpuFieldSet.getComponent(0).setTitle(i18n._('qos_policies'));
+ cpuFieldSet.getComponent(0).add([cpuPeriodContainer,cpuQuotaContainer]);
+ ///////
+ 
+var commonWindow=Ext.create('commonWindow', {
+			                   //  items: cpuForm,
+			                   constrain:true,
+			 	            	tools:[{
+			 	                type:'close',
+			 	                handler:function(){					
+			 					commonWindow.getComponent(0).getForm().reset();
+			 					commonWindow.getComponent(1).getForm().reset();
+			 					commonWindow.hide();
+			 	                }
+			 	                }],               
+			                     buttons: [
+			 					addButton,
+			 					{   
+			 					    style:'margin-right:5',
+			                         text: i18n._('reset'),
+			 						handler:function(){
+			 						    commonWindow.getComponent(0).getForm().reset();
+			 						    commonWindow.getComponent(1).getForm().reset();
+			 						}
+			                     }]
+});
+
+function setRecord(record){
+	cpu_name.getComponent(0).setValue(record.get('name'));
+	cpu_model.getComponent(0).setValue(record.get('model'));
+	cpu_frequency.getComponent(0).setValue(record.get('frequency'));
+	cpu_coreNum.setValue(record.get('coreNum'));
+	cpu_arch.setValue(record.get('arch'));
+	cpu_vendor.getComponent(0).setValue(record.get('vendor'));
+	cpu_desc.getComponent(0).setValue(record.get('description'));
+	
+	var qos = record.qosPolicies() ; //qos策略
+	for (var i = 0; i < qos.getCount(); i++) { 
+		  var key = qos.getAt(i).get('key') ;  
+		  var value = qos.getAt(i).get('value') ;  
+		  if(key == 'cpu_quota'){
+			  cpuQuotaNumField.setValue(value);
+		  }else if(key == 'cpu_period'){
+			  cpuPeriodNumField.setValue(value);
+		  }
+	}
+}
+
+
+function checkCpuAddField(oldName){
+	var checkRepeat=false;
+	var cpuName=cpu_name.getComponent(0).getValue();
+	var frequency=cpu_frequency.getComponent(0).getValue();
+	if(cpuName.length==0||cpuName.length>50){
+		showMsg(i18n._("cpuNameTip"));
+		return false;
+	}
+	if(!/^\S+$/g.test(cpuName)){
+		showMsg(i18n._("The name can not contain blank characters"));
+		return false;
+	}
+	if(!checkResourceNameRepeat(cpuName,1,oldName)){
+		showMsg(i18n._('sirepeat'));
+		return false;
+	}
+	
+	if(!cpu_frequency.getComponent(0).isValid()){
+		return false;
+	}
+	
+	if(frequency==null||!/\d+/.test(frequency)){
+		showMsg(i18n._("cpuFrequencyNullTip"));
+		return false;
+	}
+	
+	if(frequency==0){
+		showMsg(i18n._("cpuFrequencyZeroTip"));
+		return false;
+	}
+
+}
+
+function ajax_request(v_serviceType,v_json){
+	var v_mask = new Ext.LoadMask(Ext.getBody(), {
+	                        msg: i18n._('saving'),
+	                        removeMask: true //完成后移除
+	                    });
+					v_mask.show();					
+					Ext.Ajax.request({
+						url: path+'/../sc/serviceItem!save.action',
+						params:{serviceType:v_serviceType},
+						jsonData:v_json,
+						success:function(response){
+							v_mask.hide();
+							commonWindow.hide();
+							commonWindow.removeAll(false);
+           					var result=Ext.JSON.decode(response.responseText);
+           					if(result.success==false){
+           						Ext.MessageBox.show({
+ 	                              // title: '提示',
+                                    title:i18n._('errorNotice'),
+ 	                               msg: result.resultMsg,
+ 	                               icon:Ext.MessageBox.ERROR,	 	           		  
+ 	                               buttons: Ext.MessageBox.OK	 	                      
+ 	           				});
+           					}else{
+							    v_store.load();
+							}
+						}	
+					});	
+					commonWindow.getComponent(0).getForm().reset();
+					commonWindow.getComponent(1).getForm().reset();
+};
+
+function showMsg(msg){
+	 Ext.MessageBox.show({
+        title: i18n._('Prompt'),
+         msg: msg==null?i18n._('Input error'):msg,
+       icon:Ext.MessageBox.INFO,
+      buttons: Ext.MessageBox.OK
+      });
+}
+
+function showWindow(){
+	addButton.setText(i18n._('Add'));
+	commonWindow.setTitle(i18n._('add resource'));
+	commonWindow.removeAll(false);					
+ 
+		commonWindow.add([cpuForm,cpuFieldSet]);
+		commonWindow.getComponent(0).getForm().getFields().each(function(f){ 
+			f.setReadOnly(false);
+		}); 
+		commonWindow.getComponent(1).getForm().getFields().each(function(f){ 
+			f.setReadOnly(false);
+		});
+		
+		addButton.setHandler(
+		function(){	
+		if(!commonWindow.getComponent(0).getForm().isValid()){return;}
+		if(!commonWindow.getComponent(1).getForm().isValid()){return;}
+		if(checkCpuAddField()==false){return;}
+		
+		var qos_arr = [] ;
+		var arr = {"key" : "cpu_quota","value" : cpuQuotaNumField.getValue()}
+		qos_arr.push(arr);
+		arr = {"key" : "cpu_period","value" : cpuPeriodNumField.getValue()}
+		qos_arr.push(arr);
+		arr = {"key" : "cpu_cores","value" : cpu_coreNum.getComponent(0).getValue()}
+		qos_arr.push(arr);
+		
+		var v_json={
+					serviceType:1,
+					name:cpu_name.getComponent(0).getValue(),
+					model:cpu_model.getComponent(0).getValue(),
+					frequency:cpu_frequency.getComponent(0).getValue(),
+					coreNum:cpu_coreNum.getComponent(0).getValue(),
+					arch:cpu_arch.getValue(),
+					vendor:cpu_vendor.getComponent(0).getValue(),
+					description:cpu_desc.getComponent(0).getValue(),
+					qosPolicies:qos_arr
+				};
+		ajax_request(1,v_json);		
+		}
+		);
+		commonWindow.show();
+}
+		 
+		 Ext.QuickTips.init();
+		 Ext.form.Field.prototype.msgTarget = 'side';
+		 var pluginExpanded = true;
+		 var dataGrid=Ext.create('Ext.grid.Panel', {
+		     layout:'fit',
+		 	title:i18n._('ServiceCatalog_resource')+'&nbsp;>&nbsp;CPU',
+		     store: v_store,
+		 	simpleSelect:true,
+		 	///sortableColumns:false,
+		     columns: cpu_columns,
+		 	selModel: Ext.create('Ext.selection.RowModel'),
+		     //selType: 'rowmodel',
+		 	bbar: Ext.create('Ext.PagingToolbar', {
+		           store:v_store ,
+		           displayInfo: true
+		     }),
+		    listeners:{
+		    	'itemdblclick':{
+		    		fn:function(){
+		    			viewDetail();
+		    		}
+		    	}
+		    },
+		     dockedItems:[
+		      			{xtype:'toolbar',
+		      			dock: 'top',
+		      			cls: 'toolbarCSS',
+		      			//style:'background-color:#4c4c4c; background-image:url();',
+		      			items:[{
+		      				xtype:'button',
+		      				margin:'0 0 0 0',
+		      				icon:'images/add_new.png',
+		      				text:'<font id="AddCpu" color="white" >' +i18n._("Add") + '</font>',
+		      				 listeners: {
+		    					 "mouseout" : function() {
+		    						 document.getElementById("AddCpu").style.color = "white";
+		    					 },
+		    					 "mouseover" : function() {
+		    						 document.getElementById("AddCpu").style.color = "black";
+		    					 }
+		    						
+		    				 },
+		      				handler:showWindow
+		      			}
+// 		      			,
+// 		      			{   xtype:'button',
+// 		      			    margin:'0 0 0 0',
+// 		      			    text:'<font id="EditCpu" color="white" >' +i18n._("edit") + '</font>',
+// 		      				listeners: {
+// 		    					 "mouseout" : function() {
+// 		    						 document.getElementById("EditCpu").style.color = "white";
+// 		    					 },
+// 		    					 "mouseover" : function() {
+// 		    						 document.getElementById("EditCpu").style.color = "black";
+// 		    					 }
+		    						
+// 		    				},
+// 		      				style:'margin-left:750px;',
+// 		      				icon: 'images/edit_new.png',
+// 		      				handler:function(){
+// 		      				addButton.setText(i18n._('Save'));
+// 		      				commonWindow.setTitle(i18n._('edit'));
+// 		      				var rows=dataGrid.getSelectionModel().getSelection();
+// 		      				var scId=0;
+// 		      				if(rows.length > 0){
+// 		      				  scId=rows[0].get('id');
+// 		      				}else{
+// 		      						 Ext.MessageBox.show({
+// 		      						    title:i18n._('notice'),
+// 		      						    msg:i18n._('please choose one column'),
+// 		                                icon:Ext.MessageBox.WARNING,
+// 		                               buttons: Ext.MessageBox.OK
+// 		                               }); 
+// 		      						return;
+// 		      			    }
+// 		      				var record=	v_store.getById(scId);
+// 		      				setRecord(record);
+// 		      				var oldName=record.get('name');
+// 		      				commonWindow.add(cpuForm);
+// 		      				addButton.setHandler(
+// 		      					function(){
+// 		      						if(checkCpuAddField(oldName)==false){return;}
+// 		      					    var v_json={id:scId,
+// 		      								serviceType:1,
+// 		      								name:cpu_name.getComponent(0).getValue(),
+// 		      								model:cpu_model.getComponent(0).getValue(),
+// 		      								frequency:cpu_frequency.getComponent(0).getValue(),
+// 		      								coreNum:cpu_coreNum.getComponent(0).getValue(),
+// 		      								arch:cpu_arch.getValue(),
+// 		      								vendor:cpu_vendor.getComponent(0).getValue(),
+// 		      								price:cpu_price.getComponent(0).getValue(),
+// 		      								description:cpu_desc.getComponent(0).getValue()
+// 		      							};
+// 		      					   ajax_request(1,v_json);		
+// 		      					});
+		      				
+// 		      	            commonWindow.show();
+// 		                  }}
+		      			,{
+		                	  xtype:'button',
+			                    itemId: 'detailButton',
+			                    text:'<font id="detailCpu" color="white" >' +i18n._("detail") + '</font>',
+			      				listeners: {
+			    					 "mouseout" : function() {
+			    						 document.getElementById("detailCpu").style.color = "white";
+			    					 },
+			    					 "mouseover" : function() {
+			    						 document.getElementById("detailCpu").style.color = "black";
+			    					 }
+			    						
+			    				},
+			                    icon: 'images/detail.png',
+			      				handler:function(){
+			      					viewDetail();
+			      				}
+		                  },
+		      			{	xtype:'button',
+		                    itemId: 'removeButton',
+		                    text:'<font id="deleteCpu" color="white" >' +i18n._("delete") + '</font>',
+		      				listeners: {
+		    					 "mouseout" : function() {
+		    						 document.getElementById("deleteCpu").style.color = "white";
+		    					 },
+		    					 "mouseover" : function() {
+		    						 document.getElementById("deleteCpu").style.color = "black";
+		    					 }
+		    						
+		    				},
+		                    icon: 'images/delete.png',
+		      				handler:function(){
+		      				var rows=dataGrid.getSelectionModel().getSelection();
+		      				 var scId;
+		      				 if(rows.length > 0){
+		      				 scId=rows[0].get('id');
+		      				 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      								msg:i18n._('Are you sure to delete'),
+		      			                   buttons: Ext.MessageBox.YESNO,
+		      			                   icon: Ext.MessageBox.QUESTION,
+		      			                   fn:function(e){
+		      			                	   if(e=="no"){
+		      			                		   return;
+		      			                	   }else if(e=='yes'){
+		      			                		   Ext.Ajax.request({
+		      											url: path+'/../sc/serviceItem!delete.action',
+		      											method: 'POST',
+		      											params:{
+		      											'serviceItem.id':scId
+		      											},
+		      											success:function(response){
+		      					           					var result=Ext.JSON.decode(response.responseText);
+		      					           					if(result.success==false){
+		      					           						Ext.MessageBox.show({
+		      				                                        title:i18n._('notice'),
+		      					 	                               msg: result.resultMsg,
+		      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+		      					 	                               buttons: Ext.MessageBox.OK	 	                      
+		      					 	           				});
+		      					           					}else{
+		      					           						Ext.MessageBox.show({
+		      														  title: i18n._('notice'),
+		      														 msg:i18n._('delete successfully'),
+		      				                                          icon:Ext.MessageBox.INFO,
+		      				                                          buttons: Ext.MessageBox.OK
+		      				           
+		      														});
+		      					           					v_store.loadPage(1,null);
+		      												}
+		      											}
+		      												});
+		      			                	   }
+		      			                	 
+		      			                	}
+		      			    		});	 	
+		      					}else{
+		      						 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      							    msg:i18n._('please choose one column'),
+		                                      icon:Ext.MessageBox.WARNING,
+		                                      buttons: Ext.MessageBox.OK
+		      						}); 
+		      						return;
+		      			    	}		           
+		      			        }
+		                  },
+		      			{xtype:'tbfill'},
+		      			{
+		    				xtype:'displayfield',
+		    				hideLabel:true,
+		    				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+		    			},
+		    			{    
+		    				xtype: 'searchfield',
+		    			    hideLabel:true,
+		    				hasSearch:true,
+		    				emptyText:i18n._('name'),
+		    				store: v_store
+		    			}
+		      			]}],
+		     width: '100%'
+		     
+		 });
+		 
+		 
+		 var detailWindow=Ext.create('commonWindow', {
+	            constrain:true,
+	           	tools:[{
+		               type:'close',
+		               handler:function(){					
+		            	   detailWindow.getComponent(0).getForm().reset();
+		            	   detailWindow.getComponent(1).getForm().reset();
+		            	   detailWindow.getComponent(0).getForm().getFields().each(function(f){ 
+		            		    f.setReadOnly(false);
+							}); 
+							detailWindow.getComponent(1).getForm().getFields().each(function(f){ 
+								f.setReadOnly(false);
+							}); 
+		            	   detailWindow.hide();
+		               }
+	               }]
+	  	});
+		 
+		 function viewDetail(){
+				var rows = dataGrid.getSelectionModel().getSelection();
+				if(rows.length > 0){
+					var record = rows[0];
+					setRecord(record) ;
+					detailWindow.setTitle(i18n._('resourceDetail'));
+					detailWindow.removeAll(false);
+					detailWindow.add([cpuForm,cpuFieldSet]);
+					detailWindow.getComponent(0).getForm().getFields().each(function(f){ 
+						  f.setReadOnly(true);
+					}); 
+					detailWindow.getComponent(1).getForm().getFields().each(function(f){ 
+						  f.setReadOnly(true);
+					}); 
+					detailWindow.show() ;
+				}else{
+				    	Ext.MessageBox.show({
+				          // title: '提示',
+				           //msg: '请选择一个用户',
+						   title:i18n._('notice'),
+					       msg:i18n._('please choose one column'),
+				           icon:Ext.MessageBox.INFO,
+				           buttons: Ext.MessageBox.OK
+				           
+				       }); 
+					return;
+				}
+				
+			}
+		 
+		 Ext.create('Ext.Viewport',{
+			 layout:'fit',
+			 items: dataGrid
+			});
+ 
+ 
+/*********************************************页面渲染结束******************************************************************/
+
+						}
+					};
+				})();
+				MultiLang.init();
+});
+	
+	 function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+     }
+</script>
+</head>
+<body>
+</body>
+</html>

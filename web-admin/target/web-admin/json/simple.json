@@ -1,0 +1,120 @@
+{"success":true,
+"resultCode":null,
+"resultMsg":null,
+"resultObject":{
+
+"pageNo":1,"pageSize":10,"orderBy":"id","order":"desc","autoCount":true,
+
+"result":[
+
+{
+"id":72,"name":"邮件服务器","description":"预装邮件服务软件Tmail，为企业快速搭建 Mail Server","price":0.80,"createDate":1336011193000,"lastUpdateDate":1336011193000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/02',"endDate":'2012/05/08',status:'审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},"memory":{"id":20,"model":null,"params":"1024","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":33,"model":null,"params":"15","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":11,"model":"CentOS-6.2","params":null,"unitPrice":null,"createDate":1336008713000,"lastUpdateDate":1336008718000,"version":"linux","imageId":"99fd4b04-ec51-400d-8e82-3170079c9912"},
+"network":{"id":6,"model":null,"params":"5","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":17
+},
+
+{
+"id":71,"name":"Ruby on Rails平台套餐","description":"Apache + Ruby + MySQL","price":30.00,"createDate":1336011092000,"lastUpdateDate":1336011150000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":20,"model":null,"params":"1024","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":30,"model":null,"params":"50","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":10,"model":"fedora-11-x64","params":null,"unitPrice":null,"createDate":1336008673000,"lastUpdateDate":1336008679000,"version":"linux","imageId":"8bdbd28e-d17f-4748-add5-52b67ba88937"},
+"network":{"id":16,"model":null,"params":"2","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":16
+},
+
+{
+"id":70,"name":"PHP平台套餐","description":"Apache + PHP + MySQL","price":30.00,"createDate":1336010903000,"lastUpdateDate":1336011137000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":20,"model":null,"params":"1024","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":30,"model":null,"params":"50","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":11,"model":"CentOS-6.2","params":null,"unitPrice":null,"createDate":1336008713000,"lastUpdateDate":1336008718000,"version":"linux","imageId":"99fd4b04-ec51-400d-8e82-3170079c9912"},
+"network":{"id":16,"model":null,"params":"2","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":15
+},
+
+{
+"id":69,"name":"电子商务平台套餐B","description":"Tomcat + JDK + MySQL","price":50.00,"createDate":1336010702000,"lastUpdateDate":1336010702000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/02',"endDate":'2012/05/08',status:'审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":21,"model":null,"params":"2048","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":31,"model":null,"params":"100","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":11,"model":"CentOS-6.2","params":null,"unitPrice":null,"createDate":1336008713000,"lastUpdateDate":1336008718000,"version":"linux","imageId":"99fd4b04-ec51-400d-8e82-3170079c9912"},
+"network":{"id":6,"model":null,"params":"5","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":12
+},
+
+{
+"id":68,"name":"电子商务平台套餐A","description":"Weblogic + JDK + MySQL","price":50.00,"createDate":1336010533000,"lastUpdateDate":1336010533000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":21,"model":null,"params":"2048","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":31,"model":null,"params":"100","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":11,"model":"CentOS-6.2","params":null,"unitPrice":null,"createDate":1336008713000,"lastUpdateDate":1336008718000,"version":"linux","imageId":"99fd4b04-ec51-400d-8e82-3170079c9912"},
+"network":{"id":6,"model":null,"params":"5","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":11
+},
+
+{
+"id":67,"name":"VIP套餐","description":"CentOS系统，4G内存，200G硬盘 , 10M带宽 ，4cpu","price":88.00,"createDate":1336010152000,"lastUpdateDate":1336010152000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":2,"model":"四核2.26G","params":"2","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"memory":{"id":22,"model":null,"params":"4096","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":32,"model":null,"params":"200","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":11,"model":"CentOS-6.2","params":null,"unitPrice":null,"createDate":1336008713000,"lastUpdateDate":1336008718000,"version":"linux","imageId":"99fd4b04-ec51-400d-8e82-3170079c9912"},
+"network":{"id":12,"model":null,"params":"10","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":10
+},
+
+{
+"id":66,"name":"基本套餐B","description":"Ubuntu系统，2cpu，20G硬盘，3M带宽","price":15.00,"createDate":1336009937000,"lastUpdateDate":1336009937000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":20,"model":null,"params":"1024","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":28,"model":null,"params":"20","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":13,"model":"ubuntu-10.04-TL-x64","params":null,"unitPrice":null,"createDate":1336008770000,"lastUpdateDate":1336008773000,"version":"linux","imageId":"3f110627-d27d-4204-bbb0-79b96895b630"},
+"network":{"id":5,"model":null,"params":"3","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":9
+},
+
+{
+"id":65,"name":"商务套餐B","description":"红帽Linux系统，2cpu，4G内存，100G硬盘，4M带宽，Tomcat6.0，JDK，MySQL","price":35.00,"createDate":1336009774000,"lastUpdateDate":1336009774000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":22,"model":null,"params":"4096","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":31,"model":null,"params":"100","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":8,"model":"redhat-x64","params":null,"unitPrice":null,"createDate":1336008605000,"lastUpdateDate":1336008610000,"version":"linux","imageId":"7e5037d7-1224-4a9a-b0e0-2d0e959c20ae"},
+"network":{"id":1,"model":"4","params":"4","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":8
+},
+
+{
+"id":64,"name":"商务套餐A","description":"红帽linux系统，4G内存，2cpu，4M带宽","price":20.00,"createDate":1336009364000,"lastUpdateDate":1336009364000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":22,"model":null,"params":"4096","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":31,"model":null,"params":"100","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":8,"model":"redhat-x64","params":null,"unitPrice":null,"createDate":1336008605000,"lastUpdateDate":1336008610000,"version":"linux","imageId":"7e5037d7-1224-4a9a-b0e0-2d0e959c20ae"},
+"network":{"id":1,"model":"4","params":"4","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":7
+},
+
+{
+"id":63,"name":"基本套餐A","description":"64位linux系统，1G内存，2M带宽，2cpu","price":10.00,"createDate":1336009095000,"lastUpdateDate":1336009095000,"version":null,
+"createTime":'2012/05/02',"beginDate":'2012/05/03',"endDate":'2012/05/08',status:'未审批',
+"cpu":{"id":1,"model":"Dual-core 2.4G","params":"1","unitPrice":12,"createDate":null,"lastUpdateDate":null,"version":"1"},
+"memory":{"id":20,"model":null,"params":"1024","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"disk":{"id":27,"model":null,"params":"10","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},
+"os":{"id":2,"model":"cirros-0.3.0-x86_64-uec","params":null,"unitPrice":null,"createDate":1333955392000,"lastUpdateDate":1333955392000,"version":"linux","imageId":"aba68e5b-a835-4746-9c20-79e3286f2aca"},
+"network":{"id":16,"model":null,"params":"2","unitPrice":null,"createDate":null,"lastUpdateDate":null,"version":null},"flavorId":6
+}
+
+],
+
+"totalCount":10,
+"orderBySetted":true,
+"totalPages":1,
+"hasNext":false,
+"nextPage":1,
+"hasPre":false,
+"prePage":1,
+"first":1
+}
+}

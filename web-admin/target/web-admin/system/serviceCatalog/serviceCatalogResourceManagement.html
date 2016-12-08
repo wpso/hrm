@@ -1,0 +1,261 @@
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<style type='text/css'>
+#top {
+	margin: 0 0 0 0;
+	width: 100%;
+	background: url(../images/top-bg.jpg) repeat-x;
+	height: 68px;
+}
+
+#top_img {
+	float: left;
+}
+
+#top ul {
+	width: 900px;
+	height: 26px;
+	line-height: 26px;
+	float: right;
+	margin-top: 45px;
+	margin-right: 5px;
+}
+
+#top ul li {
+	width: 200px;
+	height: 26px;
+	line-height: 26px;
+	color: #fff;
+	float: left;
+}
+
+.red {
+	color: #900;
+}
+
+.red a,.red a:visited {
+	color: #900;
+	text-decoration: none;
+}
+
+.red a:hover {
+	color: red;
+	text-decoration: underline;
+}
+
+.blue {
+	color: #006;
+}
+
+a:link {
+	text-decoration: none;
+	color: black;
+}
+
+a:hover {
+	text-decoration: none;
+	color: black;
+}
+
+a:visited {
+	text-decoration: none;
+	color: black;
+}
+</style>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script>
+	Ext.onReady(function() {
+				var params;
+				MultiLang = (function() {
+					return {
+						init : function() {
+							params = getCookie("lang");
+							i18n.set({
+								lang : params,
+								path : '../../resources'
+							});
+							if (params) {
+								var url = Ext.util.Format
+										.format(
+												'../../extjs-4.1.0/locale/ext-lang-{0}.js',
+												params);
+								Ext.Ajax.request({
+									url : url,
+									success : this.onLoadExtLocaleSuccess,
+									failure : this.onLoadExtLocaleFailure,
+									scope : this
+								});
+							} else {
+								// no language found, locale of ExtJS will be english as default
+								//this.loadmyprojectLocale();
+								this.setup();
+							}
+						},
+						onLoadExtLocaleSuccess : function(response) {
+							try {
+								eval(response.responseText);
+							} catch (e) {
+								//Ext.Msg.alert('Failure', e.toString());
+							}
+							//this.loadmyprojectLocale();
+							this.setup();
+						},
+						onLoadExtLocaleFailure : function() {
+							//Ext.Msg.alert('Failure','Failed to load locale file.');
+							this.setup();
+							//this.loadmyprojectLocale();
+						},
+						setup : function() {
+/*********************************************页面渲染开始******************************************************************/
+							var store_tc = Ext.create('Ext.data.TreeStore', {
+								root : {
+									expanded : true,
+									children : [ 
+									   {
+										text:i18n._('ServiceCatalog_resource'),
+										icon:'images/scResource.png',
+										expanded:true,
+										children:[{
+										    text:"CPU",
+										    icon:'../../images/leaf_icon.png',
+										    leaf:true,
+										    href:'cpuResource.html',
+										    hrefTarget:'iframeSC'
+										},{
+										    text:"MEM",
+										    icon:'../../images/leaf_icon.png',
+										    leaf:true,
+										    href:'ramResource.html',
+										    hrefTarget:'iframeSC'
+										},{
+										    text:"DISK",
+										    icon:'../../images/leaf_icon.png',
+										    leaf:true,
+										    href:'diskResource.html',
+										    hrefTarget:'iframeSC'
+										}
+										,{
+										    text:"EXTDISK",
+										    icon:'../../images/leaf_icon.png',
+										    leaf:true,
+										    href:'extDiskResource.html',
+										    hrefTarget:'iframeSC'
+										}
+										,{
+										    text:"OS",
+										    icon:'../../images/leaf_icon.png',
+										    leaf:true,
+										    href:'osResource.html',
+										    hrefTarget:'iframeSC'
+										},{
+										    text:"NETWORK",
+										    icon:'../../images/leaf_icon.png',
+										    leaf:true,
+										    href:'networkResource.html',
+										    hrefTarget:'iframeSC'
+										},{
+										    text:"Software",
+										    icon:'../../images/leaf_icon.png',
+										    leaf:true,
+										    href:'softwareResource.html',
+										    hrefTarget:'iframeSC'
+										}
+										]
+									},{
+										text : i18n._("ServiceCatalog_management"),
+										leaf : true,
+										href :"../hc_sys_taocan_list.html",
+										hrefTarget:'iframeSC',
+										icon : 'images/scMgn.png'
+									}]
+								}
+							});
+							
+							 var serviceCatalogTree = Ext.create('Ext.Panel',{
+					             id:"serviceCatalogTree",
+							     title:"<span style='font-size:11;font-weight:bold'>"+i18n._('ServiceCatalog_management')+"</span>",
+								 //autoScroll:true,
+								 hideCollapseTool:true,
+								 height:500,
+								 items:[{
+					                   id:"serviceCatalogMgnt",
+								       xtype:'treepanel',
+									   border:false,
+									   height:500,
+									   useArrows:true,
+					                   store: store_tc,
+					                   rootVisible: false
+									}
+								 ]
+							  });
+							
+
+							Ext.create('Ext.Viewport', {
+								layout : {
+									type : 'border',
+									padding : 5
+								},
+								defaults : {
+									split : true
+								},
+								items : [ {
+									region : 'west',
+									width : 160,
+									minWidth : 160,
+									maxWidth : 200,
+									height:600,
+									xtype : 'panel',
+									layout : {
+										type : 'accordion',
+										columns : 1
+									},
+									items : [serviceCatalogTree]
+
+								}, {
+									id : 'main',
+									region : 'center',
+									border : false,
+									xtype : 'panel',
+									layout : 'fit',
+									items:[{
+										   xtype:'component',
+										   width:'100%',
+										   height:'100%',
+										   autoScroll:true,
+										   autoEl:{
+										   tag:'iframe',
+										   name:'iframeSC',
+										   src:'cpuResource.html',
+										   frameborder:'0px',
+										   style:{
+										    border:'0px'
+										   }
+										   }
+										}]
+								} ]
+							});
+
+/*********************************************页面渲染结束******************************************************************/
+
+						}
+					};
+				})();
+				MultiLang.init();
+});
+	
+	 function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+     }
+</script>
+</head>
+<body>
+</body>
+</html>

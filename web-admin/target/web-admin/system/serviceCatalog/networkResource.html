@@ -1,0 +1,890 @@
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="sccommon.js"></script>
+<style type="text/css">
+ #ext-quicktips-tip-body{
+ word-break:break-all;
+ word-wrap:break-word;
+ }
+</style>
+<script>
+	Ext.onReady(function() {
+				var params;
+				MultiLang = (function() {
+					return {
+						init : function() {
+							params = getCookie("lang");
+							i18n.set({
+								lang : params,
+								path : '../../resources'
+							});
+							if (params) {
+								var url = Ext.util.Format
+										.format(
+												'../../extjs-4.1.0/locale/ext-lang-{0}.js',
+												params);
+								Ext.Ajax.request({
+									url : url,
+									success : this.onLoadExtLocaleSuccess,
+									failure : this.onLoadExtLocaleFailure,
+									scope : this
+								});
+							} else {
+								// no language found, locale of ExtJS will be english as default
+								//this.loadmyprojectLocale();
+								this.setup();
+							}
+						},
+						onLoadExtLocaleSuccess : function(response) {
+							try {
+								eval(response.responseText);
+							} catch (e) {
+								//Ext.Msg.alert('Failure', e.toString());
+							}
+							//this.loadmyprojectLocale();
+							this.setup();
+						},
+						onLoadExtLocaleFailure : function() {
+							//Ext.Msg.alert('Failure','Failed to load locale file.');
+							this.setup();
+							//this.loadmyprojectLocale();
+						},
+						setup : function() {
+/*********************************************页面渲染开始******************************************************************/
+
+Ext.regModel("QosPolicy",{
+	fields:[
+	{name:"key",type:"string"},
+	{name:"value",type:"string"}
+	],
+	belongsTo:"ServiceItem"
+});
+
+Ext.define('ServiceItem', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'name',  type: 'string'},
+	{name: 'serviceType',  type: 'int'},
+	{name: 'createDate',  type: 'date',dateFormat : 'time'},
+	{name: 'updateDate',  type: 'date',dateFormat : 'time'},
+	{name: 'description',  type: 'string'}
+	],
+	hasMany:[{model:"QosPolicy",name:"qosPolicies"}]
+});
+
+var networkModel=Ext.define('Network', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'type',  type: 'string'},
+	{name:'link',type:'string'},
+	{name: 'bandWidth',  type: 'int'},
+	{name: 'vendor',  type: 'string'}
+	]
+});
+
+function tooltipRenderer(value,metedata,record,rowIndex,colIndex,store){
+	 metedata.tdAttr = 'data-qtip="' + value + '"';
+	 return value;
+}
+
+var network_columns=[{xtype:'rownumberer', width: 30},
+                     {"text":i18n._('name'),dataIndex:"name",flex:1,renderer:tooltipRenderer},
+                     {"text":i18n._('Bandwidth'),"dataIndex":"bandWidth","flex":1},
+                     {"text":i18n._('type'),"dataIndex":"type","flex":1,renderer:tooltipRenderer},
+                     {"text":i18n._('link'),"dataIndex":"link","flex":1,renderer:tooltipRenderer},
+                     {"text":i18n._('vendor'),"dataIndex":"vendor","flex":1,renderer:tooltipRenderer},
+                     {"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d H:i:s"}
+                     ];
+
+
+var v_proxy=new Ext.create('Ext.data.proxy.Ajax',
+		 {
+		         type: 'ajax',
+		         url : path+'/../sc/serviceItem!pageServiceItem.action',
+		 		reader: {
+		             type: 'json',
+		 			root:'resultObject.result',
+		 			totalProperty: 'resultObject.totalCount'
+		         }
+		     }
+		 );
+
+		 var v_store=Ext.create('Ext.data.Store', {
+		     pageSize:pageSize,
+		 	width:'100%',
+		 	sorters: [
+		              {
+		            	  property : 'createDate',
+		                  direction: 'DESC'
+		              }
+		          ],
+		 	remoteSort:true,
+		 	proxy:v_proxy
+		 });
+		 
+		 
+		 v_proxy.setModel(networkModel);
+		 v_proxy.setExtraParam('serviceType',5);
+		 v_store.load();
+		 
+ var v_height = 25;
+ var v_width = 290;
+ var v_margin = '1px';
+ 
+ Ext.define('textPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	width:v_width,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		xtype:'textfield',
+ 		enforceMaxLength:true,
+ 		width:235,
+ 		maxLength:50,
+ 		fieldLabel:''
+ 		}]
+ 	
+ });
+ Ext.define('descPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:45,
+ 	width:450,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		height:45,
+ 		width:360,
+ 		xtype:'textarea',
+ 		enforceMaxLength:true,
+ 		maxLength:200,
+ 		fieldLabel:i18n._('ExpensesDesc')
+ 		}]
+ 	
+ });
+
+ Ext.define('numberPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	border:false,
+ 	layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[		
+ 		{
+ 	    xtype: 'numberfield',
+ 	    allowDecimals:false,
+ 		fieldLabel:'',
+ 		width:235,
+ 		maxValue: 1000000,
+ 		enforceMaxLength:true,
+		maxLength:9,
+ 		minValue: 0,
+ 		allowBlank: false
+ 	    },
+ 		{
+ 		xtype: 'displayfield',
+ 		margin:'0 0 0 10',
+ 		value:'M'
+ 		}
+ 		],
+ 	setLabel:function(value){
+ 		this.getComponent(0).setFieldLabel(value);
+ 	},
+ 	setExt:function(value){
+ 		this.getComponent(1).setValue(value);
+ 	}
+ 	
+ });
+
+ Ext.define('commonForm',{ 
+ extend:'Ext.form.Panel',	
+                     border: false,
+                     items: [{
+ 					xtype:"fieldset",
+ 					border:true,
+ 					anchor:'100% 100%',
+                     style:{
+ 					 marginLeft:"5px",
+ 					 marginRight:"5px",
+                      marginTop:"5px"
+ 					}
+ 					}]
+
+                    });
+ 
+ 
+ Ext.define('commonWindow',{
+	 extend:'Ext.window.Window',
+	 title:i18n._('add resource'),
+	 modal:true,
+	 width: 600,
+	 manageHeight:true,
+	 resizable:false,
+	 layout: 'anchor',
+	 closable:false,
+	 constrain:true
+	 });
+ 
+ var network_name=Ext.create('textPanel');
+ network_name.getComponent(0).setFieldLabel(i18n._('name'));	
+ 
+ var network_bandWidth=Ext.create('numberPanel');
+ network_bandWidth.setLabel(i18n._('Bandwidth'));
+ var network_type=Ext.create('textPanel');
+ network_type.getComponent(0).setFieldLabel(i18n._('type'));		
+ var network_link=Ext.create('textPanel');
+ network_link.getComponent(0).setFieldLabel(i18n._('link'));
+ var network_vendor=Ext.create('textPanel');
+ network_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));		
+ var network_desc= Ext.create('descPanel');			
+ var networkForm = Ext.create('commonForm');		
+ networkForm.getComponent(0).setTitle(i18n._('network info'));
+ networkForm.getComponent(0).add([network_name,network_type,network_link,network_bandWidth,network_vendor,network_desc]);
+ 
+ var addButton=Ext.create('Ext.button.Button',{
+			 style:'margin-right:5',
+			 text: i18n._('Add')
+ });	
+
+///////
+ var bandWidthLabel=Ext.create('Ext.form.Label',{
+ 	width:80,
+ 	text:i18n._('Bandwidth')+'(Mbps):'//带宽
+ });
+ var bandWidthUpTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Up'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var bandWidthDownTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Down'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var bandWidthContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [bandWidthLabel,bandWidthUpTextField,bandWidthDownTextField]
+ });
+ 
+ var linkLabel=Ext.create('Ext.form.Label',{
+	 	width:80,
+	 	text:i18n._('link')+'(Mbps):'//链路
+	 });
+	 var linkUpTextField=Ext.create('Ext.form.field.Text',{
+	     labelAlign : 'right',
+	 	labelWidth : 80,
+	     fieldLabel: i18n._('Up'),//
+	 	enforceMaxLength:true,
+	     maxLength:4,
+	     width:200,
+	     regex:/^([1-9][0-9]{0,3})$/,
+	 	regexText:i18n._('InvalidNumber'),
+	 	allowBlank :false
+	 });
+	 var linkDownTextField=Ext.create('Ext.form.field.Text',{
+	     labelAlign : 'right',
+	 	labelWidth : 80,
+	     fieldLabel: i18n._('Down'),//
+	 	enforceMaxLength:true,
+	     maxLength:4,
+	     width:200,
+	     regex:/^([1-9][0-9]{0,3})$/,
+	 	regexText:i18n._('InvalidNumber'),
+	 	allowBlank :false
+	 });
+	 var linkContainer = Ext.create('Ext.form.FieldContainer', {
+	 	layout : 'hbox',
+	 	items : [linkLabel,linkUpTextField,linkDownTextField]
+	 });
+	 
+ var IPLabel=Ext.create('Ext.form.Label',{
+ 	width:80,
+ 	text:i18n._('IPConnections')+':'//IP连接数
+ });
+ var IPUpTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Up'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var IPDownTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Down'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var IPContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [IPLabel,IPUpTextField,IPDownTextField]
+ });
+ var TCPLabel=Ext.create('Ext.form.Label',{
+ 	width:80,
+ 	text:i18n._('TCPConnections')+':'//TCP连接数
+ });
+ var TCPUpTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Up'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var TCPDownTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Down'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var TCPContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [TCPLabel,TCPUpTextField,TCPDownTextField]
+ });
+ var UDPLabel=Ext.create('Ext.form.Label',{
+ 	width:80,
+ 	text:i18n._('UDPConnections')+':'//UDP连接数
+ });
+ var UDPUpTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Up'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var UDPDownTextField=Ext.create('Ext.form.field.Text',{
+     labelAlign : 'right',
+ 	labelWidth : 80,
+     fieldLabel: i18n._('Down'),//
+ 	enforceMaxLength:true,
+     maxLength:4,
+     width:200,
+     regex:/^([1-9][0-9]{0,3})$/,
+ 	regexText:i18n._('InvalidNumber'),
+ 	allowBlank :false
+ });
+ var UDPContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [UDPLabel,UDPUpTextField,UDPDownTextField]
+ });
+ 
+ var netWorkFieldSet = Ext.create('commonForm');		
+ netWorkFieldSet.getComponent(0).setTitle(i18n._('qos_policies'));
+ netWorkFieldSet.getComponent(0).add([bandWidthContainer,linkContainer,IPContainer,TCPContainer,UDPContainer]);
+
+ /**----------------------------------------------------------------------*/
+ 
+var commonWindow=Ext.create('commonWindow', {
+			                   constrain:true,
+			 	            	tools:[{
+			 	                type:'close',
+			 	                handler:function(){					
+			 					commonWindow.getComponent(0).getForm().reset();
+			 					commonWindow.getComponent(1).getForm().reset();
+			 					commonWindow.hide();
+			 	                }
+			 	                }],               
+			                     buttons: [
+			 					addButton,
+			 					{   
+			 					    style:'margin-right:5',
+			                         text: i18n._('reset'),
+			 						handler:function(){
+			 						    commonWindow.getComponent(0).getForm().reset();
+			 						    commonWindow.getComponent(1).getForm().reset();
+			 						}
+			                     }]
+});
+
+function setRecord(record){
+	network_bandWidth.getComponent(0).setValue(record.get('bandWidth'));							
+	network_type.getComponent(0).setValue(record.get('type'));
+	network_name.getComponent(0).setValue(record.get('name'));
+	network_link.getComponent(0).setValue(record.get('link'));
+	network_vendor.getComponent(0).setValue(record.get('vendor'));
+	network_desc.getComponent(0).setValue(record.get('description'));
+	var qos = record.qosPolicies() ; //qos策略
+	
+	for (var i = 0; i < qos.getCount(); i++) { 
+		  var key = qos.getAt(i).get('key') ;  
+		  var value = qos.getAt(i).get('value') ;  
+		  if(key == 'wan_bw_out'){
+			  bandWidthUpTextField.setValue(value);
+		  }else if(key == 'wan_bw_in'){
+			  bandWidthDownTextField.setValue(value);
+		  }else if(key == 'all_bw_out'){
+			  linkUpTextField.setValue(value);
+		  }else if(key == 'all_bw_in'){
+			  linkDownTextField.setValue(value);
+		  }else if(key == 'ip_out'){
+			  IPUpTextField.setValue(value);
+		  }else if(key == 'ip_in'){
+			  IPDownTextField.setValue(value);
+		  }else if(key == 'tcp_out'){
+			  TCPUpTextField.setValue(value);
+		  }else if(key == 'tcp_in'){
+			  TCPDownTextField.setValue(value);
+		  }else if(key == 'udp_out'){
+			  UDPUpTextField.setValue(value);
+		  }else if(key == 'udp_in'){
+			  UDPDownTextField.setValue(value);
+		  }
+	}
+	
+}
+
+function checkNetworkAddField(oldName){
+	var networkName=network_name.getComponent(0).getValue();
+	var bandWidth=network_bandWidth.getComponent(0).getValue();
+	//alert(frequency+'===='+price);
+	if(networkName.length==0||networkName.length>50){
+		showMsg(i18n._("networkNameTip"));
+		return false;
+	}
+	if(!/^\S+$/g.test(networkName)){
+		showMsg(i18n._("The name can not contain blank characters"));
+		return false;
+	}
+	if(!checkResourceNameRepeat(networkName,5,oldName)){
+		showMsg(i18n._('sirepeat'));
+		return false;
+	}
+	if(!network_bandWidth.getComponent(0).isValid()){
+		return false;
+	}
+	if(bandWidth==null||!/\d+/.test(bandWidth)){
+		showMsg(i18n._("networkBandWidthNullTip"));
+		return false;
+	}
+	
+	if(bandWidth==0){
+		showMsg(i18n._("networkBandWidthZeroTip"));
+		return false;
+	}
+
+}
+
+function ajax_request(v_serviceType,v_json){
+	var v_mask = new Ext.LoadMask(Ext.getBody(), {
+	                        msg: i18n._('saving'),
+							//msg:i18n._('ServiceCatalog is saving,please wait!'),
+	                        removeMask: true //完成后移除
+	                    });
+					v_mask.show();					
+					Ext.Ajax.request({
+						url: path+'/../sc/serviceItem!save.action',
+						params:{serviceType:v_serviceType,brandWidth:v_json.bandWidth},
+						jsonData:v_json,
+						success:function(response){
+							v_mask.hide();
+							commonWindow.hide();
+							commonWindow.removeAll(false);
+           					var result=Ext.JSON.decode(response.responseText);
+           					if(result.success==false){
+           						Ext.MessageBox.show({
+ 	                              // title: '提示',
+                                    title:i18n._('notice'),
+ 	                               msg: result.resultMsg,
+ 	                               icon:Ext.MessageBox.INFO,	 	           		  
+ 	                               buttons: Ext.MessageBox.OK	 	                      
+ 	           				});
+           					}else{
+							    v_store.load();
+							}
+						}	
+					});	
+					commonWindow.getComponent(0).getForm().reset();
+					commonWindow.getComponent(1).getForm().reset();
+};
+
+function showMsg(msg){
+	 Ext.MessageBox.show({
+        title: i18n._('Prompt'),
+         msg: msg==null?i18n._('Input error'):msg,
+       icon:Ext.MessageBox.INFO,
+      buttons: Ext.MessageBox.OK
+      });
+}
+
+function showWindow(){
+	addButton.setText(i18n._('Add'));
+	commonWindow.setTitle(i18n._('add resource'));
+	commonWindow.removeAll(false);
+		commonWindow.add([networkForm,netWorkFieldSet]);
+		commonWindow.getComponent(0).getForm().getFields().each(function(f){ 
+			f.setReadOnly(false);
+		}); 
+		commonWindow.getComponent(1).getForm().getFields().each(function(f){ 
+			f.setReadOnly(false);
+		}); 
+		addButton.setHandler(
+			function(){
+				if(!commonWindow.getComponent(0).getForm().isValid()){return;}
+				if(!commonWindow.getComponent(1).getForm().isValid()){return;}
+				if(checkNetworkAddField()==false){return;}
+				
+				var qos_arr = [] ;
+				var arr = {"key" : "wan_bw_out","value" : bandWidthUpTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "wan_bw_in","value" : bandWidthDownTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "all_bw_out","value" : linkUpTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "all_bw_in","value" : linkDownTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "ip_out","value" : IPUpTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "ip_in","value" : IPDownTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "tcp_out","value" : TCPUpTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "tcp_in","value" : TCPDownTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "udp_out","value" : UDPUpTextField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "udp_in","value" : UDPDownTextField.getValue()}
+				qos_arr.push(arr);
+				
+				var v_json={
+						serviceType:5,
+						link:network_link.getComponent(0).getValue(),
+						name:network_name.getComponent(0).getValue(),
+						bandWidth:network_bandWidth.getComponent(0).getValue(),							
+						type:network_type.getComponent(0).getValue(),
+						vendor:network_vendor.getComponent(0).getValue(),
+						description:network_desc.getComponent(0).getValue(),
+						qosPolicies:qos_arr
+						};
+				ajax_request(5,v_json);		
+			}
+		);
+		commonWindow.show();
+}
+		 
+		 Ext.QuickTips.init();
+		 Ext.form.Field.prototype.msgTarget = 'side';
+		 var pluginExpanded = true;
+		 var dataGrid=Ext.create('Ext.grid.Panel', {
+		     layout:'fit',
+		 	title:i18n._('ServiceCatalog_resource')+'&nbsp;>&nbsp;NETWORK',
+		     store: v_store,
+		 	simpleSelect:true,	
+		 	//sortableColumns:false,
+		     columns: network_columns,
+		 	selModel: Ext.create('Ext.selection.RowModel'),
+		     //selType: 'rowmodel',
+		 	bbar: Ext.create('Ext.PagingToolbar', {
+		           store:v_store ,
+		           displayInfo: true
+		     }),
+		     listeners:{
+			    	'itemdblclick':{
+			    		fn:function(){
+			    			viewDetail();
+			    		}
+			    	}
+			    },
+		     dockedItems:[
+		      			{xtype:'toolbar',
+		      			dock: 'top',
+		      			//style:'background-color:#4c4c4c !important; background-image:url() !important;',
+		      			cls: 'toolbarCSS',
+		      			items:[{
+		      				xtype:'button',
+		      				margin:'0 0 0 0',
+		      				icon:'images/add_new.png',
+		      				text:'<font id="AddNetwork" color="white" >' +i18n._("Add") + '</font>',
+		      				 listeners: {
+		    					 "mouseout" : function() {
+		    						 document.getElementById("AddNetwork").style.color = "white";
+		    					 },
+		    					 "mouseover" : function() {
+		    						 document.getElementById("AddNetwork").style.color = "black";
+		    					 }
+		    						
+		    				 },
+		      				handler:showWindow
+		      			},
+		      			
+// 		      			{    
+// 		      			    margin:'0 0 0 0',
+// 		      			    text:'<font id="EditNetwork" color="white" >' +i18n._("edit") + '</font>',
+// 		      				listeners: {
+// 		    					 "mouseout" : function() {
+// 		    						 document.getElementById("EditNetwork").style.color = "white";
+// 		    					 },
+// 		    					 "mouseover" : function() {
+// 		    						 document.getElementById("EditNetwork").style.color = "black";
+// 		    					 }
+		    						
+// 		    				},
+// 		      				style:'margin-left:750px;',
+// 		      				icon: 'images/edit_new.png',
+// 		      				handler:function(){
+// 		      				addButton.setText(i18n._('Save'));
+// 		      				commonWindow.setTitle(i18n._('edit'));
+// 		      				var rows=dataGrid.getSelectionModel().getSelection();
+// 		      				var scId=0;
+// 		      				if(rows.length > 0){
+// 		      				  scId=rows[0].get('id');
+// 		      				}else{
+// 		      						 Ext.MessageBox.show({
+// 		      						    title:i18n._('notice'),
+// 		      						    msg:i18n._('please choose one column'),
+// 		                                icon:Ext.MessageBox.WARNING,
+// 		                               buttons: Ext.MessageBox.OK
+// 		                               }); 
+// 		      						return;
+// 		      			    }
+// 		      				var record=	v_store.getById(scId);
+// 		      				setRecord(record);
+// 		      				var oldName=record.get('name');
+// 		      				commonWindow.add(networkForm);
+// 		      				addButton.setHandler(
+// 		      					function(){
+// 		      						if(checkNetworkAddField(oldName)==false){return;}
+// 		      					    var v_json={id:scId,
+// 		      								serviceType:5,
+// 		      								link:network_link.getComponent(0).getValue(),
+// 		      								name:network_name.getComponent(0).getValue(),
+// 		      								bandWidth:network_bandWidth.getComponent(0).getValue(),							
+// 		      								type:network_type.getComponent(0).getValue(),
+// 		      								vendor:network_vendor.getComponent(0).getValue(),
+// 		      								price:network_price.getComponent(0).getValue(),
+// 		      								description:network_desc.getComponent(0).getValue()
+// 		      							};
+// 		      					   ajax_request(5,v_json);		
+// 		      					});
+		      				
+// 		      	            commonWindow.show();
+// 		                  }},
+		                  {
+		                	  xtype:'button',
+			                    itemId: 'detailButton',
+			                    text:'<font id="detailNetwork" color="white" >' +i18n._("detail") + '</font>',
+			      				listeners: {
+			    					 "mouseout" : function() {
+			    						 document.getElementById("detailNetwork").style.color = "white";
+			    					 },
+			    					 "mouseover" : function() {
+			    						 document.getElementById("detailNetwork").style.color = "black";
+			    					 }
+			    						
+			    				},
+			                    icon: 'images/detail.png',
+			      				handler:function(){
+			      					viewDetail();
+			      				}
+		                  },
+		      			{
+		                      itemId: 'removeButton',
+		                      text:'<font id="deleteNetwork" color="white" >' +i18n._("delete") + '</font>',
+			      				listeners: {
+			    					 "mouseout" : function() {
+			    						 document.getElementById("deleteNetwork").style.color = "white";
+			    					 },
+			    					 "mouseover" : function() {
+			    						 document.getElementById("deleteNetwork").style.color = "black";
+			    					 }
+			    						
+			    				},
+		                      icon: 'images/delete.png',
+		      				handler:function(){
+		      				var rows=dataGrid.getSelectionModel().getSelection();
+		      				 var scId;
+		      				 if(rows.length > 0){
+		      				 scId=rows[0].get('id');
+		      				 
+		      				 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      								msg:i18n._('Are you sure to delete'),
+		      			                   buttons: Ext.MessageBox.YESNO,
+		      			                   icon: Ext.MessageBox.QUESTION,
+		      			                   fn:function(e){
+		      			                	   if(e=="no"){
+		      			                		   return;
+		      			                	   }else if(e=='yes'){
+		      			                		   Ext.Ajax.request({
+		      											url: path+'/../sc/serviceItem!delete.action',
+		      											method: 'POST',
+		      											params:{
+		      											'serviceItem.id':scId
+		      											},
+		      											success:function(response){
+		      					           					var result=Ext.JSON.decode(response.responseText);
+		      					           					if(result.success==false){
+		      					           						Ext.MessageBox.show({
+		      				                                        title:i18n._('notice'),
+		      					 	                               msg: result.resultMsg,
+		      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+		      					 	                               buttons: Ext.MessageBox.OK	 	                      
+		      					 	           				});
+		      					           					}else{
+		      					           						Ext.MessageBox.show({
+		      														  title: i18n._('notice'),
+		      														 msg:i18n._('delete successfully'),
+		      				                                          icon:Ext.MessageBox.INFO,
+		      				                                          buttons: Ext.MessageBox.OK
+		      				           
+		      														});
+		      					           					v_store.loadPage(1,null);
+		      												}
+		      											}
+		      												});
+		      			                	   }
+		      			                	 
+		      			                	}
+		      			    		});	 	
+		      					}else{
+		      						 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      							    msg:i18n._('please choose one column'),
+		                                      icon:Ext.MessageBox.WARNING,
+		                                      buttons: Ext.MessageBox.OK
+		      						}); 
+		      						return;
+		      			    	}		           
+		      			        }
+		                  },
+		      			{xtype:'tbfill'},
+		      			{
+		    				xtype:'displayfield',
+		    				hideLabel:true,
+		    				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+		    			},
+		    			{    
+		    				xtype: 'searchfield',
+		    			    hideLabel:true,
+		    				hasSearch:true,
+		    				emptyText:i18n._('name'),
+		    				store: v_store
+		    			}
+		      			]}],
+		     width: '100%'
+		     
+		 });
+		 
+		 
+		 var detailWindow=Ext.create('commonWindow', {
+		            constrain:true,
+		           	tools:[{
+			               type:'close',
+			               handler:function(){					
+			            	   detailWindow.getComponent(0).getForm().reset();
+			            	   detailWindow.getComponent(1).getForm().reset();
+			            	   detailWindow.getComponent(0).getForm().getFields().each(function(f){ 
+			            		    f.setReadOnly(false);
+								}); 
+								detailWindow.getComponent(1).getForm().getFields().each(function(f){ 
+									f.setReadOnly(false);
+								}); 
+			            	   detailWindow.hide();
+			               }
+		               }]
+		  	});
+		 
+		 function viewDetail(){
+				var rows = dataGrid.getSelectionModel().getSelection();
+				if(rows.length > 0){
+					var record = rows[0];
+					setRecord(record) ;
+					detailWindow.setTitle(i18n._('resourceDetail'));
+					detailWindow.removeAll(false);
+					detailWindow.add([networkForm,netWorkFieldSet]);
+					detailWindow.getComponent(0).getForm().getFields().each(function(f){ 
+						  f.setReadOnly(true);
+					}); 
+					detailWindow.getComponent(1).getForm().getFields().each(function(f){ 
+						  f.setReadOnly(true);
+					}); 
+					detailWindow.show() ;
+				}else{
+				    	Ext.MessageBox.show({
+				          // title: '提示',
+				           //msg: '请选择一个用户',
+						   title:i18n._('notice'),
+					       msg:i18n._('please choose one column'),
+				           icon:Ext.MessageBox.INFO,
+				           buttons: Ext.MessageBox.OK
+				           
+				       }); 
+					return;
+				}
+				
+			}
+		 
+		 Ext.create('Ext.Viewport',{
+			 layout:'fit',
+			 items: dataGrid
+			});
+ 
+ 
+/*********************************************页面渲染结束******************************************************************/
+
+						}
+					};
+				})();
+				MultiLang.init();
+});
+	
+	 function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+     }
+</script>
+</head>
+<body>
+</body>
+</html>

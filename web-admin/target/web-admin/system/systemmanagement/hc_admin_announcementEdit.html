@@ -1,0 +1,712 @@
+<html>
+<head>
+<title>hc_admin_modelmanagementPage</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+    href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<!--  <script src="../resources/myproject-lang.js"></script>-->
+<!--  <script src="../ext-4.0.7-gpl/ext-all-debug.js"></script>-->
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../systemmanagement/common.js"></script>
+
+<script>
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+    'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.selection.CheckboxModel',
+    'Ext.tip.QuickTipManager',
+    'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+
+var domainIdList=[];
+var domainSelectValue='';
+
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+} 
+
+var platformAM="";
+Ext.onReady(function() {    
+    Ext.QuickTips.init();
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+                  lang: params, 
+                  path: '../../resources'
+                });
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+            },
+            setup: function() { 
+            	var v_mask = null;
+            	//公告列表Model
+            	var announcementModel = Ext.define('announcementModel', {
+            		extend : 'Ext.data.Model',
+            		fields : [
+            		          'id','title','content',{name:'create_time',type: 'date', dateFormat: 'time'},
+            		          'status','type',{name:'update_time',type: 'date', dateFormat: 'time'},'email','abbreviation'
+            		          ]
+            	});
+            	//公告列表Store
+            	var announcementStore = Ext.create('Ext.data.Store', {
+            		model : 'announcementModel',
+            		autoLoad : true,//true
+            		pageSize : pageSize,//每页显示16条数据
+            		sorters : [ {
+            			property : 'id',
+            			direction : 'DESC'
+            		} ],
+            		//remoteSort : true,
+            		proxy : new Ext.data.proxy.Ajax({
+            			//type : 'ajax',
+            			url : path + '/../message/announcement!findAnnouncementPage.action',
+            			reader : {
+            				type : 'json',
+            				root : 'resultObject.result',
+            				totalProperty : 'resultObject.totalCount'
+            			},
+            			listeners:{
+            				exception:function(reader, response, error, eOpts){
+            					ajaxException(reader, response, error, eOpts );
+            				}
+            			}
+            		}),	
+            		listeners : {
+            			beforeload : function(store,operation, eOpts ){	
+            				//遮罩层
+            				v_mask = new Ext.LoadMask(Ext.getBody(), {
+            					msg : i18n._('please wait'),
+            					removeMask : true			
+            				});
+            				v_mask.show();
+            			},
+            			load : function(store, records, successful, eOpts ){
+            				v_mask.hide();
+            			}
+            		}
+            	});
+            	//分页序号
+            	Ext.grid.PageRowNumberer = Ext.extend(Ext.grid.RowNumberer, { 
+            		baseCls:Ext.baseCSSPrefix + 'column-header ' + Ext.baseCSSPrefix + 'unselectable',
+            		cls:Ext.baseCSSPrefix + 'row-numberer',
+            		tdCls:Ext.baseCSSPrefix+"grid-cell-special",
+            	    renderer:function(value, cellmeta, record, rowIndex, columnIndex, store){   
+            	        return (store.currentPage - 1) * store.pageSize + rowIndex + 1;  
+            	    }       
+            	});
+            	
+            	//删除后刷新页面
+            	function afterDelete() {
+            	    var count = announcementStore.data.length;
+            	    var total = announcementStore.getTotalCount();
+            	    if(total != 1 && count == 1) {
+            	    	announcementStore.previousPage();
+            	    } else {
+            	    	announcementStore.load();
+            	    }
+            	}
+            	
+            	var states = Ext.create('Ext.data.Store', {
+            	    fields: ['id', 'name','abbreviation'],
+            	    proxy : new Ext.data.proxy.Ajax(
+            				{
+            					url:path+"/../admin_mgmt/domain!getAllDomain.action",
+            					reader : {
+            						type : 'json',
+            						root : 'resultObject'									
+            					},
+            					listeners:{
+            						exception:function(reader, response, error, eOpts){
+            							v_mask.hide();
+            							ajaxException(reader, response, error, eOpts );										
+            						}
+            					}							
+            				})
+            	    
+            	    
+            	});
+            	states.load();
+            	
+            	var domainCombox = Ext.create('Ext.form.field.ComboBox',{
+            		multiSelect: true,
+            		fieldLabel:i18n._('release platform'),
+           		    displayField: 'abbreviation',
+           			valueField:'id',
+           		    width: 230,
+           		    editable:false,
+           		    labelWidth: 80,
+           		    store: states,
+           		    allowBlank:false,
+           		 listeners:{
+           		    	select:function( combo, records, eOpts ){
+           		    		if(combo != null || combo != ""){
+           		    			domainCheckbox.reset();
+           		    			domainSelectValue="";
+           		    			domainSelectValue = domainCombox.getValue();
+           		    		}
+           		    	}
+           		    }
+            	});
+            	var domainCheckbox = Ext.create('Ext.form.field.Checkbox',{
+            		boxLabel:i18n._('select all'),
+            		inputValue:'all',
+            		margin:'0 0 0 10',
+            		listeners:{
+            			change:function( domainCheckbox, newValue,oldValue, eOpts ){
+            					//domainCombox.reset();
+            					domainSelectValue="";
+            					domainSelectValue = domainCheckbox.inputValue;
+            					if(newValue == true){
+            						domainCombox.setRawValue(i18n._('select all'));
+            					}else{
+            						//domainCombox.reset();
+            					}	
+            					
+            			}
+            		}
+            	});
+            	
+            	var announcementGrid=Ext.create('Ext.grid.Panel', {
+            	    layout:'fit',            		
+            	    store:announcementStore,
+            		simpleSelect:true,
+            		selModel: Ext.create('Ext.selection.RowModel'),
+            	    columns: [
+								Ext.create('Ext.grid.PageRowNumberer',{flex : 0.1}),
+								{
+									header: i18n._('Id'),
+									dataIndex:'id',
+									flex:0.1,
+									hidden:true
+								},
+								{
+									header: i18n._('subject'), //主题	
+									dataIndex: 'title',
+									flex:0.5
+								},
+								{
+									header: i18n._('PromotionDomain'), //分平台	
+									dataIndex: 'abbreviation',
+									flex:0.3
+								},
+								{
+									header: i18n._('innerOrOuter'),//站内/外
+									dataIndex: 'type',
+									flex:0.2,
+									renderer:function(value){
+										if(value== '1'){
+											return i18n._('outer');
+										}else{
+											return i18n._('inner');
+										}
+									}
+								
+								},	
+								{
+									header: i18n._('content'), //内容	
+									dataIndex: 'content',
+									flex:0.8
+								},
+								{
+		            	        	header: i18n._('createTime'), //发布时间
+		            	        	dataIndex: 'create_time',
+		            	        	flex:0.4,
+		            	        	renderer: Ext.util.Format.dateRenderer("Y-m-d H:i:s")
+		            	        },
+		            	        {
+		            	        	header: i18n._('updateTime'), //修改时间
+		            	        	dataIndex: 'update_time',
+		            	        	flex:0.4,
+		            	        	renderer: Ext.util.Format.dateRenderer("Y-m-d H:i:s")
+		            	        },//
+		            	        {
+									header: i18n._('announcer'), //发布人	
+									dataIndex: 'email',
+									flex:0.3
+								}
+            		],
+            		bbar: Ext.create('Ext.toolbar.Paging', {
+            	          store:announcementStore,
+            	          displayInfo: true,
+            	          beforePageText:i18n._('beforePageText'),//"第"
+            	          firstText: i18n._('firstText'),//"第一页"
+            	          prevText: i18n._('prevText'),//"上一页"
+            	          nextText: i18n._('nextText'),//"下一页"
+            	          lastText: i18n._('lastText'),//"最后页"
+            	          refreshText: i18n._('refreshText')//"刷新"
+            	    }),           	
+            	    viewConfig: {
+            	    	stripeRows: true
+            	    },            		
+            		dockedItems:[
+            		{
+            			xtype:'toolbar',
+            			cls: 'toolbarCSS',
+            			dock: 'top',			
+            			items:[			
+		            			{                				   
+		            				xtype : 'button',									
+		        					text: '<font id="addAnnouncement" color="#ffffff" >' + i18n._('announcement') + '</font>',//发布公告
+		        					listeners: {
+		        						 "mouseout" : function() {
+		        							 document.getElementById("addAnnouncement").style.color = "white";
+		        						 },
+		        						 "mouseover" : function() {
+		        							 document.getElementById("addAnnouncement").style.color = "black";
+		        						 }
+		        							
+		        					},
+		        					icon : 'images/add.png',
+		            				handler:function(){
+		            					getSessionUser();
+		            					announcementWin.setTitle(i18n._('announcement'));
+		            					domainCombox.reset();
+		            					announcementWin.show();			
+		            				}            	   
+		            			},
+		            			{                				   
+		            				xtype : 'button',									
+		        					text: '<font id="modifyAnnouncement" color="#ffffff" >' + i18n._('modifyAnnouncement') + '</font>',//编辑公告
+		        					listeners: {
+		        						 "mouseout" : function() {
+		        							 document.getElementById("modifyAnnouncement").style.color = "white";
+		        						 },
+		        						 "mouseover" : function() {
+		        							 document.getElementById("modifyAnnouncement").style.color = "black";
+		        						 }
+		        							
+		        					},
+		        					icon : 'images/edit.png',
+		            				handler:function(){
+		            					getSessionUser();
+		            					// 修改公告
+		        						var rows = announcementGrid.getSelectionModel().getSelection();
+		        						var Id;
+		        						if (rows.length > 0) {
+		        							Id = rows[0].get('id');
+		        						} else {
+		        							Ext.MessageBox.show({
+		        								title : i18n._('Prompt'),
+		        								msg : i18n._('selectOne'),
+		        								icon : Ext.MessageBox.INFO,
+		        								buttons : Ext.MessageBox.OK
+		        							});
+		        							return;
+		        						}
+		            					platformAM=rows[0].get('abbreviation');
+		        						Ext.getCmp('type').setValue({'type':rows[0].get('type')});
+		        						Ext.getCmp('id').setValue(rows[0].get('id'));
+		        						Ext.getCmp('title').setValue(rows[0].get('title'));
+		        	            	    Ext.getCmp('content').setValue(rows[0].get('content'));
+		        	            	    domainCombox.setValue(rows[0].get('abbreviation'));
+		        	            	    announcementWin.setTitle(i18n._('modifyAnnouncement'));
+		        	            	    domainCombox.reset();
+		            					announcementWin.show();		
+
+		        	            	    domainCombox.setValue(rows[0].get('abbreviation'));
+		            				}            	   
+		            			},
+		            			{                				   
+		            				xtype : 'button',									
+		        					text: '<font id="delAnnouncement" color="#ffffff" >' + i18n._('delAnnouncement') + '</font>',//发布公告
+		        					listeners: {
+		        						 "mouseout" : function() {
+		        							 document.getElementById("delAnnouncement").style.color = "white";
+		        						 },
+		        						 "mouseover" : function() {
+		        							 document.getElementById("delAnnouncement").style.color = "black";
+		        						 }
+		        							
+		        					},
+		        					icon : 'images/del.png',
+		            				handler:function(){
+		            					getSessionUser();
+		            					// 删除公告
+		        						var rows = announcementGrid.getSelectionModel().getSelection();
+		        						var Id;
+		        						if (rows.length > 0) {
+		        							Id = rows[0].get('id');
+		        							Ext.MessageBox.show({				                  
+		        								title: i18n._('notice'),
+		        								msg:i18n._('Are you sure to delete'),
+		        								buttons: Ext.MessageBox.YESNO,
+		        								icon: Ext.MessageBox.QUESTION,
+		        								fn:function(e){
+		        									if(e=='yes'){
+		        										Ext.Ajax.request({
+		        											url: path+'/../message/announcement!delAnnouncement.action',
+		        											method: 'POST',
+		        											params:{
+		        												'announcementVO.id':Id
+		        											},
+		        											success: function (response) {
+		        												var result=Ext.JSON.decode(response.responseText);
+		        												if(result.success==true){　　　　　　　
+		        													Ext.MessageBox.show({
+		        														title : i18n._('notice'),
+		        														msg : i18n._('Operating')+i18n._('Successful'),
+		        														icon : Ext.MessageBox.INFO,
+		        														buttons : Ext.MessageBox.OK,
+		        														fn: afterDelete
+		        													});																							
+		        												}else{
+		        													Ext.MessageBox.show({
+		        														title : i18n._('notice'),
+		        														msg : result.resultMsg,
+		        														icon : Ext.MessageBox.INFO,
+		        														buttons : Ext.MessageBox.OK
+		        													});
+		        													return;
+		        												}
+		        											//	announcementStore.load();
+		        											}
+		        										});
+		        									}
+		        								}
+		        				    		});	
+		        						} else {
+		        							Ext.MessageBox.show({
+		        								title : i18n._('Prompt'),
+		        								msg : i18n._('selectOne'),
+		        								icon : Ext.MessageBox.INFO,
+		        								buttons : Ext.MessageBox.OK
+		        							});
+		        							return;
+		        						}		
+		            				}            	   
+		            			},
+            					{xtype:'tbfill'},
+            					{
+									xtype : 'label',
+            						text : i18n._('QuickSearch')+':',
+            						style: 'color:#ffffff'
+								},
+            					{
+            						labelWidth : 50,
+            						xtype : 'searchfield',
+            						tooltip:i18n._('subject'),
+            						emptyText:i18n._('subject'),
+            						store : announcementStore,
+            						id : 'vmSearchfield',
+            						onTrigger1Click : function() {
+            							var proxy = announcementStore.getProxy(), val;
+            							if (me.hasSearch) {
+            								me.setValue('');
+            								proxy.extraParams[me.paramName] = '';
+            								proxy.extraParams.start = 0;
+            								announcementStore.loadPage(1,null);
+            								me.hasSearch = false;
+            								me.triggerEl.item(0).setDisplayed('none');
+            								me.doComponentLayout();
+            							}
+            						},
+            						onTrigger2Click : function() {// 点击查询按钮或回车调用该方法
+            							var proxy = announcementStore.getProxy(), value = this.getValue();
+            							
+            							proxy = announcementStore.getProxy();
+            							proxy.extraParams['query'] = value;										
+            							proxy.extraParams.start = 0;
+            							announcementStore.loadPage(1,null);
+            							this.hasSearch = true;
+            							me.triggerEl.item(0).setDisplayed('block');
+            							me.doComponentLayout();
+            						}
+            					}
+            				]
+            		}]
+            	});
+            	function reLoadData(){
+            		announcementStore.load();
+            	}
+            	function vd(text){
+            	    if(ltrim(rtrim(text)) == '') {
+            	        return i18n._('cannotBeNull');
+            	    } else {
+            	        return true;
+            	    }
+            	}
+            	
+            	function resetMethod() {
+            		announcementForm.getForm().reset();
+            	}
+            	
+            	function clickSubmit() {
+            		var type = announcementForm.getForm().getValues()["type"];
+            	    var title = Ext.getCmp('title').getValue();
+            	    var content = Ext.getCmp('content').getValue();
+            	    var id = Ext.getCmp('id').getValue();
+            	    
+            	    if(!Ext.getCmp('title').isValid() || !Ext.getCmp('content').isValid()){
+                        return;
+                    }
+            	    
+            	    if(domainSelectValue == null || domainSelectValue == "" ){
+//             	    	alert('domainSelectValue'+domainSelectValue);
+            	    	Ext.MessageBox.show({
+            	    		titile:i18n._('errorNotice'),
+            	    		msg:i18n._('platformNotNull'),
+            	    		buttons: Ext.MessageBox.OK,
+ 	                        icon: Ext.MessageBox.ERROR
+            	    	});
+            	    	return;
+            	    }
+            	    announcementWin.hide();
+            	    var progress=Ext.Ajax.request({
+            	        url:path+'/../message/announcement!saveAnnouncement.action',
+            	        method:'POST',
+            	        params:{
+            	        	'announcementVO.id': id,
+            	        	'announcementVO.title': title,
+            	            'announcementVO.content': content,
+            	            'announcementVO.type': type,
+            	            'announcementVO.plantformId':domainSelectValue
+            	        },
+            	        success:function(form,action){
+            	            var obj = Ext.decode(form.responseText);
+            	                if(obj==null || obj.success==null){
+            	                    Ext.MessageBox.show({
+            	                       title: i18n._('errorNotice'),
+            	                       msg: i18n._('returnNull'),
+            	                       buttons: Ext.MessageBox.OK,
+            	                       icon: Ext.MessageBox.ERROR
+            	                    });//INFO,QUESTION,WARNING,ERROR
+            	                    return;
+            	                }
+            	                if(!obj.success){
+            	                    Ext.MessageBox.show({
+            	                       title: i18n._('errorNotice'),
+            	                       msg: obj.resultMsg,
+            	                       buttons: Ext.MessageBox.OK,
+            	                       icon: Ext.MessageBox.ERROR
+            	                    });
+            	                    return;
+            	                }
+            	                Ext.MessageBox.show({
+            	                	title: i18n._('notice'),
+            	                    msg: i18n._('announceSuccess'),
+            	                    buttons: Ext.MessageBox.OK,
+            	                    icon: Ext.MessageBox.INFO,
+            	                    fn: reLoadData
+            	                });
+            	                announcementForm.getForm().reset();
+            	              //  announcementStore.load();
+            	        },   
+            	        failure:function(form,action){   
+            	            Ext.MessageBox.show({
+            	                title: i18n._('errorNotice'),
+            	                msg: i18n._('operateFail'),
+            	                buttons: Ext.MessageBox.OK,
+            	                icon: Ext.MessageBox.ERROR
+            	            });  
+            	        }
+            	    });
+            	}
+//             	for(var i=0;i<states.getCount();i++){
+//             		var plantformIdlist += states.getAt(i).get('value');
+//             		alert("plantformIdlist"+plantformIdlist);
+//             	}
+            	
+            	var announcementForm=Ext.create('Ext.form.FormPanel', {
+            	    width: '440',
+            	    height: '400',
+            	    border:false,
+            	    bodyPadding : 10,
+            	    autoScroll:true,
+            	    fieldDefaults : {
+            			labelAlign : 'right',
+            			labelWidth : 80,
+            			anchor : '100%'
+            		},  
+            	    items: [
+            	    {
+            	        xtype:'radiogroup',
+            	        margin:'10 30 0 0',
+            	        columns:2,
+            	        id:'type',
+            	        fieldLabel:i18n._('announcePosition'),
+            	        width:300,
+            	        items:[
+            	            {name:"type",inputValue:'1',boxLabel:i18n._('outer'),checked:true},
+            	            {name:"type",inputValue:'0',boxLabel:i18n._('inner')}
+            	        ]
+            	    }, {
+            	    	xtype:'panel',
+            	    	margin:'10 0 0 0',
+            	    	border:false,
+            	    	fieldLabel:i18n._('release platform'),
+            	    	width:300,
+            	    	height:30,
+            	    	layout:'hbox',
+            	    	items:[domainCombox,domainCheckbox]
+            	    },{
+            	        fieldLabel:i18n._('subject'),
+            	        name:"title",
+            	        id:'title',
+            	        width:400,
+            	        xtype:"textfield",
+            	    //    allowBlank: false,
+            	        validator : vd,
+            	        maxLength:10
+            	    }, {
+            	        fieldLabel:i18n._('content'),
+            	        id:'content',
+            	        name:"content",
+            	        width:400,
+            	        height:150,
+            	        xtype:"htmleditor",
+            	        validator : vd,
+            	    //    allowBlank: false,
+            	        maxLength:512,
+            	        enforceMaxLength:true
+            	    },{
+            	    	xtype:'textfield',
+                        fieldLabel:'用户名id',
+                        style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                        id:'id',
+                        value:0,
+                        hidden: true,
+                        hideLabel: true
+                    }],
+            	    buttons:[
+            	        {text:i18n._('announce'), handler:clickSubmit},
+            	        {text:i18n._('reset'), handler:resetMethod}
+            	    ]
+            	    
+            	});
+            	//所有弹出窗
+            	var announcementWin = Ext.create('Ext.window.Window', {
+            		width : 440,// 400
+            		height : 400,
+            		closable : false,
+            		constrain : true,
+            		modal : true,
+            		tools : [ {
+            			type : 'close',
+            			handler : function() {
+            				announcementForm.getForm().reset();
+            				announcementWin.hide();
+            			}
+            		} ],
+            		layout : 'fit',
+            		defaults : {
+            			split : false
+            		},
+            		items : [announcementForm]
+            	});
+            	/* Ext.Ajax.request({
+            		url:path+"/../admin_mgmt/domain!getAllDomain.action",
+            		method:'GET',
+            		async:false,
+            		success:function(response){
+            			var obj = Ext.decode(response.responseText);
+            			if(obj.success){
+            				
+            			}
+            		}
+            	}); */
+            	
+            	
+            	Ext.create('Ext.Viewport',{//Ext.Viewport
+                    layout:'border',
+                    width:'100%',                   
+                    items:[
+                        {
+                            region:'center',
+                            xtype:'panel',
+                            id:'panel_one',
+                            title:i18n._('systemManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('noticeTemplate')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('announcement'),
+                            width:'60%',
+                            layout:'fit',
+                            autoScroll:true,
+                            items:[
+                                {
+                                    xtype:'panel',
+                                    layout:'fit',
+                                    autoScroll:true,
+                                    items:announcementGrid
+                                }
+                            ]
+                        }
+                    ]//panel
+                });         
+                
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+         return null;
+ };
+ 
+</script>
+</head>
+<body>
+</body>
+</html>

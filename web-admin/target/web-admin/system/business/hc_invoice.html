@@ -1,0 +1,1519 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> ttcloud </title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css" />
+  <link rel="stylesheet" type="text/css" href="../../css/example.css" />
+  <link rel='stylesheet' type='text/css'
+    href='../../js/ux/css/CheckHeader.css' />
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/ux/CheckColumn.js"></script>
+  <script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript" src="../business/common.js"></script>
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+            padding:0 0 0 0;
+        }
+        .x-tree-checked .x-grid-cell-inner {
+            font-style: italic;
+            color: #777;
+        }
+        .x-grid-row-selected .x-grid-cell {
+            background-color: #efefef !important;
+        }
+        .fontWhite{  
+            color: #ffffff;  
+        }
+    </style>
+  <script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+
+Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+    'Ext.ux.form.SearchField',
+    'Ext.ux.CheckColumn'
+]);
+
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+} 
+     
+Ext.onReady(function(){
+    var params;
+    var provinceList;
+    
+    
+    MultiLang = (function() {
+    return {
+        init: function() {
+            params = getCookie("lang");
+            i18n.set({
+               lang: params, 
+               path: '../../resources'
+            });
+            if (params) {
+                 var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                 Ext.Ajax.request({
+                     url: url,
+                     success: this.onLoadExtLocaleSuccess,
+                     failure: this.onLoadExtLocaleFailure,
+                     scope: this
+                 });
+            } else {
+                 this.setup();
+            }
+        },
+        onLoadExtLocaleSuccess: function(response) {
+             try {
+                 eval(response.responseText);
+             } catch (e) {
+                 //Ext.Msg.alert('Failure', e.toString());
+             }
+             this.setup();
+        },
+        onLoadExtLocaleFailure: function() {
+             //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+             this.setup();
+        },
+        setup: function() {
+        	var fromDateApply = '';
+            var toDateApply = '';
+            
+            var fromDateBill = '';
+            var toDateBill = '';
+            
+            var fromDateSend = '';
+            var toDateSend = '';
+            
+            var value = '';
+            var domainId = '';
+            
+            //提交时才进行验证
+            var submitFlag = false;
+        	
+        	//定义平台
+            Ext.define('Domain',{
+                         extend: 'Ext.data.Model',
+                         fields:[
+                         {name:'id',type:'long'},
+                         {name:'name',type:'string'},
+                         {name:'abbreviation',type:'string'}
+                         ]
+            });
+            var domainArr=[];
+            $.ajax({
+                url:'../../admin_mgmt/basicData!loadDomain.action',
+                async:false,
+                dataType:'json',
+                type:'POST',
+                success:function(domainObj){
+                    
+                    if(domainObj.success){
+                        var domainArrTemp=domainObj.resultObject;
+                        domainArr.push({id:'',abbreviation:'全部'});
+                        for(var i=0;i<domainArrTemp.length;i++){
+                        	domainArr.push(domainArrTemp[i]);
+                        }
+                    }else{
+                        alert("load domain failure");
+                    }
+                },
+                failure:function(){
+                    alert("load domain failure");
+                }
+            });
+
+                    
+            var domainStore = Ext.create("Ext.data.Store",{
+                model:"Domain",
+                data:domainArr
+            });
+        	
+        	function vd(text){
+                if(submitFlag == false) {
+                	return true;
+                }
+        		if(ltrim(rtrim(text)) == '') {
+                    return i18n._('cannotBeNull');
+                } else {
+                    return true;
+                }
+            };
+            
+            //钱数加单位
+            function transferMoney(value) {
+            	return value + i18n._('cny');
+            }
+        	
+            //状态转换
+        	function transferStatus(value) {
+                if(value == 0) {
+                    return i18n._('Apply');
+                } else if(value == 1) {
+                	return i18n._('approved');
+                } else {
+                	return i18n._('reject');
+                }
+            }
+            
+            //发票状态显示
+            function transferInvoiceType(value){
+            	if(value == 1){
+            		return i18n._('PersonalVATInvoice');
+            	}else if(value == 2){
+            		return i18n._('VATInvoices');
+            	}
+            }
+        	
+        	//省份名称转换
+        	function transferProvince(value) {
+        		for(var i = 0 ; i < provinceList.length; i++) {
+        			if(provinceList[i].provinceCode == value) {
+        				return provinceList[i].provinceName;
+        			}
+        		}
+        		return value;
+        	}
+        	
+        	function transferTakeInvoiceType(value) {
+        		if(value == 0) {
+                    return i18n._('expressDelivery10RMB');
+                } else if(value == 1) {
+                    return i18n._('ems20RMB');
+                } else {
+                    return i18n._('toTheFrontSelfCreated');
+                }
+        	}
+        	
+        	function transferCourierDeliveryTime(value) {
+        		if(value == 0) {
+                    return i18n._('workingDays');
+                } else if(value == 1) {
+                    return i18n._('dayWeekendOrHolidays');
+                } else {
+                    return i18n._('anyTime');
+                }
+        	}
+        	//invoiceNo验证
+        	function invoiceNoCheck(value) {
+        		if(submitFlag == false) {
+                    return true;
+                }
+        		var reg = /^\d{1,}$/;
+        	    if(!reg.test(value)) {
+        	    	return i18n._('invoiceNoCheck');
+        	    }
+        	    return true;
+        	}
+        	
+        	//修改invoiceNo验证
+        	function mInvoiceNoCheck(value) {
+                var reg = /^\d{1,}$/;
+                if(!reg.test(value)) {
+                    return i18n._('invoiceNoCheck');
+                }
+                return true;
+            }
+        	
+        	function viewDetail(detailFlag, title) {
+        		var rows = Ext.getCmp('invoiceList').getSelectionModel().getSelection();
+        	    if(rows.length > 0){
+        	        var id = rows[0].get('invoiceNo');
+        	        var record = rows[0];
+        	        
+        	        var innerDescription = (record.get('innerDescription')).replace(/\n/g, '<br>');
+        	        var applicationDate=record.get('applicationTime');
+        	        var applyFlag = false;
+        	        var buttons = []; //已审核状态不显示按钮
+        	        if(record.get('status') == 0 && detailFlag == false) {
+        	        	applyFlag = true;
+        	        	//按钮定义
+        	        	buttons = [ {
+                            text : i18n._('approval'),
+                            handler : function() {
+                                var id = record.get('id');
+                                var innerDescription = Ext.getCmp('innerDescriptionText').getValue();
+                                var invoiceNo = Ext.getCmp('invoiceNoText').getValue();
+                                var sendTime = Ext.getCmp('sendTimeText').getValue();
+                                
+                                if(sendTime<applicationDate){
+                                	Ext.MessageBox.show({
+                                        title: i18n._('notice'),
+                                        msg: i18n._('SendTimeMoreThanApplicationDate'),
+                                        icon:Ext.MessageBox.INFO,
+                                        buttons: Ext.MessageBox.OK
+                                    }); 
+                                	return;
+                                }
+                                
+                                submitFlag = true;
+                                if(!Ext.getCmp('invoiceNoText').isValid() || !Ext.getCmp('sendTimeText').isValid()){
+                                	submitFlag = false;
+                                    return;
+                                }
+                                submitFlag = false;
+                                
+                                Ext.Ajax.request({
+                                    url: path+'/../order/invoice!approvalInvoiceSuccess.action',
+                                    method: 'POST',
+                                    params:{
+                                        'id':id,
+                                        'innerDescription':innerDescription,
+                                        'invoiceNo':invoiceNo,
+                                        'sendTime':sendTime
+                                    },
+                                    success: function (response) {
+                                        var obj = Ext.decode(response.responseText);
+                                        if(obj.success){
+                                            Ext.MessageBox.show({
+                                                title: i18n._('Prompt'),
+                                                msg: i18n._('approvelSuccessfully'),
+                                                icon:Ext.MessageBox.INFO,
+                                                buttons: Ext.MessageBox.OK
+                                               
+                                            });
+                                            store1.load();
+                                            info.destroy();
+                                        } else{
+                                            Ext.MessageBox.show({
+                                                title: i18n._('Prompt'),
+                                                msg:obj.resultMsg,
+                                                icon:Ext.MessageBox.INFO,
+                                                buttons: Ext.MessageBox.OK
+                                            }); 
+                                        }
+                                    }
+                                });
+                                
+                            }
+                        }, {
+                            text : i18n._('reject'),
+                            handler : function() {
+                                var id = record.get('id');
+                                var innerDescription = Ext.getCmp('innerDescriptionText').getValue();
+                                
+                                submitFlag = true;
+                                if(!Ext.getCmp('innerDescriptionText').isValid()){
+                                	submitFlag = false;
+                                    return;
+                                }
+                                submitFlag = false;
+                                
+                                Ext.Ajax.request({
+                                    url: path+'/../order/invoice!approvalInvoiceFail.action',
+                                    method: 'POST',
+                                    params:{
+                                        'id':id,
+                                        'innerDescription':innerDescription
+                                    },
+                                    success: function (response) {
+                                        var obj = Ext.decode(response.responseText);
+                                        if(obj.success){
+                                            Ext.MessageBox.show({
+                                                title: i18n._('Prompt'),
+                                                msg: i18n._('rejectSuccessfully'),
+                                                icon:Ext.MessageBox.INFO,
+                                                buttons: Ext.MessageBox.OK
+                                            });
+                                            store1.load();
+                                            info.destroy();
+                                        } else{
+                                            Ext.MessageBox.show({
+                                                title: i18n._('Prompt'),
+                                                msg:obj.resultMsg,
+                                                icon:Ext.MessageBox.INFO,
+                                                buttons: Ext.MessageBox.OK
+                                            }); 
+                                        }
+                                    }
+                                });
+
+                            }
+                        } ];
+        	        } else if(record.get('status') != 0 && detailFlag == false){
+        	        	Ext.MessageBox.show({
+                            title: i18n._('Prompt'),
+                            msg: i18n._('cannotBeRepeatedForApproval'),
+                            icon:Ext.MessageBox.INFO,
+                            buttons: Ext.MessageBox.OK
+                        });
+        	        	return;
+        	        }
+        	        
+        	        //用户详情窗口
+        	        var info =Ext.create('Ext.window.Window', {
+        	            title: title,
+        	            height: 420,
+        	            layout:'fit',
+        	            width: 650,
+        	            border: false,
+        	            closable:false,
+        	            constrain : true,
+        	            modal:true,
+        	            tools:[{
+        	              type:'close',
+        	              handler:function(){
+        	              info.destroy();
+        	              }
+        	            }],
+        	            buttons : buttons,
+        	            items: [
+        	                                {
+        	                xtype: 'form',
+        	                height:'100%',
+        	                id:'infoForm',
+        	                labelAlign:'right',
+        	                width:350,
+        	                autoScroll:true,
+        	                border: false,
+        	                  items: [
+        	            {
+        	            xtype: 'fieldset',
+        	            style:'margin:10px;',
+        	            autoScroll:true,
+        	            items:[
+        	                    {
+        	                    	layout:"column",
+        	                    	border:0,
+        	                    	items:[
+        	                    	    {
+        	                    	        xtype:'textfield',
+        	                    	        fieldLabel:'用户名id',
+        	                    	        style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+        	                    	        id:'user_id2',
+        	                    	        hidden: true,
+        	                    	        hideLabel: true
+        	                    	    },
+        	                    	    {
+        	                    	    	xtype: 'displayfield',
+        	                    	    	id:'id',
+        	                    	    	fieldLabel: i18n._("number"),
+        	                    	    	flex:1,
+        	                    	    	name: i18n._("email"),
+        	                    	    	columnWidth : .5,
+        	                    	    	value: record.get('id'),
+        	                    	    	style:'margin-left:30px;'
+        	                    	    },
+        	                    	    {
+        	                    	    	xtype:'displayfield',
+        	                    	    	fieldLabel: i18n._("user"),
+        	                    	    	style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+        	                    	    	columnWidth : .5,
+        	                    	    	name:i18n._("username"),
+        	                    	    	value: record.get('email'),
+        	                    	    	id:'email'
+        	                    	    }
+        	                        ]
+        	                    },
+        	                    {
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+                                        {
+                                    xtype:'displayfield',
+                                    fieldLabel:i18n._('invoiceNo'),
+                                    name:i18n._('name'),
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    columnWidth : .5,
+                                    value: record.get('invoiceNo'),
+                                    hidden: applyFlag,
+                                    id:'invoiceNo'
+                                },
+                                {
+                                    xtype:'textfield',
+                                    fieldLabel:i18n._('invoiceNo'),
+                                    name:i18n._('name'),
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    value: record.get('invoiceNo'),
+                                    columnWidth : .5,
+                                    hidden: (!applyFlag),
+                                    validator : invoiceNoCheck,
+                                    maxLength:20,
+                                    id:'invoiceNoText'
+                                },
+                                {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    columnWidth : .5,
+                                    fieldLabel:i18n._('invoiceTitle'),
+                                    name:i18n._('createDate'),
+                                    value: record.get('invoiceTitle'),
+                                    id:'invoiceTitle'
+                                },
+                                {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    columnWidth : .5,
+                                    fieldLabel:i18n._('invoiceType'),
+                                    name:i18n._('createDate'),
+                                    value: record.get('invoiceType'),
+                                    renderer: transferInvoiceType,
+                                    id:'invoiceType'
+                                }
+                                    ]
+                                },
+                                {
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+                                        {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    columnWidth : .5,
+                                    fieldLabel:i18n._('invoiceAmount'),
+                                    name:i18n._('createDate'),
+                                    value: record.get('invoiceAmount'),
+                                    renderer: transferMoney,
+                                    id:'invoiceAmount'
+                                },
+                                {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    columnWidth : .5,
+                                    fieldLabel:i18n._('status'),
+                                    name:i18n._('createDate'),
+                                    value: record.get('status'),
+                                    renderer: transferStatus,
+                                    id:'status'
+                                }
+                                    ]
+                                },
+                                {
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+                                        {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    columnWidth : .5,
+                                    fieldLabel:i18n._('applicationTime'),
+                                    name:i18n._('createDate'),
+                                    value: record.get('applicationTime'),
+                                    renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+                                    id:'applicationTime'
+                                },
+                                {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    columnWidth : .5,
+                                    fieldLabel:i18n._('billingTime'),
+                                    name:i18n._('createDate'),
+                                    value: record.get('billingTime'),
+                                    renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+                                    id:'billingTime'
+                                }
+                                    ]
+                                },
+                                {
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('sendTime'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('sendTime'),
+    hidden: applyFlag,
+    renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+    id:'sendTime'
+},
+{
+    xtype:'datefield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('sendTime'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('sendTime'),
+    hidden: (!applyFlag),
+    format:'Y-m-d',
+ //   allowBlank: false,
+    validator : vd,
+    id:'sendTimeText'
+},
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('invoiceDescription'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('description'),
+    id:'description'
+}
+                                    ]
+                                },
+                                {
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('takeInvoiceType'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('takeInvoiceType'),
+    renderer: transferTakeInvoiceType,
+    id:'takeInvoiceType'
+},
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('courierDeliveryTime'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('courierDeliveryTime'),
+    renderer: transferCourierDeliveryTime,
+    id:'courierDeliveryTime'
+}
+                                    ]
+                                }, {
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+                                  {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    fieldLabel:i18n._('recipient'),
+                                    name:i18n._('createDate'),
+                                    columnWidth : .5,
+                                    value: record.get('recipient'),
+                                    id:'recipient'
+                                },
+                                {
+                                    xtype:'displayfield',
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    fieldLabel:i18n._('recipientCompany'),
+                                    name:i18n._('createDate'),
+                                    columnWidth : .5,
+                                    value: record.get('recipientCompany'),
+                                    id:'recipientCompany'
+                                }
+                                    ]
+                                },{
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('province'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('province'),
+    renderer: transferProvince,
+    id:'province'
+},
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('city'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('city'),
+    id:'city'
+}
+                                    ]
+                                },{
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('address'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('address'),
+    id:'address'
+},
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('postcode'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('postcode'),
+    id:'postcode'
+}
+                                    ]
+                                },{
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('mobile'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('mobile'),
+    id:'mobile'
+},
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('telephone'),
+    name:i18n._('createDate'),
+    columnWidth : .5,
+    value: record.get('telephone'),
+    id:'telephone'
+}
+                                    ]
+                                },{
+                                    layout:"column",
+                                    border:0,
+                                    items:[
+{
+    xtype:'displayfield',
+    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+    fieldLabel:i18n._('fax'),
+    name:i18n._('createDate'),
+    value: record.get('fax'),
+    id:'fax'
+}
+                                    ]
+                                },
+                                {
+                                    xtype:'displayfield',
+                                    fieldLabel: i18n._("innerDescription"),
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    name:i18n._("Admin Role"),
+                                    value: innerDescription,
+                                    hidden: applyFlag,
+                                    id:'innerDescription'
+                                },
+                                {
+                                    xtype:'textarea',
+                                    fieldLabel: i18n._("innerDescription"),
+                                    style:'margin-left:30px;word-break: break-all; word-wrap:break-word;',
+                                    name:i18n._("Admin Role"),
+                                    value: record.get('innerDescription'),
+                                    hidden: (!applyFlag),
+                                    width:500,
+                                    maxLength:200,
+                                    validator : vd,
+                                //    allowBlank: false,
+                                    id:'innerDescriptionText'
+                                }
+        	            ]
+        	        }
+        	        ]
+        	        }
+        	        ]
+
+        	        });
+        	        
+        	        
+        	        //用户详细信息页面结束
+        	        info.show();
+        	    }else{
+        	            Ext.MessageBox.show({
+        	              // title: '提示',
+        	               //msg: '请选择一个用户',
+        	               title:i18n._('notice'),
+        	               msg:i18n._('selectOne'),
+        	               icon:Ext.MessageBox.INFO,
+        	               buttons: Ext.MessageBox.OK
+        	               
+        	           }); 
+        	        return;
+        	    }
+        	    
+        	}	
+        	
+        	Ext.define('InvoiceVO',{
+                extend: 'Ext.data.Model',
+                fields:[              
+                     {name:'id',type:'string'},
+                     {name:'invoiceNo',type:'string'},
+                     {name:'invoiceAmount',type:'string'},
+                     {name:'email',type:'string'},
+                     {name:'username',type:'string'},
+                     
+                     {name:'status',type:'string'},                     
+                     {name:'applicationTime',mapping: 'applicationTime',type:'date', dateFormat:'time'},
+                     {name:'billingTime',mapping: 'billingTime', type:'date',dateFormat:'time'},
+                     {name:'innerDescription',type:'string'},
+                     
+                     {name:'invoiceTitle',type:'string'},
+                     {name:'invoiceType',type:'String'},
+                     {name:'invoiceAmount',type:'string'},
+                     {name:'sendTime',mapping: 'sendTime',type:'date', dateFormat:'time'},
+                     
+                     {name:'description',type:'string'},
+                     {name:'takeInvoiceType',type:'string'},
+                     {name:'courierDeliveryTime',type:'string'},
+                     {name:'recipient',type:'string'},
+                     
+                     {name:'recipientCompany',type:'string'},
+                     {name:'province',type:'string'},
+                     {name:'city',type:'string'},
+                     {name:'address',type:'string'},
+                     
+                     {name:'postcode',type:'string'},
+                     {name:'mobile',type:'string'},
+                     {name:'telephone',type:'string'},
+                     {name:'fax',type:'string'},
+                     {name:'abbreviation',type:'string'}
+                     ]
+            });
+        	var store1=Ext.create('Ext.data.Store', {
+                pageSize: pageSize,
+                autoLoad:true,
+                storeId:'loadInvoiceVOlist',
+                width:'100%',
+                model: 'InvoiceVO',
+                remoteSort:true,
+                proxy: {
+                    type: 'ajax',
+                    url : path+'/../order/invoice!findInvoiceList.action',
+                    reader: {
+                        type: 'json',    
+                        root: 'resultObject.result',
+                        totalProperty: 'resultObject.totalCount'
+                    },
+                    listeners:{
+            			exception:function(reader, response, error, eOpts){
+            				ajaxException(reader, response, error, eOpts );
+            			}
+            		}
+                }
+            });
+        	
+        	var dataSearchWin =Ext.create('Ext.window.Window', {
+                title : i18n._('Query'),//查询条件
+                width : 330,
+                height : 180,
+                border : false,
+                bodyPadding : 10,
+                resizable : false,
+                closable : false,
+                collapsible:true,
+                items:[
+                       {
+                           xtype:'fieldcontainer',
+                           layout : 'hbox',
+                           width : 300,
+                           items:[
+                                    {
+                                        xtype: 'datefield',
+                                        id: 'fromDateApply',
+                                        fieldLabel: i18n._('ByApplicationTime'),//按时间段
+                                        labelAlign:'right',
+                                        width : 180,
+                                        labelWidth : 80,
+                                        name: 'from_date',
+                                        emptyText:i18n._('beginDate'),//起始日期
+                                        maxValue: new Date(),  // limited to the current date or prior
+                                        format:'Y-m-d'
+                                    }, 
+                                    {
+                                        xtype:'label',
+                                        text:i18n._('To'),//至
+                                        width:20,
+                                        padding:'2 0 0 4'
+                                    },
+                                    {
+                                        xtype: 'datefield',
+                                        id: 'toDateApply',
+                                        width : 100,
+                                        name: 'to_date',
+                                        emptyText:i18n._('endDate'),//结束日期
+                                        maxValue: new Date(),
+                                        format:'Y-m-d'
+                                    }
+                                  ]
+                       },
+                       {
+                           xtype:'fieldcontainer',
+                           layout : 'hbox',
+                           width : 300,
+                           items:[
+                                    {
+                                        xtype: 'datefield',
+                                        id: 'fromDateBill',
+                                        fieldLabel: i18n._('ByBillingTime'),//按时间段
+                                        labelAlign:'right',
+                                        width : 180,
+                                        labelWidth : 80,
+                                        name: 'from_date',
+                                        emptyText:i18n._('beginDate'),//起始日期
+                                        maxValue: new Date(),  // limited to the current date or prior
+                                        format:'Y-m-d'
+                                    }, 
+                                    {
+                                        xtype:'label',
+                                        text:i18n._('To'),//至
+                                        width:20,
+                                        padding:'2 0 0 4'
+                                    },
+                                    {
+                                        xtype: 'datefield',
+                                        id: 'toDateBill',
+                                        width : 100,
+                                        name: 'to_date',
+                                        emptyText:i18n._('endDate'),//结束日期
+                                        maxValue: new Date(),
+                                        format:'Y-m-d'
+                                    }
+                                  ]
+                       },
+                       {
+                           xtype:'fieldcontainer',
+                           layout : 'hbox',
+                           width : 300,
+                           items:[
+                                    {
+                                        xtype: 'datefield',
+                                        id: 'fromDateSend',
+                                        fieldLabel: i18n._('BySendTime'),//按时间段
+                                        labelAlign:'right',
+                                        width : 180,
+                                        labelWidth : 80,
+                                        name: 'from_date',
+                                        emptyText:i18n._('beginDate'),//起始日期
+                             //           maxValue: new Date(),  // limited to the current date or prior
+                                        format:'Y-m-d'
+                                    }, 
+                                    {
+                                        xtype:'label',
+                                        text:i18n._('To'),//至
+                                        width:20,
+                                        padding:'2 0 0 4'
+                                    },
+                                    {
+                                        xtype: 'datefield',
+                                        id: 'toDateSend',
+                                        width : 100,
+                                        name: 'to_date',
+                                        emptyText:i18n._('endDate'),//结束日期
+                                       // maxValue: new Date(),
+                                        format:'Y-m-d'
+                                    }
+                                  ]
+                       },
+                       {
+                           xtype:'textfield',
+                           id: 'fuzzy',
+                           name: 'fuzzy',
+                           fieldLabel : i18n._('fuzzy'),//按模糊查询
+                           labelAlign:'right',
+                           width : 300,
+                           labelWidth : 80,
+                           emptyText: i18n._('invoiceNo') + '/' + i18n._('username') + '/' + i18n._('invoiceTitle')
+                       },
+                       {
+                           xtype:'fieldcontainer',
+                           layout : 'hbox',
+                           width : 300,
+                           items:[
+                                  {
+                                      xtype:'button',
+                                      name: 'search',
+                                      width:80,
+                                      margin:'0 44 0 75',
+                                      text:i18n._('Search'),//搜索
+                                      handler:function(){
+                                    	  fromDateApply = Ext.getCmp('fromDateApply').getValue();
+                                          toDateApply = Ext.getCmp('toDateApply').getValue();
+                                          
+                                          if(null != fromDateApply && null != toDateApply){
+                                              if(toDateApply.getTime()-fromDateApply.getTime() < 0){
+                                                  Ext.MessageBox.show({
+                                                        title : i18n._('notice'),
+                                                        msg : i18n._('applicationTime') + ":" +  i18n._('the expiry date should be later than effective date'),
+                                                        buttons : Ext.MessageBox.OK,
+                                                        icon : Ext.MessageBox.ERROR,
+                                                        fn:function(){
+                                                            Ext.getCmp('fromDateApply').focus();
+                                                        }
+                                                  });
+                                                  fromDateApply = '';
+                                                  toDateApply = '';
+                                                  return null;
+                                              }
+                                          }
+                                          
+                                          fromDateBill = Ext.getCmp('fromDateBill').getValue();
+                                          toDateBill = Ext.getCmp('toDateBill').getValue();
+                                          
+                                          if(null != fromDateBill && null != toDateBill){
+                                              if(toDateBill.getTime()-fromDateBill.getTime() < 0){
+                                                  Ext.MessageBox.show({
+                                                        title : i18n._('notice'),
+                                                        msg : i18n._('billingTime') + ":" +  i18n._('the expiry date should be later than effective date'),
+                                                        buttons : Ext.MessageBox.OK,
+                                                        icon : Ext.MessageBox.ERROR,
+                                                        fn:function(){
+                                                            Ext.getCmp('fromDateBill').focus();
+                                                        }
+                                                  });
+                                                  fromDateBill = '';
+                                                  toDateBill = '';
+                                                  return null;
+                                              }
+                                          }
+                                          
+                                          fromDateSend = Ext.getCmp('fromDateSend').getValue();
+                                          toDateSend = Ext.getCmp('toDateSend').getValue();
+                                          
+                                          if(null != fromDateSend && null != toDateSend){
+                                              if(toDateSend.getTime()-fromDateSend.getTime() < 0){
+                                                  Ext.MessageBox.show({
+                                                        title : i18n._('notice'),
+                                                        msg : i18n._('sendTime')  + ":" + i18n._('the expiry date should be later than effective date'),
+                                                        buttons : Ext.MessageBox.OK,
+                                                        icon : Ext.MessageBox.ERROR,
+                                                        fn:function(){
+                                                            Ext.getCmp('fromDateSend').focus();
+                                                        }
+                                                  });
+                                                  fromDateSend = '';
+                                                  toDateSend = '';
+                                                  return null;
+                                              }
+                                          }
+                                          
+                                          value = Ext.getCmp('fuzzy').getValue();
+                                          
+                                          proxy=store1.getProxy();
+                                          proxy.setExtraParam('query',value);
+                                          proxy.setExtraParam('fromDateApply',fromDateApply);
+                                          proxy.setExtraParam('toDateApply',toDateApply);
+                                          
+                                          proxy.setExtraParam('fromDateBill',fromDateBill);
+                                          proxy.setExtraParam('toDateBill',toDateBill);
+                                          
+                                          proxy.setExtraParam('fromDateSend',fromDateSend);
+                                          proxy.setExtraParam('toDateSend',toDateSend);
+                                          store1.loadPage(1,null);
+                                          
+                                          dataSearchWin.hide();
+                                          
+                                          
+                                          Ext.getCmp('fromDateApply').setValue('');
+                                          Ext.getCmp('toDateApply').setValue('');
+                                          
+                                          Ext.getCmp('fromDateBill').setValue('');
+                                          Ext.getCmp('toDateBill').setValue('');
+                                          
+                                          Ext.getCmp('fromDateSend').setValue('');
+                                          Ext.getCmp('toDateSend').setValue('');
+                                          
+                                          Ext.getCmp('fuzzy').setValue('');
+                                      }
+                                  },
+                                  {
+                                      xtype:'button',
+                                      name: 'cancel',
+                                      width:80,
+                                      text:i18n._('off'),//取消
+                                      handler:function(){
+                                         dataSearchWin.hide();
+                                         
+                                      }
+                                  }
+                                 ]
+                       }
+                      ],
+                listeners : {
+                    collapse:function(p,eOpts ){
+                    	dataSearchWin.hide();
+                    }
+                }     
+            });
+        	
+        	var modifyForm=Ext.create('Ext.form.FormPanel', {
+                width: '440',
+                height: '220',
+                border:false,
+                bodyPadding : 10,
+                autoScroll:true,
+                fieldDefaults : {
+                    labelAlign : 'right',
+                    labelWidth : 80,
+                    anchor : '100%'
+                },  
+                items: [
+                {
+                    fieldLabel:i18n._('number'),
+                    name:"mNumber",
+                    id:'mNumber',
+                    width:400,
+                    xtype:"displayfield",
+                    validator : vd,
+                    maxLength:50
+                }, {
+                    fieldLabel:i18n._('invoiceTitle'),
+                    id:'mInvoiceTitle',
+                    name:"mInvoiceTitle",
+                    width:400,
+                    xtype:"displayfield",
+                    validator : vd,
+                    maxLength:10
+                },{
+                    fieldLabel:i18n._('invoiceNo'),
+                    name:"mInvoiceNo",
+                    id:'mInvoiceNo',
+                    width:400,
+                    xtype:"textfield",
+                    validator : mInvoiceNoCheck,
+                    maxLength:20
+                },{
+                    fieldLabel:i18n._('innerDescription'),
+                    name:"mInnerDescription",
+                    id:'mInnerDescription',
+                    width:400,
+                    xtype:"textarea"
+                }],
+                buttons:[
+                    {text:i18n._('OK'), handler:clickSubmit},
+                    {text:i18n._('Cancel'), handler:cancelMethod}
+                ]
+                
+            });
+        	
+        	function clickSubmit() {
+        		var id = Ext.getCmp('mNumber').getValue();
+                var invoiceNo = Ext.getCmp('mInvoiceNo').getValue();
+                var innerDescription = Ext.getCmp('mInnerDescription').getValue();
+                
+                if(!Ext.getCmp('mInvoiceNo').isValid()){
+                    return;
+                }
+        		
+        		Ext.Ajax.request({
+        			url : path+'/../order/invoice!modifyInvoice.action',
+                    method:'POST',
+                    params:{
+                        'invoiceVO.id': id,
+                        'invoiceVO.invoiceNo': invoiceNo,
+                        'invoiceVO.innerDescription': innerDescription
+                    },
+                    success:function(form,action){
+                    	var obj = Ext.decode(form.responseText);
+                    	if(obj.success){
+                            Ext.MessageBox.show({
+                                title: i18n._('Prompt'),
+                                msg: i18n._('modifySuccessfully'),
+                                icon:Ext.MessageBox.INFO,
+                                buttons: Ext.MessageBox.OK
+                               
+                            });
+                            store1.load();
+                            cancelMethod();
+                        } else{
+                            Ext.MessageBox.show({
+                                title: i18n._('Prompt'),
+                                msg:obj.resultMsg,
+                                icon:Ext.MessageBox.INFO,
+                                buttons: Ext.MessageBox.OK
+                            }); 
+                        }
+                    	
+                    },   
+                    failure:function(form,action){   
+                        Ext.MessageBox.show({
+                            title: i18n._('errorNotice'),
+                            msg: i18n._('operateFail'),
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
+                        });  
+                    }
+                });
+        	}
+        	
+        	function cancelMethod() {
+        		modifyForm.getForm().reset();
+                modifyWin.hide();
+        	}
+        	
+        	//修改窗口
+        	var modifyWin = Ext.create('Ext.window.Window', {
+                width : 440,// 400
+                height : 260,
+                title : i18n._('modify'),
+                closable : false,
+                constrain : true,
+                modal : true,
+                tools : [ {
+                    type : 'close',
+                    handler : function() {
+                    	modifyForm.getForm().reset();
+                        modifyWin.hide();
+                    }
+                } ],
+                layout : 'fit',
+                defaults : {
+                    split : false
+                },
+                items : [modifyForm]
+            });
+        	
+        	var sm = Ext.create('Ext.selection.RowModel');
+        	var invoiceGrid = Ext.create('Ext.grid.Panel', {
+                id:'invoiceList',
+                height:900,
+                //layout:'fit',
+                width:'100%',
+                title: i18n._('BusinessManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('invoiceManagement'),
+                store: store1,
+                selModel: sm,
+                dockedItems:[{
+                	xtype:'toolbar',
+                    cls: 'toolbarCSS',
+                    dock: 'top',
+                    items:[
+                        {
+                            xtype:'button',//审核
+                            text:'<font id="invoiceToAudit" color="white">'+i18n._('toAudit')+'</font>',
+                            listeners: {
+                            	"mouseout" : function() {
+                            		document.getElementById("invoiceToAudit").style.color = "white";
+                            	},
+                            	"mouseover" : function() {
+                            	    document.getElementById("invoiceToAudit").style.color = "black";
+                            	}
+                            },
+                            tooltip:i18n._('toAudit'),
+                            shadow:false,
+                            icon:'images/toAudit.png',
+                            handler:function(){
+                            	viewDetail(false, i18n._('invoiceApproval'));
+                            }
+                        },
+                        {
+                            xtype:'button',//修改
+                            text:'<font id="modifyButtonId" color="white">'+i18n._('modify')+'</font>',
+                            listeners: {
+                                "mouseout" : function() {
+                                    document.getElementById("modifyButtonId").style.color = "white";
+                                },
+                                "mouseover" : function() {
+                                    document.getElementById("modifyButtonId").style.color = "black";
+                                }
+                            },
+                            tooltip:i18n._('modify'),
+                            shadow:false,
+                            icon:'../../images/edit_new.png',
+                            handler:function(){
+                                
+                                var rows = Ext.getCmp('invoiceList').getSelectionModel().getSelection();
+                                if(rows.length > 0){
+                                    var record = rows[0];
+                                    var status = record.get('status');
+                                    if(status != '1') {
+                                    	Ext.MessageBox.show({
+                                            title:i18n._('notice'),//title: '提示', msg: '请选择一个用户',
+                                            msg:i18n._('selectApprovalRecord'),
+                                            icon:Ext.MessageBox.INFO,
+                                            buttons: Ext.MessageBox.OK
+                                        }); 
+                                    	return;
+                                    }
+                                    Ext.getCmp('mNumber').setValue(record.get('id'));
+                                    Ext.getCmp('mInvoiceTitle').setValue(record.get('invoiceTitle'));
+                                    Ext.getCmp('mInvoiceNo').setValue(record.get('invoiceNo'));
+                                    Ext.getCmp('mInnerDescription').setValue(record.get('innerDescription'));
+                                    modifyWin.show();
+                                }else{
+                                    Ext.MessageBox.show({
+                                        title:i18n._('notice'),//title: '提示', msg: '请选择一个用户',
+                                        msg:i18n._('selectOne'),
+                                        icon:Ext.MessageBox.INFO,
+                                        buttons: Ext.MessageBox.OK
+                                    }); 
+                                    return;
+                                }
+                            }
+                        },
+                        {
+                        	xtype:'button',
+                        	text:'<font id="invoiceDetail" color="white">'+i18n._('Details')+'</font>',
+                        	listeners: {
+                        		"mouseout" : function() {
+                        			document.getElementById("invoiceDetail").style.color = "white";
+                        		},
+                        		"mouseover" : function() {
+                        			document.getElementById("invoiceDetail").style.color = "black";
+                        		}
+                        	},
+                        	tooltip:i18n._('Details'),
+                        	shadow:false,
+                        	icon:'../../images/detail.png',
+                        	handler:function(){
+                        		viewDetail(true, i18n._('invoiceDetails'));
+                        	}
+                        },
+                        {
+                            xtype:'button',
+                            text:'<font id="invoiceExport" color="white">'+i18n._('export')+'</font>',
+                            listeners: {
+                                "mouseout" : function() {
+                                    document.getElementById("invoiceExport").style.color = "white";
+                                },
+                                "mouseover" : function() {
+                                    document.getElementById("invoiceExport").style.color = "black";
+                                }
+                            },
+                            tooltip:i18n._('export'),
+                            shadow:false,
+                            icon:'../../images/export.png',
+                            handler:function(){
+                            	var downloadForm = Ext.create('Ext.form.Panel',{
+                                    frame:true,
+                                    standardSubmit:true
+                                });
+                                
+                                downloadForm.getForm().submit({
+                                    url: path+'/../order/invoice!exportInvoice.action',
+                                    method:'post',
+                                    params:{
+                                        'query':value,
+                                        'domainId':domainId,
+                                        'status':status,
+                                        'fromDateApply': Ext.Date.format(fromDateApply, 'Y-m-d H:i:s'),
+                                        'toDateApply': Ext.Date.format(toDateApply, 'Y-m-d H:i:s') ,
+                                        'fromDateBill': Ext.Date.format(fromDateBill, 'Y-m-d H:i:s'),
+                                        'toDateBill': Ext.Date.format(toDateBill, 'Y-m-d H:i:s'),
+                                        'fromDateSend': Ext.Date.format(fromDateSend, 'Y-m-d H:i:s'),
+                                        'toDateSend': Ext.Date.format(toDateSend, 'Y-m-d H:i:s')
+                                        }
+                                });
+                            }
+                        },
+                        {xtype:'tbfill'},
+                        {
+                            xtype:'splitbutton',
+                            id:'tryOrderSplitbutton',
+                            text:'<font color="#ffffff" id="tryOrderSplit">' + i18n._('invoiceStatus')+':' + '</font>', 
+                            listeners: {
+                                 "mouseout" : function() {
+                                     document.getElementById("tryOrderSplit").style.color = "white";
+                                 },
+                                 "mouseover" : function() {
+                                     document.getElementById("tryOrderSplit").style.color = "black";
+                                 }
+                                    
+                            },
+                            menu: new Ext.menu.Menu({
+                                items: [
+                                    {
+                                        text: i18n._('All'),
+                                        handler: function(){
+                                            Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('All') + '</font>');
+                                            var invoicProxy=store1.getProxy();
+                                            invoicProxy.setExtraParam('status','');
+                                            status = '';
+                                            store1.loadPage(1,null);
+                                        }
+                                    },
+                                    {
+                                        text: i18n._('Apply'),
+                                        handler: function(){
+                                            Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('Apply') + '</font>');
+                                            var invoicProxy=store1.getProxy();
+                                            invoicProxy.setExtraParam('status','0');
+                                            status = '0';
+                                            store1.loadPage(1,null);
+                                        }
+                                    },
+                                    {
+                                        text: i18n._('approved'),
+                                        handler: function(){
+                                            Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('approved') + '</font>');
+                                            var invoicProxy=store1.getProxy();
+                                            invoicProxy.setExtraParam('status','1');
+                                            status = '1';
+                                            store1.loadPage(1,null);
+                                        }
+                                    },
+                                    {
+                                        text: i18n._('reject'),
+                                        handler: function(){
+                                            Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('reject') + '</font>');
+                                            var invoicProxy=store1.getProxy();
+                                            invoicProxy.setExtraParam('status','2');
+                                            status = '2';
+                                            store1.loadPage(1,null);
+                                        }
+                                    }
+                                 ]
+                            })
+                        },
+                        {
+                            xtype:'displayfield',
+                            hideLabel:true,
+                            value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('domainName')+':'+'</font></span>'
+                        },
+                        {
+                        	
+                        	xtype:'combobox',
+                            id:'domainCombo',
+                            margin:'0 5 5 0',
+                            width:130,
+                            hideLabel:true,
+                            store: domainStore,
+                            queryMode: 'local',
+                            displayField: 'abbreviation',
+                            emptyText:i18n._('Please Select'),
+                          //  editable:true,
+                            valueField: 'id',
+                            listeners : {
+                                'select':function(){
+                                    var selectedId=this.getValue();
+                                    domainId = selectedId;
+                                    var new_params={'domainId':selectedId};
+                                    Ext.apply(store1.proxy.extraParams,new_params);
+                                    store1.loadPage(1,null);
+                                }
+                            }
+                        },
+                        {
+                        	xtype:'button',
+                            iconAlign:'right',
+                            text:'<font id="Search" color="white">'+i18n._('Search')+'</font>',//搜索
+                            listeners: {
+                                 "mouseout" : function() {
+                                     document.getElementById("Search").style.color = "white";
+                                 },
+                                 "mouseover" : function() {
+                                     document.getElementById("Search").style.color = "black";
+                                 }
+                                    
+                            },
+                            tooltip:i18n._('Search'),//高级搜索
+                            handler:function(){
+                            	var p=this.getPosition(true);
+                                var xP=p[0]-280;
+                                dataSearchWin.showAt(xP,50);
+                            }
+                        }
+                     ]
+                }],
+                columns: [
+                    {header:'', xtype: 'rownumberer',flex:0.1},
+                    {header: i18n._('number'),  dataIndex: 'id',flex:0.22, sortable: false},
+                    {header: i18n._('invoiceNo'),  dataIndex: 'invoiceNo',flex:0.25, sortable: false},
+                    {header: i18n._('invoiceTitle'),  dataIndex: 'invoiceTitle',flex:0.4, sortable: false},
+                    {header: i18n._('invoiceType'),  dataIndex: 'invoiceType',flex:0.3, sortable: false,renderer:transferInvoiceType},
+                    {header: i18n._('invoiceAmount') + i18n._('yuan'),  dataIndex: 'invoiceAmount', flex:0.3,sortable: false, align:'right'},
+                    {header: i18n._('username'),  dataIndex: 'username', flex:0.3, sortable: false},
+                    {header: i18n._('user'),  dataIndex: 'email', flex:0.3, sortable: false, hidden: true},
+                    {header: i18n._('status'),  dataIndex: 'status', flex:0.2, sortable: false, renderer:transferStatus},
+                    {header: i18n._('platform abbreviation'),  dataIndex: 'abbreviation', flex:0.2, sortable: false},
+                    {
+                        text: i18n._("applicationTime"),
+                        dataIndex: 'applicationTime',
+                        renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+                        flex:0.35,
+                        sortable: false
+                    },
+                    {
+                        text: i18n._("billingTime"),
+                        dataIndex: 'billingTime',
+                        renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+                        flex: 0.35,
+                        sortable: false
+                    }
+                ],
+                bbar: Ext.create('Ext.toolbar.Paging', {
+                    store: store1,
+                    displayInfo: true                   
+                }),
+                listeners:{
+                    "itemdblclick":{
+                        fn:function(){
+                            viewDetail(true, i18n._('invoiceDetails'));
+                        }
+                    }
+                }
+            });
+        	
+        	Ext.create('Ext.Viewport',{
+        	    layout:'fit',
+        	    width:'100%',
+        	    items: invoiceGrid
+        	});
+        	
+        	
+        }
+    }})(); //MultiLang end
+    
+    MultiLang.init();
+    
+    
+    
+    
+    
+    Ext.Ajax.request({
+        url: path+'/../admin_mgmt/basicData!loadProvince.action',
+        method: 'POST',
+        success: function (response) {
+        	var obj = Ext.decode(response.responseText);
+        	if(!obj.success) {
+        		Ext.MessageBox.show({
+                    title:i18n._('notice'),
+                    msg:i18n._('loadProviceException'),
+                    icon:Ext.MessageBox.INFO,
+                    buttons: Ext.MessageBox.OK
+                 }); 
+        	}
+            provinceList = obj.resultObject;
+        }
+    });
+}); //Ext.onReady
+
+
+function getCookie(name){
+    var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+    if(arr != null) return unescape(arr[2]);
+    return null;
+}
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

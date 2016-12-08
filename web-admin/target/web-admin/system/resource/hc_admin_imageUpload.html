@@ -1,0 +1,816 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>上传管理 </title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css' href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/ProgressBarPager.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/basicUtil.js"></script>
+<script type="text/javascript">
+
+Ext.define('UploadInfo', {
+    extend: 'Ext.data.Model',
+    fields: [
+         'name', 
+        {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'},
+         'size', 
+         'flag'
+//         ,imageId 
+    ],
+    idProperty: 'name'
+});
+
+Ext.define('ZoneGroup',{
+	 extend: 'Ext.data.Model',
+	 fields:[
+	 {name:'regionCode',type:'string'},
+	 {name:'name',type:'string'}
+	 ]
+});
+
+//上传文件名
+var fileName = '';
+//添加win
+var add;
+
+// create the Data Store
+var store = Ext.create('Ext.data.Store', {
+    pageSize: pageSize,
+    model: 'UploadInfo',
+    sorters: [
+              {
+                  property : 'createDate',
+                  direction: 'DESC'
+              }
+          ],
+    remoteSort: true,
+    proxy: new Ext.data.proxy.Ajax({
+      url: path+'/../image/image!findAllUploadInfo.action',
+      reader: {
+            type: 'json',
+            root: 'resultObject'
+      }
+    })
+});
+
+var zoneGroupStore=Ext.create('Ext.data.Store',{
+    model: 'ZoneGroup',
+    proxy: new Ext.data.proxy.Ajax({
+    	url: path+'/../sc/zoneGroup!getAllZoneGroups.action',
+		reader: {
+            type: 'json',
+            root: 'resultObject',
+            totalProperty: 'resultObject.totalCount'
+      }
+    })
+});
+
+
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+}
+
+function renderPage(){
+	Ext.QuickTips.init();
+	//数字验证
+    Ext.apply( 
+        Ext.form.VTypes, 
+        { 
+          digitCheck : function(val, field) {
+             var pattern = /^\d+(.\d+)?$/;
+             return pattern.test(val);
+          },
+          digitCheckText : i18n._("digitCheckText")
+         }        
+    );
+	
+    function vd(text){
+        if(ltrim(rtrim(text)) == '') {
+            return i18n._('cannotBeNull');
+        } else {
+            return true;
+        }
+    };
+	
+    //字符检验
+    function checkPassword(array, letter) {
+        for(var index = 0; index < array.length; index++) {
+            if(letter == array[index]){
+                return true;
+            }
+        }
+        return false;
+    }
+    
+  //密码验证
+    Ext.apply( 
+        Ext.form.VTypes, 
+        { 
+            passwordCheck : function(val, field) { 
+                if(val.length < 6) {
+                    return false;
+                }
+                var digitals = [0,1,2,3,4,5,6,7,8,9];
+                var lowerCaseLetters = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','v','y','z'];
+                var upperCaseLetters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','V','Y','Z'];
+                var digitalFlag = false;
+                var lowerLetterFlag = false;
+                var upperLetterFlag = false;
+                var password = val;
+                for(var i = 0; i < password.length; i++) {
+                    if(checkPassword(digitals, password[i]) == true) {
+                        digitalFlag = true;
+                    } else if(checkPassword(lowerCaseLetters, password[i]) == true) {
+                        lowerLetterFlag = true;
+                    } else if(checkPassword(upperCaseLetters, password[i]) == true) {
+                        upperLetterFlag = true;
+                    } else {
+                        return false;
+                    }
+                }
+                if(digitalFlag == false || lowerLetterFlag == false
+                        || upperLetterFlag == false) {
+                    return false;
+                }   
+                return true;
+            },
+            passwordCheckText : i18n._("passwordStyleErr")
+        }        
+    );
+  
+    //用户名验证
+    Ext.apply(Ext.form.VTypes, 
+        { 
+            usernameCheck : function(val, field) { 
+                var str=val; 
+                var pattern = /^[A-Za-z0-9]{1,}$/;
+                return pattern.test(str);
+            },
+            usernameCheckText : i18n._("InvalidCharacters")
+            }        
+    );
+    
+    /*--------------------------密码校验开始-------------*/
+    var passwdConfig = null;
+    if (!passwdConfig) {
+    	passwdConfig = getPasswordConfig();
+    }
+
+    function getPasswordConfig() {
+    	var result = null;
+    	$.ajax({
+    		url : './../systemmanagement/getPasswordConfig',
+    		type : 'POST',
+    		dataType : 'json',
+    		async : false,
+    		contentType : "application/json; charset=utf-8",
+    		success : function(data) {
+    			var passwdConfig = data['resultObject'];
+    			result = passwdConfig;
+    		}
+    	});
+    	return result;
+    }
+
+    function getPasswdTip() {
+    	var passwdTip = passwdConfig.length + '-50个字符，';
+    	switch (passwdConfig["strength"]) {
+    	case 1:
+    		passwdTip += "包括字母(大小写)、数字";
+    		break;
+    	case 2:
+    		passwdTip += "包括字母(大小写)、常用符号";
+    		break;
+    	case 3:
+    		passwdTip += "包括字母(大小写)、数字、常用符号";
+    		break;
+    	}
+    	return passwdTip;
+    }
+
+    function verifyPassword(password) {
+    	var verifyPasswdResult = false;
+
+    	switch (passwdConfig["strength"]) {
+    	case 1:
+    		verifyPasswdResult = containAlpha(password) && containNumber(password);
+    		break;
+    	case 2:
+    		verifyPasswdResult = containAlpha(password)
+    				&& containCommonChar(password);
+    		break;
+    	case 3:
+    		verifyPasswdResult = containAlpha(password)
+    				&& containCommonChar(password) && containNumber(password);
+    		break;
+    	}
+
+    	verifyPasswdResult = (verifyPasswdResult && verifyLength(password,
+    			passwdConfig["length"], 50));
+
+    	if (verifyPasswdResult) {
+    		return verifyPasswdResult;
+    	} else {
+    		return getPasswdTip()
+    	}
+    }
+    
+    
+    /*var v_zoneGroupCombo = Ext.create('Ext.form.ComboBox', {
+    	fieldLabel : i18n._('Release zoneGroup'),//发布位置
+    	editable : false,
+    	triggerAction: "all",
+    	allowBlank:false,
+    	emptyText:i18n._('Please Select'),
+    	store : zoneGroupStore,
+    	queryMode : 'local',
+    	displayField : 'name',
+    	valueField : 'regionCode'
+    });*/
+    
+    zoneGroupStore.load();
+
+    /*--------------------------密码校验结束-------------*/
+    
+    add = Ext.create('Ext.window.Window', {
+        title: i18n._('saveImage'),
+        height: 450,
+        layout:'fit',
+        width: 400,
+        border: false,
+        constrain : true,
+        closable:false,
+        modal:true,
+        tools:[{
+              type:'close',
+              handler:function(){
+                  Ext.getCmp('addform').getForm().reset();
+                  add.hide();
+              }
+        }],
+        items: [
+            {
+            xtype: 'form',
+            id:'addform',
+            height:'100%',
+            width:500,
+            border: false,
+            fieldDefaults : {
+                style:'margin-left:40px;'
+            },
+            items: [
+                {
+                    xtype:'displayfield',
+                    fieldLabel: i18n._('fileName'),
+                    style:'margin-left:40px;margin-top:20px;',
+                    name:'fileName',
+                    id: 'fileNameId',
+                    allowBlank: false,
+                    maxLength:50
+                },
+                {
+                    xtype:'displayfield',
+                    fieldLabel: i18n._('actualSize'),
+                    name:'size',
+                    id:'sizeId',
+                    maxLength:50
+                },
+                {
+                    xtype:'textfield',
+                    name: 'name',
+                    id:'nameId',
+                    fieldLabel:i18n._('name'),
+                    //validator : vd,
+                    maxLength:50,
+                    allowBlank: false,
+                    textValid: true,
+				    validator: function(){
+				        return this.textValid;
+				    },
+					listeners : {
+				        'change': function(textfield,newValue,oldValue) {
+				           Ext.Ajax.request({
+				        	   url: path+'/../image/image!findImageListByName.action',
+					    	    params: {
+					    	        'query': newValue
+					    	    },
+					    	    scope: textfield,
+					    	    success: function(response){
+					    	    	var rs=Ext.JSON.decode(response.responseText);
+					    	    	if(rs.resultObject == 0){
+			   	                  		this.textValid = true;
+					    	    		this.clearInvalid();
+					    	    	}else{
+										this.textValid=i18n._('imageFileName_exist');
+			                            this.markInvalid(i18n._('imageFileName_exist'));
+					    	    	}
+					    	    	}
+				           });
+				         }       
+				      }
+                }, {
+                    xtype: 'combo',
+                    name: 'osType',
+                    id:'osTypeId',
+                    fieldLabel: i18n._('osType'),
+                    triggerAction: 'all',
+                    store: osTypeStore,
+                    displayField: 'osTypeText',
+                    valueField: 'osTypeValue',
+                    queryMode: 'local',
+                    forceSelection: true,
+                    typeAhead: true,
+                    allowBlank: false,
+                    value: 'Windows'
+                },
+                {
+                    xtype: 'combo',
+                    name: 'diskFormat',
+                    id:'diskFormatId',
+                    fieldLabel: i18n._('diskFormat'),
+                    triggerAction: 'all',
+                    store: diskFormatStore,
+                    displayField: 'diskFormatText',
+                    valueField: 'diskFormatValue',
+                    queryMode: 'local',
+                    forceSelection: true,
+                    typeAhead: true,
+                    allowBlank: false,
+                    value: 'raw'
+                },
+                {
+                    xtype:'textfield',
+                    name: 'versionName',
+                    id:'versionNameId',
+                    fieldLabel:i18n._('versionName'),
+                    validator : vd,
+                    maxLength:50
+                },
+                {
+                    xtype:'textfield',
+                    name: 'userName',
+                    id:'userNameId',
+                    fieldLabel: i18n._('username'),
+                    name:i18n._('User Name'),
+                    allowBlank: false,
+                    vtype:'usernameCheck',
+                    maxLength:50
+                },
+                {
+                    xtype:'textfield',
+                    name: 'bootPath',
+                    id:'bootPathId',
+                    fieldLabel: '启动路径',
+                    name:'bootPath',
+                    allowBlank: false,
+                    maxLength:50
+                },
+                {
+                    xtype:'textfield',
+                    name: 'password',
+                    id:'passwordId',
+                    validator:verifyPassword,
+                    fieldLabel: i18n._('password'),
+                    enforceMaxLength:true,
+                    maxLength:50
+                },
+                {
+                    xtype:'numberfield',
+                    name: 'imageSize',
+                    id:'imageSizeId',
+                    fieldLabel: i18n._('size'),
+                    allowBlank: false,
+                    minValue:0,
+                    maxValue:300,
+                    listeners: {
+					    'blur': function(obj){
+						    var size = obj.getValue();
+					    	if(size != null){
+							    var imageSize = Ext.getCmp('sizeId').getValue();
+							    var sizes = ['B','K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+							    var i = -1;
+							    for (var int = 0; int < sizes.length; int++) {
+									if(imageSize.substr(imageSize.length-1) == sizes[int]){
+										i = int;
+									}
+								};
+								if (i < 3 && size != 0){
+									return;
+								}else if (i == 3) {
+							    	if(Number(size) >= Number(imageSize.substr(0,imageSize.length-1))){
+							    		return;
+							    	};
+							    }else if(i > 3){
+							    	if(Number(size) >= Number(imageSize.substr(0,imageSize.length-1))*1024*(i-3)){
+							    		return;
+							    	};
+							    };
+							    Ext.MessageBox.show({
+									title : i18n._('notice'),
+									msg : i18n._('sizeSmall'),
+									icon : Ext.MessageBox.INFO,
+									buttons : Ext.MessageBox.OK
+								});
+					    	}
+						}
+                    }
+                },/*v_zoneGroupCombo,*/
+                {
+                    xtype: 'textarea',
+                    name: 'memo',
+                    id:'memoId',
+                    fieldLabel:i18n._('memo'),
+                    maxLength:255
+                }
+            ]
+        }],
+        dockedItems: [{
+            xtype: 'toolbar',
+            dock: 'bottom',
+            ui: 'footer',
+            layout: {
+                pack: 'left'
+            },
+            items: [{
+                style:'margin-left:160px;',
+                minWidth: 80,
+                text:i18n._('OK'),
+                handler:function(){
+                    if(!Ext.getCmp('fileNameId').isValid() || !Ext.getCmp('sizeId').isValid()
+                    		|| !Ext.getCmp('bootPathId').isValid()
+                    		|| !Ext.getCmp('nameId').isValid()
+                            || !Ext.getCmp('osTypeId').isValid() || !Ext.getCmp('diskFormatId').isValid()
+                            || !Ext.getCmp('versionNameId').isValid() || !Ext.getCmp('userNameId').isValid()
+                            || !Ext.getCmp('passwordId').isValid()
+                            || !Ext.getCmp('imageSizeId').isValid()){
+                    	v_mask.hide();
+                        return;
+                    }
+                    
+                    Ext.MessageBox.show({
+                        title:i18n._('notice'),
+                        msg: '操作已经提交，请通过镜像列表查看保存进度。',
+                        buttons: Ext.MessageBox.OK,
+                        fn:function(e){
+                        	add.hide();
+                        }
+                        
+                    }); 
+                    
+                    Ext.Ajax.request({
+                        url: path+'/../image/image!addUploadInfo.action',
+                        method:'POST',
+                        params: {
+                            "fileName": fileName,
+                            "image.fileName":fileName,
+                            /*"image.regionCode":v_zoneGroupCombo.getValue(),*/
+                            "image.bootPath":Ext.getCmp('bootPathId').getValue(),
+                            "image.name":Ext.getCmp('nameId').getValue(),
+                            "image.diskFormat":Ext.getCmp('diskFormatId').getValue(),
+                            "image.distro": Ext.getCmp('versionNameId').getValue(),
+                            "image.osType":Ext.getCmp('osTypeId').getValue(),
+                            "image.passwd":Ext.getCmp('passwordId').getValue(),
+                            "image.username":Ext.getCmp('userNameId').getValue(),
+                            "image.desc":Ext.getCmp('memoId').getValue(),
+                            "image.size":Ext.getCmp('imageSizeId').getValue()
+                        },
+                        success: function(response){
+                            var obj = Ext.decode(response.responseText);
+                            if(obj.success){
+                                Ext.getCmp('addform').getForm().reset();
+                                add.hide();
+                                store.load();
+                            }
+                            else{
+                                Ext.MessageBox.show({
+                                   title:i18n._('notice'),
+                                   msg: obj.resultMsg,
+                                   icon:Ext.MessageBox.WARNING,
+                                   buttons: Ext.MessageBox.OK
+                                   
+                               }); 
+                                return;
+                            }
+                        }
+                    });// ajax end
+                }
+            }]
+        }]
+    }); //add end
+    
+    
+    var grid = Ext.create('Ext.grid.Panel', {
+        id:'button-grid',
+        store: store,
+        layout:'fit',
+        margin:'0 0 0 0',
+        width:'100%', 
+        height:'100%',
+    //  height:300,
+        frame: true,
+        border:false,
+        simpleSelect :true,
+        selModel: Ext.create('Ext.selection.RowModel'),
+        iconCls: 'icon-grid',
+        //自适应
+        viewConfig: {
+            stripeRows: true,
+            forceFit: true
+        },
+        columns:[
+        Ext.create('Ext.grid.RowNumberer',{header:'',dataIndex:'item',align:'left',width:50}),
+       {
+            text: i18n._('fileName'), dataIndex: 'name', flex: 1, sortable: false
+        },{
+             text: i18n._('createDate'), dataIndex: 'createDate', renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+             flex: 1, sortable: false
+        },{
+            text: i18n._('actualSize'), dataIndex: 'size', flex: 1, sortable: false
+        },{
+            text: i18n._('status'), dataIndex: 'flag', renderer: transferStr, flex: 1, sortable: false
+        },{
+            text: i18n._('Operating'), dataIndex: 'size', renderer: saveToImage, flex: 1, sortable: false
+        }],
+        columnLines: true,
+        dockedItems: [ {
+            xtype: 'toolbar',
+            cls: 'toolbarCSS',
+            items: [
+            {
+                itemId: 'removeButton',
+                text: '<font id="searchId" color="#ffffff" >' + i18n._('refreshText') + '</font>',
+                tooltip: i18n._('refreshText'),
+                icon:'images/searchImage.png',
+                listeners: changeColor('searchId'),
+                handler: function() {store.load();}
+            },
+            {
+                 xtype:'button',
+                 text: '<font id="detailId" color="#ffffff" >' + i18n._('uploadMirroring') + '</font>',
+                 tooltip:i18n._('uploadMirroring'),
+                 icon: 'images/uploadImage.png',
+                 hidden:true,
+                 listeners: changeColor('detailId'),
+                 handler: uploadWin
+                     
+            },
+            {xtype:'tbfill'}
+            ]
+        }]
+    }); //grid end
+    
+    Ext.create('Ext.Viewport', {
+        width: '100%',
+        height:'100%',
+        id:'uploadList',
+        layout:'fit',
+        border:false,
+        items:[{
+                xtype:'panel',
+                id:'pane_one',
+                title: i18n._('CMDB')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('uploadManage'),
+                width:'100%',
+                bodyBorder:false,
+                layout:'fit',
+                items:grid
+             }]
+    }); //Ext.Viewport end
+    
+     store.load({params:{"page":1}});
+    
+    function uploadWin() { 
+        formUpload.getForm().reset();
+        winUpload.show();  
+    }
+    
+    var formUpload = new Ext.form.FormPanel({ 
+        fileUpload:true,  
+        defaultType: 'textfield',
+        items: [{
+            xtype: 'filefield',
+            id: 'form-file',
+            emptyText: i18n._('selectImage'),
+            fieldLabel: i18n._('IMAGE'),
+            labelAlign: 'right',
+            name: 'file',
+            buttonText: i18n._('browse'),
+            anchor: '90%',
+            allowBlank: false,
+            msgTarget: 'side',
+            labelWidth: 50
+        }]  
+    }); //formUpload end
+    
+    function showOk(title, msg) {
+        Ext.MessageBox.show({
+            title: title,
+            msg: msg,
+            icon:Ext.MessageBox.INFO,
+            buttons: Ext.MessageBox.OK
+        });
+    }
+    
+    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+        msg: i18n._('uploading'),
+        removeMask: true //完成后移除
+    });
+    function maskShow() {
+        v_mask.show();
+        var mask = Ext.getBody().query('.x-mask')[0];
+        mask.style.zIndex = 60000;
+        var maskLoading = Ext.getBody().query('.x-mask-msg')[0];
+        maskLoading.style.zIndex = 100001;
+    }
+    
+    var myVar = null;
+    function waitForUpload(fileName) {
+    	Ext.Ajax.request({
+            url: path+'/../image/image!waitForUpload.action',
+            params: {
+                "fileName": fileName
+            },
+            success: function(response){
+                var json = Ext.decode(response.responseText);
+                if(json.success){
+                	Ext.MessageBox.updateProgress(json.resultObject / 100, json.resultObject + '%');
+                }
+            }
+        });
+    }
+    
+    var winUpload = new Ext.Window({  
+        title: i18n._('uploadMirroring'),  
+        width: 400,  
+        height:110,  
+        minWidth: 300,  
+        minHeight: 100,  
+        layout: 'fit',  
+        constrain : true,
+        plain:true,  
+        bodyStyle:'padding:5px;',
+        buttonAlign:'center',  
+        items: formUpload,
+        closable:false,
+        modal:true,
+        tools:[{
+              type:'close',
+              handler:function(){
+                  winUpload.hide();
+              }
+        }],
+        buttons: [{  
+          text: i18n._('upload'),  
+          handler: function() {
+              if(formUpload.form.isValid()){
+            	  
+            	  var fileName = Ext.getCmp('form-file').getValue();
+
+            	//  maskShow();
+                  winUpload.hide();
+                  formUpload.getForm().submit({      
+                	  url: path+'/../image/upload!upload.action',  
+                      success: function(form, action){
+                      //    winUpload.hide();
+                          //v_mask.hide();
+                          clearInterval(myVar);
+                          Ext.MessageBox.updateProgress(0, '0%');
+                          showOk(i18n._('Prompt'), i18n._('uploadSuccess'));
+                          store.load();
+                      },      
+                      failure: function(form, action){      
+                           Ext.Msg.alert('Error', action.result.msg);
+                      }  
+                  });
+               //   Ext.Msg.wait('请等待，操作正在进行中','Notice');
+                   Ext.MessageBox.show({   
+                      title: i18n._('uploading'),   
+                      //msg: 'Processing...',   
+                      width:240,   
+                      progress:true,   
+                      closable:false
+                  }); 
+                  myVar=setInterval(function(){waitForUpload(fileName)},1000);
+                  
+               }  
+           }  
+        },{  
+          text: i18n._('Cancel'),
+          handler:function(){winUpload.hide();}  
+        }]  
+    }); //winUpload end
+    
+    
+}  //renderPage
+	
+	function saveToImage(value, obj, record) {
+		var name = record.data['name'];
+		return "<a href='#' onclick='openSaveWin(\"" + value + "\", \"" + name + "\");'>" + i18n._('saveImage') + "</a>&nbsp;&nbsp;&nbsp;<a href='#' onclick='deleteUpload(\"" + name + "\");'>" + i18n._('Delete') + "</a>"
+	}
+	
+	Ext.regModel('osTypeInfo', {
+		fields: [{name: 'osTypeText'}, {name: 'osTypeValue'}]
+	});
+	
+	var osTypeStore = Ext.create('Ext.data.Store', {
+		model: 'osTypeInfo',
+		data: [
+		       {osTypeText:'Windows', osTypeValue: 'Windows'},
+		       {osTypeText:'Linux', osTypeValue: 'Linux'}
+		       ]
+	});
+	
+	Ext.regModel('DiskFormatInfo', {
+		fields: [{name: 'diskFormatText'}, {name: 'diskFormatValue'}]
+	});
+	
+	var diskFormatStore = Ext.create('Ext.data.Store', {
+		model: 'DiskFormatInfo',
+		data: [
+		       {diskFormatText:'raw', diskFormatValue: 'raw'},
+		       {diskFormatText:'qcow2', diskFormatValue: 'qcow2'},
+		       {diskFormatText:'vmdk', diskFormatValue: 'vmdk'}
+		       ]
+	});
+	
+	
+	
+	function transferStr(value) {
+		if(value == true) {
+			return i18n._('uploaded');
+		}
+		return i18n._('notUpload');
+	}
+	
+	function openSaveWin(value, name) {
+		fileName = name;
+		Ext.getCmp('sizeId').setValue(value);
+		Ext.getCmp('fileNameId').setValue(name);
+		add.show();
+	}
+	
+	function deleteUpload(value) {
+		Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether delete?'), function(btn) {  
+            if (btn == 'yes') {  
+         	   Ext.Ajax.request({
+         		    url: path+'/../image/image!deleteUploadInfo.action',
+         		    params: {
+         		    	"fileName": value
+         		    },
+         		    success: function(response){
+         		    	var json = Ext.decode(response.responseText);
+         		        if(json.success){
+         		        	Ext.MessageBox.show({
+  				  		           title: i18n._('Prompt'),
+  				  		           msg: i18n._('Deleted successfully'),
+				  		           icon:Ext.MessageBox.INFO,
+				  		           buttons: Ext.MessageBox.OK
+				  		           
+				  		       }); 
+         		        	store.load();
+         		        }
+         		    }
+         		});
+         	}
+		});
+	}
+
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

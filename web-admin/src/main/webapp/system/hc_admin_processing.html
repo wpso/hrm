@@ -1,0 +1,722 @@
+<html>
+<head>
+<title>hc_admin_processing</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+	href='../extjs-4.1.0/resources/css/ext-all.css' />
+<script type='text/javascript' src='../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<!--  <script src="../resources/myproject-lang.js"></script>-->
+<!--  <script src="../ext-4.0.7-gpl/ext-all-debug.js"></script>-->
+<script type="text/javascript" src="../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+<style type="text/css">
+/* style rows on mouseover */
+.x-grid-row-over .x-grid-cell-inner {
+	font-weight: bold;
+}
+/* shared styles for the ActionColumn icons */
+.x-action-col-cell img {
+	height: 16px;
+	width: 16px;
+	cursor: pointer;
+}
+/* custom icon for the "buy" ActionColumn icon */
+.x-action-col-cell img.buy-col {
+	background-image: url(../images/accept.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img.alert-col {
+	background-image: url(../images/image_add.png);
+}
+
+.x-ie6 .x-action-col-cell img.buy-col {
+	background-image: url(../images/accept.gif);
+}
+
+.x-ie6.x-action-col-cell img.alert-col {
+	background-image: url(../images/image_add.png);
+}
+
+.x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.gif);
+}
+
+.x-ie6.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img {
+	position: relative;
+	top: -1px;
+}
+</style>
+
+
+<script>
+function showResult(btn){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+
+function showResultText(bt1, text){
+    Ext.example.msg('Button Click', 'You clicked the {0} button and entered the text "{1}".', btn, text);
+};
+
+function showResultText(bt1){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+	'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+	'Ext.selection.CheckboxModel',
+	'Ext.tip.QuickTipManager',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+Ext.onReady(function() {
+	var cId=0;
+    var params;
+	Ext.QuickTips.init();
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {
+				
+				//define model
+				var processingModel=Ext.define('ProcessingModel', {
+					extend: 'Ext.data.Model',
+					fields: [
+						'id', 'complaintID', 'processingContent','userID',
+						{name: 'processingTime', mapping: 'processingTime', type: 'date', dateFormat: 'time'}
+					],					
+					idProperty: 'id'
+				});
+
+				var processingStore= Ext.create('Ext.data.Store', {
+					model: 'ProcessingModel',
+					remoteSort: false,
+					proxy: new Ext.data.proxy.Ajax({
+					url: path+'/complaint/findAllProcessingRecord!findAllProcessingRecord.action',
+					reader: {
+				            type: 'json',
+				            root: 'resultObject.result',
+				            totalProperty: 'resultObject.totalCount'
+				        }				        
+					}),
+					//sortInfo: {field:'id',direction:'DESC'}
+					sorters: ["id"]
+				});		
+					//投诉类型
+					var CTypeData=[
+						{"value":"00","text":i18n._('device')},
+						{"value":"01","text":i18n._('service')},
+						{"value":"11","text":i18n._('others')},
+						{"value":"","text":i18n._('All')}
+					];
+					var CTypeStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:CTypeData
+					});
+					var CTypeGridStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:CTypeData
+					});
+					var CTypeGridComb=Ext.create('Ext.form.ComboBox', {
+						editable:false,
+						store:CTypeGridStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField:'value'
+					});
+					//受理状态
+					var AStatusData=[
+						{"value":"00","text":i18n._('Pending')},//待受理
+						{"value":"01","text":i18n._('processing')},//受理中
+						{"value":"10","text":i18n._('processed')},//已受理
+						{"value":"11","text":i18n._('Completed')}//完成
+					];
+					var AStatusStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:AStatusData
+					});
+					var AStatusCombo=Ext.create('Ext.form.ComboBox', {
+						editable:false,
+						store:AStatusStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField:'value'
+					});
+					var PStatusDatas=[
+						{"value":"00","text":i18n._('Waiting')},//等待中
+						{"value":"01","text":i18n._('Checking')},//检查中
+						{"value":"10","text":i18n._('Repairing')},//修复中
+						{"value":"11","text":i18n._('Completed')},//完成
+						{"value":"","text":i18n._('All')}
+					];
+					//处理状态
+					var PStatusData=[
+						{"value":"00","text":i18n._('Waiting')},//等待中
+						{"value":"01","text":i18n._('Checking')},//检查中
+						{"value":"10","text":i18n._('Repairing')},//修复中
+						{"value":"11","text":i18n._('Completed')}//完成						
+					];
+					var PStatusStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:PStatusData
+					});
+					var PStatusGridStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:PStatusData
+					});
+					var PStatusGridComb=Ext.create('Ext.form.ComboBox', {
+						editable:false,
+						store:PStatusGridStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField:'value'
+					});
+					var PStatusCombo=Ext.create('Ext.form.field.ComboBox', {
+						fieldLabel: i18n._('process')+i18n._('status'),//处理状态
+						width: 220,
+						labelWidth: 60,
+						editable:false,
+						allowBlank:false,
+						store: PStatusStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField: 'value',
+						emptyText:i18n._('PleaseSelect')
+						//renderTo: Ext.getBody()
+					});
+					//投诉分发
+					var PDistributeData=[
+						{"value":"00","text":i18n._('Processing')+i18n._('Manager')},//投诉处理管理员
+						{"value":"01","text":i18n._('device')+i18n._('Manager')},//设备管理员
+						{"value":"10","text":i18n._('service')+i18n._('Manager')},//服务处理管理员
+						{"value":"10","text":i18n._('others')+i18n._('Manager')}//其他管理员
+					];
+					var PDistributeStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:PDistributeData
+					});
+					var PDistributeCombo=Ext.create('Ext.form.field.ComboBox', {
+						fieldLabel: i18n._('Complaint')+i18n._('Distribute'),//投诉分发
+						width: 220,
+						labelWidth: 60,
+						editable:false,
+						allowBlank:false,
+						store: PDistributeStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField: 'value',
+						emptyText:i18n._('PleaseSelect'),
+						renderTo: Ext.getBody()
+					});
+					var CtextField=Ext.create('Ext.form.field.TextArea',{
+						name: 'Ctextarea',
+						fieldLabel: i18n._('Complaint')+i18n._('detail'),//投诉内容
+						allowBlank:false,
+						readOnly:true,
+						disabled:true,
+						width:220
+					});
+					var PtextField=Ext.create('Ext.form.field.TextArea',{
+						name: 'Ptextarea',
+						fieldLabel: i18n._('process')+i18n._('Log'),//处理日志
+						allowBlank:false,
+						//regex:/^[\S]+$/,//禁止输入空白字符
+						//regexText:i18n._('InvalidCharacters'),
+						width:220,
+						maxLength:50,
+						emptyText:i18n._('process')+i18n._('Log')
+					});
+					//Form表单提交
+					var formPanel = Ext.create('Ext.form.Panel', {
+						frame: true,						
+						//title: 'Form Fields',
+						width: '35%',						
+						bodyPadding: 5,
+						fieldDefaults: {
+							labelAlign: 'left',
+							labelWidth: 60,
+							anchor: '100%'
+						},
+						items: [
+							CtextField,
+							PtextField,
+							PStatusCombo,
+							PDistributeCombo
+						],
+						buttons: [{
+							text: i18n._('OK'),
+							handler:function(){
+								//提交后台之前先做有效性验证
+								if(!formPanel.getForm().isValid()){
+									return;
+								}
+								var pContent=PtextField.getValue();
+								var userId=1;
+								var pStatus=PStatusCombo.getValue();
+								var pRole=PDistributeCombo.getValue();								
+								if(pContent==""||Ext.util.Format.trim(pContent).length==0){
+									Ext.Msg.alert(i18n._('notice'), i18n._('please input')+i18n._('process')+i18n._('Log'));
+									PtextField.focus();
+								}else if(pStatus==null){
+									Ext.Msg.alert(i18n._('notice'), i18n._('please select')+i18n._('process')+i18n._('status'));
+									PStatusCombo.focus();
+								}else if(pRole==null){
+									Ext.Msg.alert(i18n._('notice'), i18n._('please select')+i18n._('Complaint')+i18n._('Distribute'));
+									PDistributeCombo.focus();
+								}else{
+									var start=Ext.Ajax.request({
+										url:path+'/complaint/createProcessing!createProcessing.action',
+										method:'POST',
+										params:{
+											'complaintID':cId,
+											'processingContent':pContent,
+											'userID':userId,
+											'acceptStatus':'10',
+											'acceptorRole':pRole,
+											'processingStatus':pStatus
+										},
+										success:function(form,action){
+		 									var obj = Ext.decode(form.responseText);
+		 									if(obj==null || obj.success==null){
+		 										Ext.MessageBox.show({
+		 								           title: i18n._('errorNotice'),
+		 								           msg: i18n._('returnNull'),
+		 								          buttons: Ext.MessageBox.OK,
+		 								           icon: Ext.MessageBox.ERROR
+		 										});//INFO,QUESTION,WARNING,ERROR
+		 										return;
+		 									}
+	 										if(!obj.success){
+	 											Ext.MessageBox.show({
+		 								           title: i18n._('errorNotice'),
+		 								           msg: obj.resultMsg,
+		 								          buttons: Ext.MessageBox.OK,
+		 								           icon: Ext.MessageBox.WARNING
+		 										});
+	 											return;
+	 										}
+	 										stGrid2.load();
+								    	},   
+	 								    failure:function(form,action){   
+	 								    	Ext.MessageBox.show({
+		 								           title: i18n._('errorNotice'),
+		 								           msg: i18n._('operateFail'),
+		 								          buttons: Ext.MessageBox.OK,
+		 								           icon: Ext.MessageBox.WARNING
+		 										});  
+	 								    }
+									 });
+									formPanel.getForm().reset();
+									processingWinForm.hide();
+								}								
+							}
+						},{
+							text: i18n._('Cancel'),
+							handler:function(){
+								formPanel.getForm().reset();
+								processingWinForm.hide();
+							}
+						}]
+					});
+
+					var processingWinForm = new Ext.create('Ext.window.Window',{
+						title:i18n._('process')+i18n._('Complaint'),	//受理投诉					
+						width:250,
+						height:300,
+						closable:false,
+						constrain:true,
+						modal:true,
+						tools:[{
+							type:'close',
+							handler:function(){
+								formPanel.getForm().reset();
+								processingWinForm.hide();																
+							}
+						}],
+						layout:'fit',
+						defaults:{
+							split:false
+						},
+						items:[					
+							{
+								xtype: 'form',//fieldset								
+								layout:'fit',
+								items:formPanel
+							}
+						]
+					}); 
+
+				var Pcombo = Ext.create('Ext.form.field.ComboBox', {
+					//hideLabel: true,
+					//editable:false,//false为不可编辑
+					store: CTypeStore,
+					displayField: 'text',
+					valueField: 'value',
+					typeAhead: true,
+					queryMode: 'local',
+					triggerAction: 'all',
+					emptyText:i18n._('PleaseSelect'),
+					//selectOnFocus: true,
+					width: 135,
+					iconCls: 'no-icon',
+					listeners:{
+			             'select': function(record){			            	
+			            	proxy.setExtraParam(itemKey, Pcombo.getValue());												
+							//stGrid2.load();			            	
+			            	stGrid2.loadPage(1,null);
+			             }
+			         }					
+				});
+				CTypeStore.loadData(CTypeData);	
+				//define model
+				Ext.define('InstanceVO', {
+					extend: 'Ext.data.Model',
+					fields: [
+						'id', 'complaintType', 'complaintContent','acceptStatus','processingStatus','acceptorRole',
+						{name: 'complaintTime', mapping: 'complaintTime', type: 'date', dateFormat: 'time'}
+					],					
+					idProperty: 'id'
+				});
+				//create the Data Store
+				var stGrid2= Ext.create('Ext.data.Store', {
+					model: 'InstanceVO',
+					pageSize:15,
+					remoteSort: true,
+					proxy: new Ext.data.proxy.Ajax({
+					url: path+'/complaint/findAllComplaintsRecord!findAllComplaintsRecord.action',
+					//url: '../system/json/getProcessing!getProcessing.json',
+					reader: {
+				            type: 'json',
+				            root: 'resultObject.result',
+				            totalProperty: 'resultObject.totalCount'
+				        }				        
+					}),
+					//sortInfo: {field:'id',direction:'DESC'}
+					sorters: ["id"]
+				});
+				var pluginExpanded = true;
+				var itemKey='complaintType';
+				var proxy=stGrid2.getProxy();
+				var grid = Ext.create('Ext.grid.Panel', {
+				store: stGrid2,
+				stateful: true,					
+				forceFit: true,				
+				layout:'fit',
+				bbar: Ext.create('Ext.toolbar.Paging', {
+					store: stGrid2,
+					displayInfo: true					
+				}),
+				viewConfig: {
+					   stripeRows: true						
+				},
+				stateId: 'stateGrid',
+				dockedItems: [
+							 {
+								xtype: 'toolbar',
+								items: [									
+									{
+										 xtype:'button',
+										 text: i18n._('process')+i18n._('Complaint'),	//受理投诉										 
+										 icon: '../images/accept.png',
+										 handler:function(){
+											var row = grid.getSelectionModel().getSelection();
+											if (row.length == 0) {  
+												Ext.MessageBox.show({										  		           
+													   title:i18n._('notice'),
+													   msg:i18n._('selectOne'),
+									  		           icon:Ext.MessageBox.INFO,
+									  		           buttons: Ext.MessageBox.OK										  		           
+									  		       });  
+											} else {
+												var record = grid.getStore().getAt(row[0].index);
+												//alert('***'+row[0].get('id'));
+												var acceptStatus=row[0].get('acceptStatus');//record.get('acceptStatus');
+												var acceptorRole=row[0].get('acceptorRole');//record.get('acceptorRole');
+												var processingStatus=row[0].get('processingStatus');//record.get('processingStatus');
+												cId=row[0].get('id');//record.get('id');
+												if(processingStatus=='11'){
+													Ext.Msg.alert(i18n._('notice'),i18n._('Complaint')+i18n._('process')+i18n._('Completed'));
+												}else{
+													if(acceptStatus!='00'){													
+														//PDistributeCombo.hidden=true;
+														PDistributeCombo.setValue(row[0].get('acceptorRole'));//record.get('acceptorRole')
+														PDistributeCombo.setDisabled(true);													
+													}else{													
+														//PDistributeCombo.hidden=false;													
+														PDistributeCombo.setDisabled(false);													
+													}
+													CtextField.setValue(row[0].get('complaintContent'));//record.get('complaintContent')
+													processingWinForm.show();
+												}												
+											}												
+											//formPanel.hidden=false;
+										 }
+									},
+									{
+										xtype:'tbfill'
+									},
+									{
+										xtype:'splitbutton',
+										text:i18n._('Complaint')+i18n._('type'),//投诉类型
+										id:'split',
+										menu: new Ext.menu.Menu({
+											items: [
+												{
+													text: i18n._('Complaint')+i18n._('type'),//投诉类型
+													handler: function(){
+														Ext.getCmp('split').setText(i18n._('Complaint')+i18n._('type'));
+														CTypeStore.loadData(CTypeData);
+														Pcombo.initValue();
+														Pcombo.setValue(i18n._('PleaseSelect'));
+														itemKey='complaintType';
+														proxy.setExtraParam('processingStatus', null);
+													}
+												},
+												{
+													text: i18n._('process')+i18n._('status'),//处理状态
+													handler: function(){
+														Ext.getCmp('split').setText(i18n._('process')+i18n._('status'));
+														CTypeStore.loadData(PStatusDatas);
+														Pcombo.initValue();
+														Pcombo.setValue(i18n._('PleaseSelect'));
+														itemKey='processingStatus';
+														proxy.setExtraParam('complaintType', null);
+													}
+												}
+												
+											 ]
+										})
+									},																		
+									Pcombo
+									/*{
+										 xtype:'button',
+										 text: i18n._('search'),										 
+										 icon: '../images/zoom.png',
+										 handler:function(){
+											//if(Pcombo.getValue()==null){
+											//	Ext.Msg.alert(i18n._('notice'), i18n._('searchCriteria'));
+											//}else{
+												var proxy=stGrid2.getProxy();
+												proxy.extraParams[itemKey] = Pcombo.getValue();						
+												stGrid2.load();
+												//proxy.extraParams[itemKey]='';
+											//}											
+										 }
+									}*/									
+								]
+							  }],
+				columnLines:true,
+				//bodyBorder:false,
+				frame:true,
+				border:true,
+				columns: [
+				          Ext.create('Ext.grid.RowNumberer',{header:i18n._('row_Num'),dataIndex:'item',align:'left'}),				    
+					{
+						id: 'id',
+						text     : i18n._('投诉ID'),
+						//flex     : 1,
+						sortable : false,
+						dataIndex: 'id',
+						field:'textfield',
+						hidden:true
+						
+					},
+					{						
+						text     : i18n._('Complaint')+i18n._('type'),//投诉类型
+						//flex     : 1,
+						sortable : false,
+						dataIndex: 'complaintType',
+						field:CTypeGridComb,
+						renderer:function(value){							
+							var index1 = CTypeGridStore.find(CTypeGridComb.valueField,value);
+							var record1 = CTypeGridStore.getAt(index1);
+							return record1.data.text;							
+						}						
+						
+					},
+					{
+						text     : i18n._('Complaint')+i18n._('detail'),//投诉内容
+						//flex     : 1,
+						sortable : false,						
+						dataIndex: 'complaintContent'
+					},
+					{
+						text     : i18n._('Complaint')+i18n._('Timer'),//投诉时间
+						//flex     : 1,
+						sortable : false,
+						dataIndex: 'complaintTime',						
+						renderer: Ext.util.Format.dateRenderer("Y-m-d H:i:s")
+					},
+					{
+						text     : i18n._('acceptStatus'),
+						//flex     : 1,
+						sortable : false,
+						dataIndex: 'acceptStatus',						
+						field:AStatusCombo,
+						renderer:function(value){							
+							var index2 = AStatusStore.find(AStatusCombo.valueField,value);
+							var record2 = AStatusStore.getAt(index2);
+							return record2.data.text;							
+						}
+					},		            
+		            {
+		                text     : i18n._('process')+i18n._('status'),//处理状态
+		                //flex     : 1,
+		                sortable : false,		                
+		                dataIndex: 'processingStatus',						
+						renderer:function(value){							
+							var index3 = PStatusGridStore.find(PStatusGridComb.valueField,value);
+							var record3 = PStatusGridStore.getAt(index3);
+							return record3.data.text;							
+						}
+		            },		            
+		            {
+		                text     : i18n._('process')+i18n._('role'),//处理角色
+		                //flex     : 1,
+		                sortable : false,
+		                hidden:true,
+		                dataIndex: 'acceptorRole',						
+						renderer:function(value){							
+							var index3 = PStatusGridStore.find(PStatusGridComb.valueField,value);
+							var record3 = PStatusGridStore.getAt(index3);
+							return record3.data.text;							
+						}
+		            }
+				],				
+				listeners:{					
+					dblclick :{ 
+						element: 'body',
+						fn:function(){//							
+							var row = grid.getSelectionModel().getSelection();
+							var record = grid.getStore().getAt(row[0].index);
+							var acceptStatus=row[0].get('acceptStatus');//record.get('acceptStatus');
+							var acceptorRole=row[0].get('acceptorRole');//record.get('acceptorRole');
+							var processingStatus=row[0].get('processingStatus');//record.get('processingStatus');
+							cId=row[0].get('id');//record.get('id');
+							if(processingStatus=='11'){
+								Ext.Msg.alert(i18n._('notice'),i18n._('Complaint')+i18n._('process')+i18n._('Completed'));
+							}else{
+								if(acceptStatus!='00'){													
+									//PDistributeCombo.hidden=true;
+									PDistributeCombo.setValue(record.get('acceptorRole'));
+									PDistributeCombo.setDisabled(true);													
+								}else{													
+									//PDistributeCombo.hidden=false;													
+									PDistributeCombo.setDisabled(false);													
+								}
+								CtextField.setValue(record.get('complaintContent'));
+								processingWinForm.show();
+							}							
+						}
+					}
+				}
+				});//grid
+				stGrid2.load();
+				grid.store.sort([{ property: "id", direction: "DESC" }]);
+				Ext.create('Ext.Viewport',{
+					layout:'fit',
+					width:'100%',
+					items:[{
+					xtype:'panel',
+					id:'panel_one',
+					title:i18n._('SLM')+'&nbsp;&nbsp;>>&nbsp;&nbsp;'+i18n._('Processing'),
+					width:'100%',
+					layout:'fit',
+					tools:[{
+					type:'pin',
+					handler:function(){
+					  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_assetManagement.html';
+					}
+					},{
+					type:'refresh',
+					handler:function(){
+					  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_processing.html';
+					}	
+					},{
+					type:'left',
+					handler:function(){
+					  history.go(-1);
+					}
+					}],
+					items:[
+					{
+						 xtype:'panel',
+						 layout:'fit',
+						 border:false,
+						 items:grid
+					  }
+					]
+					}]//panel
+					});			
+				
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+</script>
+</head>
+<body>
+</body>
+</html>

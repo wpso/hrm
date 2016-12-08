@@ -1,0 +1,3097 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css"
+	href="../../extjs-4.1.0/resources/css/ext-all-gray.css" />
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script type="text/javascript" src="../../js/jquery-1.7.2.min.js"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<style type="text/css">
+body .x-panel {
+	margin: 0 0 20 0;
+	padding: 0 0 0 0;
+}
+
+.addUserArrow {
+	background: url("../images/search_icon.png") no-repeat scroll right
+		center transparent;
+}
+</style>
+<script type="text/javascript">
+ Ext.Loader.setConfig({
+    enabled: true
+});
+
+     Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+]);
+
+     function vd(text){
+         if(text.indexOf(' ')>=0)       
+        	 return i18n._('blank');
+            else        
+              return true;    
+         
+     };
+
+     
+ Ext.onReady(function(){
+	   var params;
+       MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+            },
+            setup: function() {
+
+            	//定义Industry
+            	Ext.define('Industry',{
+            		extend: 'Ext.data.Model',
+            		fields:[
+            		        {name:'id',type:'long'},
+            		        {name:'name',type:'string'},
+            		        {name:'nameCode',type:'string'}
+            		        ]
+            	});
+            	//定义Country
+            	Ext.define('Country',{
+            		extend: 'Ext.data.Model',
+            		fields:[
+            		        {name:'id',type:'long'},
+            		        {name:'name',type:'string'},
+            		        {name:'nameCode',type:'string'}
+            		        ]
+            	});
+            	//定义Region
+            	Ext.define('Region',{
+            		extend: 'Ext.data.Model',
+            		fields:[
+            		        {name:'id',type:'long'},
+            		        {name:'name',type:'string'},
+            		        {name:'nameCode',type:'string'}
+            		        //{model:'Country',name:'country'}
+            		        ]
+            	});
+
+				//定义Brand
+				Ext.define('UserBrand',{
+							 extend: 'Ext.data.Model',
+							 fields:[
+							 {name:'id',type:'long'},
+							 {name:'code',type:'string'},
+							 {name:'name',type:'string'}
+							 ]
+				});
+				
+            	//定义Account
+            	Ext.define('Account',{
+							 extend: 'Ext.data.Model',
+							 fields:[
+							 {name:'id',type:'long'},
+							 {name:'accountBalance',type:'string'},
+							 {name:'couponsBalance',type:'string'},
+							 {name:'couponsRebateRateStr',type:'string'},
+							 {name:'giftsBalanceStr',type:'string'},
+							 {name:'giftsRebateRateStr',type:'string'},
+							 {name:'createDate',mapping: 'createDate',type:'date', dateFormat:'time'},
+							 //'user',
+							 //{name:'userName',mapping:'user.name'}
+							 {model:'User',name:'user'}
+							  ]
+				});
+				//定义user
+				Ext.define('User',{
+							 extend: 'Ext.data.Model',
+							 fields:[
+							 {name:'id',type:'long'},
+							 {name:'name',type:'string'},
+							 {name:'password',type:'string'},
+							 {name:'email',type:'string'},
+							 {name:'userType',type:'string'},
+							 {name:'enable',type:'int'},
+							 {name:'lastLoginDate',mapping: 'lastLoginDate', type:'date',dateFormat:'time'},
+							 {name:'createDate',mapping: 'createDate',type:'date', dateFormat:'time'},
+							 {name:'updateDate',mapping: 'updateDate', type:'date',dateFormat:'time'},
+							 {name:'level',type:'string'},
+							 {model:'Domain',name:'domain'},
+							 {model:'UserProfile', name:'userProfile'}
+							  ], 
+							  belongTo: 'Account'
+				});
+				//定义平台
+				Ext.define('Domain',{
+							 extend: 'Ext.data.Model',
+							 fields:[
+							 {name:'id',type:'long'},
+							 {name:'name',type:'string'},
+							 {name:'abbreviation',type:'string'}
+							 ],
+							 belongTo: 'User'
+				});
+				
+				
+				var accountstore=Ext.create('Ext.data.Store', {
+					pageSize: pageSize,
+					autoLoad:true,
+					storeId:'loadAccountlist',
+					width:'100%',
+					requires : 'Account',
+					model: 'Account',
+					sorters: [{
+					            property : 'createDate',
+					            direction: 'DESC'
+					           }],
+					remoteSort:true,
+						proxy: {
+					        type: 'ajax',
+					        url : '../../bss/account!getAccountByPage.action',
+							reader: {
+					            type: 'json',    
+					            root: 'resultObject.result',
+					            totalProperty: 'resultObject.totalCount'
+					        }
+					    }
+					});
+
+
+				/*----------------------初始化国家地区行业的国际化信息begin---------------------*/
+            	var countryArr=[];
+            	var regionArr=[];
+            	var industryArr=[];
+            	var brandArr=[];
+            	var domainArr=[];
+            	
+            	$.ajax({
+            		url:'../../admin/loadCountry',
+            		async:false,
+            		dataType:'json',
+            		type:'POST',
+            		success:function(countryObj){
+            			//var countryObj=Ext.decode(response.responseText);
+            			if(countryObj.success){
+            				var countryArrTemp=countryObj.resultObject;
+            				for(var i=0;i<countryArrTemp.length;i++){
+            					var item={id:countryArrTemp[i].id,name:i18n._('c'+countryArrTemp[i].nameCode)};
+            					countryArr.push(item);
+            				}
+            			}else{
+            				alert("load country failure");
+            			}
+            		},
+            		failure:function(){
+            			alert("load country failure");
+            		}
+            	});
+
+
+            	$.ajax({
+            		url:'../../brand/getAllNormalBrand',
+            		async:false,
+            		dataType:'json',
+            		type:'POST',
+            		success:function(brandObj){
+            			if(brandObj.success){
+            				var brandArrTemp=brandObj.resultObject;
+            				for(var i=0;i<brandArrTemp.length;i++){
+            					var item={code:brandArrTemp[i].code,name:brandArrTemp[i].name};
+            					brandArr.push(item);
+            				}
+            			}else{
+            				alert("load brand failure");
+            			}
+            		},
+            		failure:function(){
+            			alert("load brand failure");
+            		}
+            	});
+
+           	    var brandStore = Ext.create("Ext.data.Store",{
+           	    	model:"UserBrand",
+           	    	data:brandArr
+           	    });
+           	    
+            function getRegionInfo(country_id){
+            	$.ajax({
+            		url:'../../admin/loadRegion',
+            		async:false,
+            		dataType:'json',
+            		type:'POST',
+            		data:{
+            			country_id:country_id
+            		},
+            		success:function(regionObj){
+            			regionArr=[];
+            			if(regionObj.success){
+            				var regionArrTemp=regionObj.resultObject;
+            				for(var i=0;i<regionArrTemp.length;i++){
+            					var item={id:regionArrTemp[i].id,name:i18n._('r'+regionArrTemp[i].nameCode)};
+            					regionArr.push(item);
+            				}
+            			}else{
+            				alert("load country failure");
+            			}
+            		},
+            		failure:function(){
+            			alert("load country failure");
+            		}
+            	});
+            	
+            	regionStore.loadData(regionArr);
+            }	
+            
+            	$.ajax({
+            		url:'../../admin/loadIndustry',
+            		async:false,
+            		dataType:'json',
+            		type:'POST',
+            		success:function(industryObj){
+            			if(industryObj.success){
+            				var industryArrTemp=industryObj.resultObject;
+            				for(var i=0;i<industryArrTemp.length;i++){
+            					var item={id:industryArrTemp[i].id,name:i18n._('i'+industryArrTemp[i].nameCode)};
+            					industryArr.push(item);
+            				}
+            			}else{
+            				alert("load country failure");
+            			}
+            		},
+            		failure:function(){
+            			alert("load country failure");
+            		}
+            	}); 
+
+            	var countryStore=Ext.create("Ext.data.Store",{
+           	    	model:"Country",
+           	    	data:countryArr
+           	    });
+           	    
+           	    var regionStore=Ext.create("Ext.data.Store",{
+           	    	model:"Region",
+           	    	data:regionArr
+           	    });
+           	    
+           	     var industryStore=Ext.create("Ext.data.Store",{
+           	    	model:"Industry",
+           	    	data:industryArr
+           	    });
+           	    
+
+            	
+											
+				var itemValue='userName';
+				var pluginExpanded=true;
+				
+				
+				var sm = Ext.create('Ext.selection.RowModel');
+
+//user_list
+Ext.create('Ext.Viewport',{
+    layout:'fit',
+    width:'100%',
+    items: Ext.create('Ext.grid.Panel', {
+	id:'accountList',
+	height:900,
+	//layout:'fit',
+	width:'100%',
+	sortableColumns:false,
+    //title: 
+	title: i18n._('accountManagement'),
+    store: accountstore,
+	selModel: sm,
+	listeners:{
+		'itemdblclick':{
+			fn:function(){
+				viewDetail();
+			}
+		}
+	},
+	    columns: [
+	    {xtype: 'rownumberer',dataIndex:'item',align:'left',flex:.5},
+        {header: i18n._('username'),  dataIndex: 'user', editor: 'textfield',sortable:true,flex:1,
+	    	renderer: function(value){
+            	return value.name;
+            }
+	    },
+        {header: i18n._('email'), dataIndex: 'user',sortable:true,flex:1,
+	    	renderer: function(value){
+            	return value.email;
+            }
+	    },
+        {header: i18n._('account balance'), dataIndex: 'accountBalance',align:'right',flex: 1.2
+        },{header: i18n._("couponsAmount"),dataIndex: 'couponsBalance',align:'right',flex: 1.2
+		},{header: i18n._("giftsBalance"),dataIndex: 'giftsBalanceStr',align:'right',flex: 1.2
+		},
+        {header: i18n._('platform abbreviation'), dataIndex: 'user',sortable:true,flex:.5,
+            renderer: function(value){
+            	return value.domain.abbreviation;
+            }
+        },
+		{header: i18n._('User Type'), dataIndex: 'user',sortable:true,flex:.5,
+        renderer: function(value){
+        	if(value.userType == 'NorUser'){
+        		return i18n._('NorUser');
+        	}else if(value.userType == 'EntUser'){
+        		return i18n._('EntUser');
+        	}
+        }	
+		},
+		{
+   			//text: "创建时间",
+			text: i18n._("createDate"),
+   			dataIndex: 'createDate',
+   			renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+    		flex: 1.1,
+    		sortable: true
+		},
+		{header: i18n._('userstate'), dataIndex: 'user',sortable:true,flex:1,hidden:true,
+		renderer: function(value){
+               if (value.enable == 0) {
+                 return i18n._('Account has not been actived');
+                }else if(value.enable == 1){
+                 return i18n._('Account has been actived');
+                }else if(value.enable==2){
+                	return i18n._('Accounts have been frozen');
+                }else if(value.enable==3){
+                    return i18n._('Accounts have been approved');
+                }
+             } 
+		}
+		
+		],
+		
+    selType: 'cellmodel',
+	bbar: Ext.create('Ext.PagingToolbar', {
+            store:  accountstore,
+            pageSize:0,
+            displayInfo: true
+        }),
+	 dockedItems:[{
+	        xtype:'toolbar',
+			dock: 'top',
+			cls: 'toolbarCSS',
+			//style:'background-color:#4c4c4c; background-image:url();',
+			items:[
+		{
+			icon: '../../images/resetAccount.png',  // Use a URL in the icon config	        
+			text:'<font id="resetAccount" color="white" >' + i18n._('resetAccount') + '</font>',
+			listeners: {
+				 "mouseout" : function() {
+					 document.getElementById("resetAccount").style.color = "white";
+				 },
+				 "mouseover" : function() {
+					 document.getElementById("resetAccount").style.color = "black";
+				 }
+					
+			 },
+			handler:function(){
+				var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+				if(rows.length > 0){
+					var row = rows[0];
+					var accountBalance = row.get('accountBalance');
+					var user = row.get('user');
+					var email = user.email;
+					var name = user.name;
+					var uid  = user.id;
+					var enable = user.enable;
+					if(!isEnableCheck(enable)){
+						return;
+					}
+					
+					var accountId=row.get('id');
+					
+					//Ext.getCmp('oldAccount').setValue(accountBalance);
+                    //Ext.getCmp('depositname').setValue(name);
+                    //Ext.getCmp('depositemail').setValue(email);
+					//var accountId=row.id;
+					//var balance=0;					
+					//var accountStore=Ext.Ajax.request({
+					//	url : '../../bss/account!getAccountByUserId.action?user.id='+id,
+					//	method : 'GET',
+					//	success : function(response, options) {
+					//		var obj = Ext.decode(response.responseText);							
+					//		var jsonData = obj.resultObject;
+					//		accountId =jsonData.id;
+					//		balance = jsonData.balance;
+					//		Ext.getCmp('oldAccount').setValue(balance);
+                    //        Ext.getCmp('depositname').setValue(name);
+                    //        Ext.getCmp('depositemail').setValue(e);
+					//		//alert('**'+Ext.getCmp('oldAccount').getValue());
+				    //	}
+					//});
+					
+					//账户充值窗口开始
+					var account=Ext.create('Ext.window.Window', {
+					   	title:i18n._('resetAccount'),
+						layout:'fit',
+					    height: 360,
+						modal:true,
+					    width: 450,
+						closable:false,
+						resizable : false,
+						constrain : true,
+						tools:[{
+						  type:'close',
+						  handler:function(){
+							  account.destroy();
+						  }
+						}],						
+					    items: {  
+					        xtype: 'form',
+							height:'100%',
+							width:'100%',
+							id:'restForm',
+							fieldDefaults:{
+								msgTarget:'side',
+								autoFitErrors:false
+							},
+							//style:'margin-top:0px;margin-left:0px;',
+					        border: false,
+					        dockedItems: [{
+					            xtype: 'toolbar',
+					            dock: 'bottom',
+					            ui: 'footer',
+					            layout: {
+					                pack: 'left'
+					            },
+					            items: [{
+									margin:'0 0 0 120',
+					                minWidth: 80,
+					               // text: '确定',
+								    text: i18n._('OK'),
+					                handler:function(){
+										if(Ext.getCmp('depositaddAccount').getRawValue()!=null){
+											var amount =Ext.getCmp('depositaddAccount').getRawValue();	
+											var depositremark = Ext.getCmp('depositremark').getValue();									
+						                	if(!Ext.getCmp('depositaddAccount').isValid()){
+												return;
+										    }
+										    if(Ext.getCmp('depositaddAccount').getValue()<=0){
+										     Ext.MessageBox.show({
+        											title : i18n._('notice'),
+        											msg : i18n._('greater3'),//
+        											buttons : Ext.MessageBox.OK,
+        											icon : Ext.MessageBox.INFO
+        										});
+        										return;
+										    }	
+										    var depositSource = Ext.getCmp('depositline').getValue()["fs"];
+										    var flow = null;
+										    var flowItems = Ext.getCmp('depositflow').items;
+										    if(flowItems.items[0].checked){
+										        flow = flowItems.items[0].inputValue;
+										    }
+										    if(!Ext.getCmp('depositremark').isValid()){
+										    	return;
+											}
+						                	Ext.Ajax.request({
+						                		url: '../../bss/account!accountDeposit.action',//user.id='+id	
+						                		method:'POST',	
+						                		params:{
+							                		"account.id":accountId,
+							                		"account.balance":amount,
+							                		"user.id":uid,
+							                		"depositSource":depositSource,
+							                		"flow":flow,
+						                			"remark":depositremark
+							                	},					                	    
+						                	    success: function(response){
+						                	    	var obj = Ext.decode(response.responseText);
+						                	    	if(obj.success==true){
+						                	    	accountstore.load();
+						                	        Ext.MessageBox.show({								         		           
+														   title:i18n._('notice'),
+														   msg:i18n._('AddAccountSuccess'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK								         		           
+								         		       });						                	        
+						                	    	}
+						                	    	account.destroy();
+						                	    }
+						                	});
+					                	}else{
+					                		  Ext.MessageBox.show({
+												   title:i18n._('notice'),
+												   msg:i18n._('InputAccount'),
+						         		           icon:Ext.MessageBox.INFO,
+						         		           buttons: Ext.MessageBox.OK
+						         		           
+						         		       }); 
+					                	}
+					                }
+					           },{
+									margin:'0 0 0 20',
+					                minWidth: 80,
+								    text: i18n._('cancel'),
+								    handler:function(){
+								    	account.destroy();
+									}
+						          }						           
+					           ]
+					        }],
+					        items:[
+							{		
+							  id:'depositname',
+							  xtype:'displayfield',	
+						      width : 300,
+				              labelWidth:100,
+				              labelAlign:'right',
+				              margin :'15 5 15 20',
+					          fieldLabel : i18n._('username')
+					        },
+							{
+							  id:'depositemail',
+							  xtype:'displayfield',
+							  width : 200,
+					          labelWidth:55,
+					          labelAlign:'right',
+					          margin :'15 5 0 64',
+					          fieldLabel : i18n._('email')
+							},
+							{
+				                id:'oldAccount',
+				                xtype:'displayfield',
+				                width : 300,
+				                labelWidth:100,
+				                labelAlign:'right',
+				                margin :'15 5 15 21',
+				                fieldLabel : i18n._('OldAccount')
+				            },
+							{
+							id:'depositaddAccount',
+							xtype:'numberfield',//textfield
+							name:'addAccount',
+							labelAlign:'right',
+							margin:'0 0 5 17',
+							width:328,
+							fieldLabel:i18n._('AddAccount'),							
+							style:'margin-left:0px;white-space: nowrap',
+							decimalPrecision:2,
+							minValue:0,
+							maxValue:1000000,
+							emptyText:i18n._('InputAccount'),
+							allowBlank: false							
+							},{
+							    id:'depositline',
+								xtype:'radiogroup',
+								fieldLabel:i18n._("fundssources"),
+								style:'margin-left:68px;margin-top:5px;',
+								columns: 2,
+								labelWidth:55,
+								width:320,
+								vertical: true,
+								items: [
+									{ boxLabel: i18n._("offline"), name: 'fs', inputValue: 1,checked:true},
+									{ boxLabel: i18n._("online"), width:110,name: 'fs', inputValue: 2}
+								]
+							},{
+							    id:'depositflow',
+								xtype:'checkboxgroup',
+								fieldLabel:i18n._("fundflow"),
+								style:'margin-left:68px;margin-top:5px;',
+								columns: 2,
+								labelWidth:55,
+								width:300,
+								vertical: true,
+								items: [{ boxLabel: i18n._("in"),inputValue: 1, xtype: 'checkbox'}]
+						    },{
+								xtype:'textarea',
+								margin:'10 0 5 17',
+								width:328,
+								labelAlign:'right',
+								style:'margin-left:0px',	
+								fieldLabel: i18n._('remark'),	
+								allowBlank:false,
+								maxLength:512,
+								id:'depositremark'
+						    }				
+							]
+					    }
+					});
+					Ext.getCmp('oldAccount').setValue(accountBalance);
+                    Ext.getCmp('depositname').setValue(name);
+                    Ext.getCmp('depositemail').setValue(email);
+					
+				}else{
+	    	        Ext.MessageBox.show({
+	  		          // title: '提示',
+					   title:i18n._('notice'),
+	  		          // msg: '请选择一个用户',
+					   msg:i18n._('selectOne'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+					return;
+				}
+				//密码重置页面结束
+			account.show();
+			}
+			},{
+				icon: '../../images/draw.png',  // Use a URL in the icon config	        
+				text:'<font id="accountDraw" color="white" >' + i18n._('accountDraw') + '</font>',
+				listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("accountDraw").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("accountDraw").style.color = "black";
+					 }
+						
+				 },
+				 handler:function(){
+						var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+						if(rows.length > 0){
+							var row = rows[0];
+							var accountBalance = row.get('accountBalance');
+							var user = row.get('user');
+							var email = user.email;
+							var name = user.name;
+							var uid  = user.id;
+					        var enable = user.enable;
+					        var accountId=row.get('id');
+							if(!isEnableCheck(enable)){
+								return;
+							}
+							//var accountId=0;
+							//var balance=0;					
+							//var accountStore=Ext.Ajax.request({
+							//	url : '../../bss/account!getAccountByUserId.action?user.id='+id,
+							//	method : 'GET',
+							//	success : function(response, options) {
+							//		var obj = Ext.decode(response.responseText);							
+							//		var jsonData = obj.resultObject;
+							//		accountId =jsonData.id;
+							//		balance = jsonData.balance;
+							//		//alert(jsonData.balance);
+							//		Ext.getCmp('oldAccount').setValue(balance);
+							//		Ext.getCmp("drawname").setValue(name);
+							//		Ext.getCmp("drawemail").setValue(email);
+									//alert('**'+Ext.getCmp('oldAccount').getValue());
+							//	}
+							//});
+
+							//账户提现窗口开始
+							var accountdraw=Ext.create('Ext.window.Window', {
+							   	title:i18n._('accountDraw'),
+								layout:'fit',
+							    height: 360,
+								modal:true,
+							    width: 450,
+								closable:false,
+								resizable : false,
+								constrain : true,
+								tools:[{
+								  type:'close',
+								  handler:function(){
+									  accountdraw.destroy();
+								  }
+								}],						
+							    items: {  
+							        xtype: 'form',
+									height:'100%',
+									width:'100%',
+									id:'drawForm',
+									fieldDefaults:{
+										msgTarget:'side',
+										autoFitErrors:false
+									},
+									//style:'margin-top:0px;margin-left:0px;',
+							        border: false,
+							        dockedItems: [{
+							            xtype: 'toolbar',
+							            dock: 'bottom',
+							            ui: 'footer',
+							            layout: {
+							                pack: 'left'
+							            },
+							            items: [{
+											margin:'0 0 0 120',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('OK'),
+							                handler:function(){
+												if(Ext.getCmp('drawaddAccount').getRawValue()!=null){
+													if(!Ext.getCmp('drawaddAccount').isValid()){
+														return;
+													}	
+													if(!Ext.getCmp('drawremark').isValid()){
+														return;
+													}
+													var amount =Ext.getCmp('drawaddAccount').getRawValue()*(-100)/100;
+													var drawremark = Ext.getCmp('drawremark').getValue();
+										    		var line = Ext.getCmp('drawline').getValue()["fs"];
+										    		var flow = null;
+										    		var flowItems = Ext.getCmp('drawflow').items;
+										    		if(flowItems.items[0].checked){
+										    		    flow = flowItems.items[0].inputValue;
+										    		}
+													if(Ext.getCmp('drawaddAccount').getValue()<=0){
+													     Ext.MessageBox.show({
+			        											title : i18n._('notice'),
+			        											msg : i18n._('greater4'),//
+			        											buttons : Ext.MessageBox.OK,
+			        											icon : Ext.MessageBox.INFO
+			        										});
+			        										return;
+													}
+													if(Ext.getCmp('drawaddAccount').getValue()>accountBalance){
+													     Ext.MessageBox.show({
+			        											title : i18n._('notice'),
+			        											msg : i18n._('drawAccountInsufficient'),//
+			        											buttons : Ext.MessageBox.OK,
+			        											icon : Ext.MessageBox.INFO
+			        										});
+			        										return;
+													}
+													Ext.Ajax.request({
+								                		url: '../../order/invoice!checkAccountForRefund.action',//user.id='+id	
+								                		method:'POST',	
+								                		params:{
+									                		"account.balance":-amount,
+									                		"user.id":uid
+									                	},	
+								                	    success: function(response){
+								                	    	var obj = Ext.decode(response.responseText);
+								                	    	if(obj.success==true){
+
+									                	    	if(null != obj.resultMsg && obj.resultMsg<0){
+                                                                    var m = i18n._('invoice')+obj.resultMsg;
+										                	    	Ext.Msg.confirm(i18n._('warning'),m,function(btn){
+											                	    	if(btn == 'yes'){
+											                	    		Ext.Ajax.request({
+														                		url: '../../bss/account!accountDraw.action',//user.id='+id	
+														                		method:'POST',	
+														                		params:{
+															                		"account.id":accountId,
+															                		"account.balance":amount,
+															                		"user.id":uid,
+															                        "line":line,
+							                										"flow":flow,
+														                			"remark":drawremark
+															                	},	
+														                	    success: function(response){
+														                	    	accountdraw.destroy();
+														                	    	var obj = Ext.decode(response.responseText);
+														                	    	if(obj.success==true){
+														                	    		accountstore.load();
+														                	    		Ext.MessageBox.show({								         		           
+																							   title:i18n._('notice'),
+																							   msg:i18n._('drawAccountSuccess'),
+																	         		           icon:Ext.MessageBox.INFO,
+																	         		           buttons: Ext.MessageBox.OK								         		           
+																	         		       });
+														                	    	}else{
+														                	    		 Ext.MessageBox.show({								         		           
+																							   title:i18n._('notice'),
+																							   msg:obj.resultMsg,
+																	         		           icon:Ext.MessageBox.INFO,
+																	         		           buttons: Ext.MessageBox.OK								         		           
+																	         		       });	
+															                	    }
+														                	    	
+														                	    }
+														                	});	
+												                	    }
+											                	    	}
+										                	    	);
+										                	    	
+										                	    }else{
+										                	    	Ext.Ajax.request({
+												                		url: '../../bss/account!accountDraw.action',//user.id='+id	
+												                		method:'POST',	
+												                		params:{
+													                		"account.id":accountId,
+													                		"account.balance":amount,
+													                		"user.id":uid,
+													                		"line":line,
+							                								"flow":flow,
+												                			"remark":drawremark
+													                	},	
+												                	    success: function(response){
+												                	    	accountdraw.destroy();
+												                	    	var obj = Ext.decode(response.responseText);
+												                	    	if(obj.success==true){
+												                	    		accountstore.load();
+												                	        Ext.MessageBox.confirm({								         		           
+																				   title:i18n._('notice'),
+																				   msg:i18n._('drawAccountSuccess'),
+														         		           icon:Ext.MessageBox.INFO,
+														         		           buttons: Ext.MessageBox.OK								         		           
+														         		       });						                	        
+												                	    	}else{
+												                	    		 Ext.MessageBox.show({								         		           
+																					   title:i18n._('notice'),
+																					   msg:obj.resultMsg,
+															         		           icon:Ext.MessageBox.INFO,
+															         		           buttons: Ext.MessageBox.OK								         		           
+															         		       });	
+													                	    }
+												                	    	
+												                	    }
+												                	});	
+											                	}
+									                	    						                	        
+								                	    	}else{
+								                	    		 Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:obj.resultMsg,
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		       });	
+									                	    }
+								                	    	
+								                	    }
+								                	});
+								                		
+								                	
+							                	}else{
+							                		  Ext.MessageBox.show({
+														   title:i18n._('notice'),
+														   msg:i18n._('InputAccount'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		       }); 
+							                	}
+							                }
+							           },{
+											margin:'0 0 0 20',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('cancel'),
+										    handler:function(){
+										    	accountdraw.destroy();
+											}
+								          }					           
+							           ]
+							        }],
+							        items:[
+							        {
+							        id:'drawname',
+							        xtype:'displayfield',
+						            width : 300,
+				                    labelWidth:100,
+				                    labelAlign:'right',
+				                    margin :'15 5 15 20',
+					                fieldLabel : i18n._('username')
+					                },{
+					                id:'drawemail',
+					                xtype:'displayfield',
+					                width : 200,
+					                labelWidth:55,
+					                labelAlign:'right',
+					                margin :'15 5 0 64',
+					                fieldLabel : i18n._('email')
+					                },
+					                {
+						                id:'oldAccount',
+						                xtype:'displayfield',
+						                width : 300,
+				                        labelWidth:100,
+				                        labelAlign:'right',
+				                        margin :'15 5 15 20',
+						                fieldLabel : i18n._('OldAccount')
+						            },
+									{
+									id:'drawaddAccount',
+									xtype:'numberfield',//textfield
+									name:'addAccount',
+									labelAlign:'right',
+									margin:'0 0 5 17',							
+									fieldLabel:i18n._('DrawAccount'),							
+									style:'margin-left:0px;white-space: nowrap;',
+									decimalPrecision:2,
+							        minValue:0,
+							        width:328,
+							        maxValue:1000000,
+									emptyText:i18n._('drawAccount'),
+									allowBlank: false							
+									},{
+											id:'drawline',
+											xtype:'radiogroup',
+											//disabled:true,
+											hidden:true,
+											fieldLabel:i18n._("fundssources"),
+											style:'margin-left:68px;margin-top:5px;',
+											columns: 2,
+											labelWidth:55,
+											width:320,
+											vertical: true,
+											items: [
+											{ boxLabel: i18n._("offline"), name: 'fs', inputValue: 2,checked:true},
+											{ boxLabel: i18n._("online"), width:110,name: 'fs', inputValue: 1}
+											]
+									},{
+									    id:'drawflow',
+										xtype:'checkboxgroup',
+										fieldLabel:i18n._("fundflow"),
+										style:'margin-left:68px;margin-top:5px;',
+										columns: 2,
+										labelWidth:55,
+										width:300,
+										vertical: true,
+										items: [{ boxLabel: i18n._("out"),inputValue: 2, xtype: 'checkbox'}]
+						    		},{
+								      xtype:'textarea',
+								      margin:'10 0 5 17',
+								      width:328,
+								      labelAlign:'right',
+								      style:'margin-left:0px',	
+								      fieldLabel: i18n._('remark'),	
+								      maxLength:512,
+								      allowBlank:false,
+								      id:'drawremark'
+						            }							
+									]
+							    }
+							});
+							
+					Ext.getCmp('oldAccount').setValue(accountBalance);
+                    Ext.getCmp('drawname').setValue(name);
+                    Ext.getCmp('drawemail').setValue(email);
+							
+						}else{
+			    	        Ext.MessageBox.show({
+			    		          // title: '提示',
+			  				   title:i18n._('notice'),
+			    		          // msg: '请选择一个用户',
+			  				   msg:i18n._('selectOne'),
+			    		           icon:Ext.MessageBox.INFO,
+			    		           buttons: Ext.MessageBox.OK
+			    		       }); 
+			  				return;
+						}
+						accountdraw.show();
+					 }
+				},'-',{
+					icon: 'images/coupons.png',  // Use a URL in the icon config	        
+					text:'<font id="coupons" color="white" >' + i18n._('addcoupons') + '</font>',
+					listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("coupons").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("coupons").style.color = "black";
+						 }
+							
+					 },
+					handler:function(){
+						var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+						if(rows.length > 0){
+							var row = rows[0];
+							var couponsBalance = row.get('couponsBalance');
+							var user = row.get('user');
+							var email = user.email;
+							var name = user.name;
+							var uid  = user.id;
+							var enable = user.enable;
+							if(!isEnableCheck(enable)){
+								return;
+							}
+							
+							var accountId=row.get('id');
+							
+							//点 劵充值窗口开始
+							var coupons=Ext.create('Ext.window.Window', {
+							   	title:i18n._('addcoupons'),
+								layout:'fit',
+							    height: 310,
+								modal:true,
+							    width: 450,
+								closable:false,
+								resizable : false,
+								constrain : true,
+								tools:[{
+								  type:'close',
+								  handler:function(){
+									  coupons.destroy();
+								  }
+								}],						
+							    items: {  
+							        xtype: 'form',
+									height:'100%',
+									width:'100%',
+									id:'couponsForm',
+									fieldDefaults:{
+										msgTarget:'side',
+										autoFitErrors:false
+									},
+									//style:'margin-top:0px;margin-left:0px;',
+							        border: false,
+							        dockedItems: [{
+							            xtype: 'toolbar',
+							            dock: 'bottom',
+							            ui: 'footer',
+							            layout: {
+							                pack: 'left'
+							            },
+							            items: [{
+											margin:'0 0 0 120',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('OK'),
+							                handler:function(){
+												if(Ext.getCmp('addCoupons').getRawValue()!=null){
+													var couponsbalance =Ext.getCmp('addCoupons').getRawValue();	
+													var depositremark = Ext.getCmp('couponsremark').getValue();									
+								                	if(!Ext.getCmp('addCoupons').isValid()){
+														return;
+												    }
+												    if(Ext.getCmp('addCoupons').getValue()<=0){
+												     Ext.MessageBox.show({
+		        											title : i18n._('notice'),
+		        											msg : i18n._('greater'),//
+		        											buttons : Ext.MessageBox.OK,
+		        											icon : Ext.MessageBox.INFO
+		        										});
+		        										return;
+												    }	
+												    if(!Ext.getCmp('couponsremark').isValid()){
+												    	return;
+													}
+								                	Ext.Ajax.request({
+								                		url: '../../bss/account!couponsDeposit.action',//user.id='+id	
+								                		method:'POST',	
+								                		params:{
+									                		"account.id":accountId,
+									                		"account.coupons":couponsbalance,
+									                		"user.id":uid,
+								                			"remark":depositremark
+									                	},					                	    
+								                	    success: function(response){
+								                	    	coupons.destroy();
+								                	    	var obj = Ext.decode(response.responseText);
+								                	    	if(obj.success==true){
+								                	    		   accountstore.load();
+								                	               Ext.MessageBox.confirm({								         		           
+																   title:i18n._('notice'),
+																   msg:i18n._('AddCouponsSuccess'),
+										         		           icon:Ext.MessageBox.INFO,
+										         		           buttons: Ext.MessageBox.OK								         		           
+										         		       });						                	        
+								                	    	}else{
+								                	    		 Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:obj.resultMsg,
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		       });	
+									                	    }
+								                	    }
+								                	});
+							                	}else{
+							                		  Ext.MessageBox.show({
+														   title:i18n._('notice'),
+														   msg:i18n._('InputCoupons'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		       }); 
+							                	}
+							                }
+							           },{
+											margin:'0 0 0 20',
+							                minWidth: 80,
+										    text: i18n._('cancel'),
+										    handler:function(){
+										    	coupons.destroy();
+											}
+								          }						           
+							           ]
+							        }],
+							        items:[
+									{		
+									  id:'couponsname',
+									  xtype:'displayfield',	
+								      width : 300,
+						              labelWidth:100,
+						              labelAlign:'right',
+						              margin :'15 5 15 20',
+							          fieldLabel : i18n._('username')
+							        },
+									{
+									  id:'couponsmail',
+									  xtype:'displayfield',
+									  width : 200,
+							          labelWidth:55,
+							          labelAlign:'right',
+							          margin :'15 5 0 64',
+							          fieldLabel : i18n._('email')
+									},
+									{
+						                id:'oldCoupons',
+						                xtype:'displayfield',
+						                width : 300,
+						                labelWidth:100,
+						                labelAlign:'right',
+						                margin :'15 5 15 21',
+						                fieldLabel : i18n._('couponsBalance')
+						            },
+									{
+									id:'addCoupons',
+									xtype:'numberfield',//textfield
+									name:'addcoupons',
+									labelAlign:'right',
+									margin:'0 0 5 17',
+									width:328,
+									fieldLabel:i18n._('depositcoupons'),							
+									style:'margin-left:0px;white-space: nowrap',
+									decimalPrecision:2,
+									minValue:0,
+									maxValue:1000000,
+									emptyText:i18n._('InputCoupons'),
+									allowBlank: false							
+									},{
+										xtype:'textarea',
+										margin:'10 0 5 17',
+										width:328,
+										labelAlign:'right',
+										style:'margin-left:0px',	
+										fieldLabel: i18n._('remark'),	
+										allowBlank:false,
+										maxLength:512,
+										id:'couponsremark'
+								    }				
+									]
+							    }
+							});
+							Ext.getCmp('oldCoupons').setValue(couponsBalance);
+		                    Ext.getCmp('couponsname').setValue(name);
+		                    Ext.getCmp('couponsmail').setValue(email);
+							
+						}else{
+			    	        Ext.MessageBox.show({
+			  		          // title: '提示',
+							   title:i18n._('notice'),
+			  		          // msg: '请选择一个用户',
+							   msg:i18n._('selectOne'),
+			  		           icon:Ext.MessageBox.INFO,
+			  		           buttons: Ext.MessageBox.OK
+			  		           
+			  		       }); 
+							return;
+						}
+					coupons.show();
+					}
+				},{
+
+					icon: 'images/couponsdraw.png',  // Use a URL in the icon config	        
+					text:'<font id="couponsdraw" color="white" >' + i18n._('couponsdraw') + '</font>',
+					listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("couponsdraw").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("couponsdraw").style.color = "black";
+						 }
+							
+					 },
+					handler:function(){
+
+						var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+						if(rows.length > 0){
+							var row = rows[0];
+							var couponsBalance = row.get('couponsBalance');
+							var user = row.get('user');
+							var email = user.email;
+							var name = user.name;
+							var uid  = user.id;
+							var enable = user.enable;
+							if(!isEnableCheck(enable)){
+								return;
+							}
+							
+							var accountId=row.get('id');
+							
+							//点 劵提现窗口开始
+							var couponsdraw=Ext.create('Ext.window.Window', {
+							   	title:i18n._('couponsdraw'),
+								layout:'fit',
+							    height: 310,
+								modal:true,
+							    width: 450,
+								closable:false,
+								resizable : false,
+								constrain : true,
+								tools:[{
+								  type:'close',
+								  handler:function(){
+									  couponsdraw.destroy();
+								  }
+								}],						
+							    items: {  
+							        xtype: 'form',
+									height:'100%',
+									width:'100%',
+									id:'couponsdrawForm',
+									fieldDefaults:{
+										msgTarget:'side',
+										autoFitErrors:false
+									},
+									//style:'margin-top:0px;margin-left:0px;',
+							        border: false,
+							        dockedItems: [{
+							            xtype: 'toolbar',
+							            dock: 'bottom',
+							            ui: 'footer',
+							            layout: {
+							                pack: 'left'
+							            },
+							            items: [{
+											margin:'0 0 0 120',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('OK'),
+							                handler:function(){
+												if(Ext.getCmp('drawCoupons').getRawValue()!=null){
+													var drawcoupons =Ext.getCmp('drawCoupons').getRawValue();	
+													var giftdepositremark = Ext.getCmp('drawcouponsremark').getValue();									
+								                	if(!Ext.getCmp('drawCoupons').isValid()){
+														return;
+												    }
+												    if(Ext.getCmp('drawCoupons').getValue()<=0){
+												     Ext.MessageBox.show({
+		        											title : i18n._('notice'),
+		        											msg : i18n._('greater'),//
+		        											buttons : Ext.MessageBox.OK,
+		        											icon : Ext.MessageBox.INFO
+		        										});
+		        										return;
+												    }	
+												    if(Ext.getCmp('drawCoupons').getValue()>couponsBalance){
+													     Ext.MessageBox.show({
+			        											title : i18n._('notice'),
+			        											msg : i18n._('couponsAccountInsufficient'),//
+			        											buttons : Ext.MessageBox.OK,
+			        											icon : Ext.MessageBox.INFO
+			        										});
+			        										return;
+													}
+												    if(!Ext.getCmp('drawcouponsremark').isValid()){
+												    	return;
+													}
+								                	Ext.Ajax.request({
+								                		url: '../../bss/account!couponsDraw.action',//user.id='+id	
+								                		method:'POST',	
+								                		params:{
+									                		"account.id":accountId,
+									                		"account.coupons":drawcoupons,
+									                		"user.id":uid,
+								                			"remark":giftdepositremark
+									                	},					                	    
+								                	    success: function(response){
+								                	    	var obj = Ext.decode(response.responseText);
+								                	    	if(obj.success==true){
+								                	    		   accountstore.load();
+								                	    		   couponsdraw.destroy();
+								                	               Ext.MessageBox.confirm({								         		           
+																   title:i18n._('notice'),
+																   msg:i18n._('DrawCouponsSuccess'),
+										         		           icon:Ext.MessageBox.INFO,
+										         		           buttons: Ext.MessageBox.OK								         		           
+										         		       });						                	        
+								                	    	}else{
+								                	    		 Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:obj.resultMsg,
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		       });	
+									                	    }
+								                	    }
+								                	});
+							                	}else{
+							                		  Ext.MessageBox.show({
+														   title:i18n._('notice'),
+														   msg:i18n._('InputCoupons'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		       }); 
+							                	}
+							                }
+							           },{
+											margin:'0 0 0 20',
+							                minWidth: 80,
+										    text: i18n._('cancel'),
+										    handler:function(){
+										    	couponsdraw.destroy();
+											}
+								          }						           
+							           ]
+							        }],
+							        items:[
+									{		
+									  id:'couponsdrawname',
+									  xtype:'displayfield',	
+								      width : 300,
+						              labelWidth:100,
+						              labelAlign:'right',
+						              margin :'15 5 15 20',
+							          fieldLabel : i18n._('username')
+							        },
+									{
+									  id:'couponsdrawemail',
+									  xtype:'displayfield',
+									  width : 200,
+							          labelWidth:55,
+							          labelAlign:'right',
+							          margin :'15 5 0 64',
+							          fieldLabel : i18n._('email')
+									},
+									{
+						                id:'oldCoupons',
+						                xtype:'displayfield',
+						                width : 300,
+						                labelWidth:100,
+						                labelAlign:'right',
+						                margin :'15 5 15 21',
+						                fieldLabel : i18n._('couponsBalance')
+						            },
+									{
+									id:'drawCoupons',
+									xtype:'numberfield',//textfield
+									name:'drawcoupons',
+									labelAlign:'right',
+									margin:'0 0 5 17',
+									width:328,
+									fieldLabel:i18n._('drawcoupons'),							
+									style:'margin-left:0px;white-space: nowrap',
+									decimalPrecision:2,
+									minValue:0,
+									maxValue:1000000,
+									emptyText:i18n._('InputdrawCoupons'),
+									allowBlank: false							
+									},{
+										xtype:'textarea',
+										margin:'10 0 5 17',
+										width:328,
+										labelAlign:'right',
+										style:'margin-left:0px',	
+										fieldLabel: i18n._('remark'),	
+										allowBlank:false,
+										maxLength:512,
+										id:'drawcouponsremark'
+								    }				
+									]
+							    }
+							});
+							Ext.getCmp('oldCoupons').setValue(couponsBalance);
+		                    Ext.getCmp('couponsdrawname').setValue(name);
+		                    Ext.getCmp('couponsdrawemail').setValue(email);
+							
+						}else{
+			    	        Ext.MessageBox.show({
+			  		          // title: '提示',
+							   title:i18n._('notice'),
+			  		          // msg: '请选择一个用户',
+							   msg:i18n._('selectOne'),
+			  		           icon:Ext.MessageBox.INFO,
+			  		           buttons: Ext.MessageBox.OK
+			  		           
+			  		       }); 
+							return;
+						}
+						couponsdraw.show();
+						
+					}
+				},'-',{
+
+					icon: 'images/giftsdeposit.png',  // Use a URL in the icon config	        
+					text:'<font id="giftsdeposit" color="white" >' + i18n._('giftsdeposit') + '</font>',
+					listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("giftsdeposit").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("giftsdeposit").style.color = "black";
+						 }
+							
+					 },
+					handler:function(){
+						
+						var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+						if(rows.length > 0){
+							var row = rows[0];
+							var giftsBalance = row.get('giftsBalanceStr');
+							var user = row.get('user');
+							var email = user.email;
+							var name = user.name;
+							var uid  = user.id;
+							var enable = user.enable;
+							if(!isEnableCheck(enable)){
+								return;
+							}
+							
+							var accountId=row.get('id');
+							
+							//礼金充值窗口开始
+							var giftsdeposit=Ext.create('Ext.window.Window', {
+							   	title:i18n._('giftsdeposit'),
+								layout:'fit',
+							    height: 310,
+								modal:true,
+							    width: 450,
+								closable:false,
+								resizable : false,
+								constrain : true,
+								tools:[{
+								  type:'close',
+								  handler:function(){
+									  giftsdeposit.destroy();
+								  }
+								}],						
+							    items: {  
+							        xtype: 'form',
+									height:'100%',
+									width:'100%',
+									id:'giftsdepositForm',
+									fieldDefaults:{
+										msgTarget:'side',
+										autoFitErrors:false
+									},
+									//style:'margin-top:0px;margin-left:0px;',
+							        border: false,
+							        dockedItems: [{
+							            xtype: 'toolbar',
+							            dock: 'bottom',
+							            ui: 'footer',
+							            layout: {
+							                pack: 'left'
+							            },
+							            items: [{
+											margin:'0 0 0 120',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('OK'),
+							                handler:function(){
+												if(Ext.getCmp('addGifts').getRawValue()!=null){
+													var addGifts =Ext.getCmp('addGifts').getRawValue();	
+													var giftdepositremark = Ext.getCmp('giftdepositremark').getValue();									
+								                	if(!Ext.getCmp('addGifts').isValid()){
+														return;
+												    }
+												    if(Ext.getCmp('addGifts').getValue()<=0){
+												     Ext.MessageBox.show({
+		        											title : i18n._('notice'),
+		        											msg : i18n._('greater'),//
+		        											buttons : Ext.MessageBox.OK,
+		        											icon : Ext.MessageBox.INFO
+		        										});
+		        										return;
+												    }	
+												    if(!Ext.getCmp('giftdepositremark').isValid()){
+												    	return;
+													}
+								                	Ext.Ajax.request({
+								                		url: '../../bss/account!giftsDeposit.action',//user.id='+id	
+								                		method:'POST',	
+								                		params:{
+									                		"account.id":accountId,
+									                		"account.giftsBalance":addGifts,
+									                		"user.id":uid,
+								                			"remark":giftdepositremark
+									                	},					                	    
+								                	    success: function(response){
+								                	    	var obj = Ext.decode(response.responseText);
+								                	    	if(obj.success==true){
+								                	    		   accountstore.load();
+								                	    		   giftsdeposit.destroy();
+								                	               Ext.MessageBox.confirm({								         		           
+																   title:i18n._('notice'),
+																   msg:i18n._('AddGiftsSuccess'),
+										         		           icon:Ext.MessageBox.INFO,
+										         		           buttons: Ext.MessageBox.OK								         		           
+										         		       });						                	        
+								                	    	}else{
+								                	    		 Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:obj.resultMsg,
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		       });	
+									                	    }
+								                	    }
+								                	});
+							                	}else{
+							                		  Ext.MessageBox.show({
+														   title:i18n._('notice'),
+														   msg:i18n._('InputCoupons'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		       }); 
+							                	}
+							                }
+							           },{
+											margin:'0 0 0 20',
+							                minWidth: 80,
+										    text: i18n._('cancel'),
+										    handler:function(){
+										    	giftsdeposit.destroy();
+											}
+								          }						           
+							           ]
+							        }],
+							        items:[
+									{		
+									  id:'giftsname',
+									  xtype:'displayfield',	
+								      width : 300,
+						              labelWidth:100,
+						              labelAlign:'right',
+						              margin :'15 5 15 20',
+							          fieldLabel : i18n._('username')
+							        },
+									{
+									  id:'giftssmail',
+									  xtype:'displayfield',
+									  width : 200,
+							          labelWidth:55,
+							          labelAlign:'right',
+							          margin :'15 5 0 64',
+							          fieldLabel : i18n._('email')
+									},
+									{
+						                id:'oldGifts',
+						                xtype:'displayfield',
+						                width : 300,
+						                labelWidth:100,
+						                labelAlign:'right',
+						                margin :'15 5 15 21',
+						                fieldLabel : i18n._('giftsbalance')
+						            },
+									{
+									id:'addGifts',
+									xtype:'numberfield',//textfield
+									name:'addcoupons',
+									labelAlign:'right',
+									margin:'0 0 5 17',
+									width:328,
+									fieldLabel:i18n._('depositgifts'),							
+									style:'margin-left:0px;white-space: nowrap',
+									decimalPrecision:2,
+									minValue:0,
+									maxValue:1000000,
+									emptyText:i18n._('Inputgifts'),
+									allowBlank: false							
+									},{
+										xtype:'textarea',
+										margin:'10 0 5 17',
+										width:328,
+										labelAlign:'right',
+										style:'margin-left:0px',	
+										fieldLabel: i18n._('remark'),	
+										allowBlank:false,
+										maxLength:512,
+										id:'giftdepositremark'
+								    }				
+									]
+							    }
+							});
+							Ext.getCmp('oldGifts').setValue(giftsBalance);
+		                    Ext.getCmp('giftsname').setValue(name);
+		                    Ext.getCmp('giftssmail').setValue(email);
+							
+						}else{
+			    	        Ext.MessageBox.show({
+			  		          // title: '提示',
+							   title:i18n._('notice'),
+			  		          // msg: '请选择一个用户',
+							   msg:i18n._('selectOne'),
+			  		           icon:Ext.MessageBox.INFO,
+			  		           buttons: Ext.MessageBox.OK
+			  		           
+			  		       }); 
+							return;
+						}
+						giftsdeposit.show();
+					}
+				},{
+
+					icon: 'images/giftsdraw.png',  // Use a URL in the icon config	        
+					text:'<font id="giftsdraw" color="white" >' + i18n._('giftsdraw') + '</font>',
+					listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("giftsdraw").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("giftsdraw").style.color = "black";
+						 }
+							
+					 },
+					handler:function(){
+					
+						
+						var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+						if(rows.length > 0){
+							var row = rows[0];
+							var giftsBalance = row.get('giftsBalanceStr');
+							var user = row.get('user');
+							var email = user.email;
+							var name = user.name;
+							var uid  = user.id;
+							var enable = user.enable;
+							if(!isEnableCheck(enable)){
+								return;
+							}
+							
+							var accountId=row.get('id');
+							
+							//点 劵提现窗口开始
+							var giftsdraw=Ext.create('Ext.window.Window', {
+							   	title:i18n._('giftsdraw'),
+								layout:'fit',
+							    height: 310,
+								modal:true,
+							    width: 450,
+								closable:false,
+								resizable : false,
+								constrain : true,
+								tools:[{
+								  type:'close',
+								  handler:function(){
+									  giftsdraw.destroy();
+								  }
+								}],						
+							    items: {  
+							        xtype: 'form',
+									height:'100%',
+									width:'100%',
+									id:'couponsForm',
+									fieldDefaults:{
+										msgTarget:'side',
+										autoFitErrors:false
+									},
+									//style:'margin-top:0px;margin-left:0px;',
+							        border: false,
+							        dockedItems: [{
+							            xtype: 'toolbar',
+							            dock: 'bottom',
+							            ui: 'footer',
+							            layout: {
+							                pack: 'left'
+							            },
+							            items: [{
+											margin:'0 0 0 120',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('OK'),
+							                handler:function(){
+												if(Ext.getCmp('giftsdrawbalance').getRawValue()!=null){
+													var giftsdrawbalance =Ext.getCmp('giftsdrawbalance').getRawValue();	
+													var giftsdrawremark = Ext.getCmp('giftsdrawremark').getValue();									
+								                	if(!Ext.getCmp('giftsdrawbalance').isValid()){
+														return;
+												    }
+												    if(Ext.getCmp('giftsdrawbalance').getValue()<=0){
+												     Ext.MessageBox.show({
+		        											title : i18n._('notice'),
+		        											msg : i18n._('greater'),//
+		        											buttons : Ext.MessageBox.OK,
+		        											icon : Ext.MessageBox.INFO
+		        										});
+		        										return;
+												    }	
+												    if(Ext.getCmp('giftsdrawbalance').getValue()>giftsBalance){
+													     Ext.MessageBox.show({
+			        											title : i18n._('notice'),
+			        											msg : i18n._('giftAccountInsufficient'),//
+			        											buttons : Ext.MessageBox.OK,
+			        											icon : Ext.MessageBox.INFO
+			        										});
+			        										return;
+													}
+												    if(!Ext.getCmp('giftsdrawremark').isValid()){
+												    	return;
+													}
+								                	Ext.Ajax.request({
+								                		url: '../../bss/account!giftsDraw.action',//user.id='+id	
+								                		method:'POST',	
+								                		params:{
+									                		"account.id":accountId,
+									                		"account.giftsBalance":giftsdrawbalance,
+									                		"user.id":uid,
+								                			"remark":giftsdrawremark
+									                	},					                	    
+								                	    success: function(response){
+								                	    	var obj = Ext.decode(response.responseText);
+								                	    	if(obj.success==true){
+								                	    		   accountstore.load();
+								                	    		   giftsdraw.destroy();
+								                	               Ext.MessageBox.confirm({								         		           
+																   title:i18n._('notice'),
+																   msg:i18n._('DrawGiftsSuccess'),
+										         		           icon:Ext.MessageBox.INFO,
+										         		           buttons: Ext.MessageBox.OK								         		           
+										         		       });						                	        
+								                	    	}else{
+								                	    		 Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:obj.resultMsg,
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		       });	
+									                	    }
+								                	    }
+								                	});
+							                	}else{
+							                		  Ext.MessageBox.show({
+														   title:i18n._('notice'),
+														   msg:i18n._('InputCoupons'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		       }); 
+							                	}
+							                }
+							           },{
+											margin:'0 0 0 20',
+							                minWidth: 80,
+										    text: i18n._('cancel'),
+										    handler:function(){
+										    	giftsdraw.destroy();
+											}
+								          }						           
+							           ]
+							        }],
+							        items:[
+									{		
+									  id:'giftsdrawbalancename',
+									  xtype:'displayfield',	
+								      width : 300,
+						              labelWidth:100,
+						              labelAlign:'right',
+						              margin :'15 5 15 20',
+							          fieldLabel : i18n._('username')
+							        },
+									{
+									  id:'giftsdrawbalanceemail',
+									  xtype:'displayfield',
+									  width : 200,
+							          labelWidth:55,
+							          labelAlign:'right',
+							          margin :'15 5 0 64',
+							          fieldLabel : i18n._('email')
+									},
+									{
+						                id:'oldgifts',
+						                xtype:'displayfield',
+						                width : 300,
+						                labelWidth:100,
+						                labelAlign:'right',
+						                margin :'15 5 15 21',
+						                fieldLabel : i18n._('giftsbalance')
+						            },
+									{
+									id:'giftsdrawbalance',
+									xtype:'numberfield',//textfield
+									name:'giftsdrawbalance',
+									labelAlign:'right',
+									margin:'0 0 5 17',
+									width:328,
+									fieldLabel:i18n._('drawgifts'),							
+									style:'margin-left:0px;white-space: nowrap',
+									decimalPrecision:2,
+									minValue:0,
+									maxValue:1000000,
+									emptyText:i18n._('Inputgifts'),
+									allowBlank: false							
+									},{
+										xtype:'textarea',
+										margin:'10 0 5 17',
+										width:328,
+										labelAlign:'right',
+										style:'margin-left:0px',	
+										fieldLabel: i18n._('remark'),	
+										allowBlank:false,
+										maxLength:512,
+										id:'giftsdrawremark'
+								    }				
+									]
+							    }
+							});
+							Ext.getCmp('oldgifts').setValue(giftsBalance);
+		                    Ext.getCmp('giftsdrawbalanceemail').setValue(name);
+		                    Ext.getCmp('giftsdrawbalanceemail').setValue(email);
+							
+						}else{
+			    	        Ext.MessageBox.show({
+			  		          // title: '提示',
+							   title:i18n._('notice'),
+			  		          // msg: '请选择一个用户',
+							   msg:i18n._('selectOne'),
+			  		           icon:Ext.MessageBox.INFO,
+			  		           buttons: Ext.MessageBox.OK
+			  		           
+			  		       }); 
+							return;
+						}
+						giftsdraw.show();
+						
+					}
+				},'-',{
+				icon: '../../images/accountConsume.png',  // Use a URL in the icon config	        
+				text:'<font id="accountConsume" color="white" >' + i18n._('accountConsume') + '</font>',
+				listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("accountConsume").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("accountConsume").style.color = "black";
+					 }
+						
+				 },
+				 handler:function(){
+						var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+						if(rows.length > 0){
+							var row = rows[0];
+							var accountBalance = row.get('accountBalance');
+							var couponsBalance = row.get('couponsBalance');
+							var giftsBalance = row.get('giftsBalanceStr');
+							var user = row.get('user');
+							var email = user.email;
+							var name = user.name;
+							var uid  = user.id;
+					        var enable = user.enable;
+					        var accountId=row.get('id');
+							if(!isEnableCheck(enable)){
+								return;
+							}
+							//var accountId=0;
+							//var balance=0;					
+							//var accountStore=Ext.Ajax.request({
+							//	url : '../../bss/account!getAccountByUserId.action?user.id='+id,
+							//	method : 'GET',
+							//	success : function(response, options) {
+							//		var obj = Ext.decode(response.responseText);							
+							//		var jsonData = obj.resultObject;
+							//		accountId =jsonData.id;
+							//		balance = jsonData.balance;
+							//		//alert(jsonData.balance);
+							//		Ext.getCmp('oldAccount').setValue(balance);
+							//		Ext.getCmp("consumename").setValue(name);
+							//		Ext.getCmp("consumeemail").setValue(email);
+									//alert('**'+Ext.getCmp('oldAccount').getValue());
+							//	}
+							//});
+
+							//账户消费窗口开始
+							var consume=Ext.create('Ext.window.Window', {
+							   	title:i18n._('accountConsume'),
+								layout:'fit',
+							    height: 420,
+								modal:true,
+							    width: 450,
+								closable:false,
+								resizable : false,
+								constrain : true,
+								tools:[{
+								  type:'close',
+								  handler:function(){
+									  consume.destroy();
+								  }
+								}],						
+							    items: {  
+							        xtype: 'form',
+									height:'100%',
+									width:'100%',
+									id:'consumeForm',
+									fieldDefaults:{
+										msgTarget:'side',
+										autoFitErrors:false
+									},
+									//style:'margin-top:0px;margin-left:0px;',
+							        border: false,
+							        dockedItems: [{
+							            xtype: 'toolbar',
+							            dock: 'bottom',
+							            ui: 'footer',
+							            layout: {
+							                pack: 'left'
+							            },
+							            items: [{
+											margin:'0 0 0 120',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('OK'),
+							                handler:function(){
+												if(Ext.getCmp('consumeAccount').getRawValue()!=null){
+													if(!Ext.getCmp('consumeAccount').isValid()){
+														return;
+													}	
+													if(!Ext.getCmp('consumeremark').isValid()){
+														return;
+													}	
+													
+													var amountField=Ext.getCmp('consumeAccount').getRawValue();
+													var couponsField=Ext.getCmp('consumecoupons').getRawValue()
+													var giftsField=Ext.getCmp('consumegifts').getRawValue()
+													
+													var amountLeft=Ext.getCmp('oldAccount').getValue();
+													var couponsLeft=Ext.getCmp('oldcoupons').getValue();
+													var giftsLeft=Ext.getCmp('oldgifts').getValue();
+												
+													
+													if(parseInt(amountField)>parseInt(amountLeft)){
+														Ext.MessageBox.show({
+															   title:i18n._('notice'),
+															   msg:i18n._('residualAmountInsufficient'),
+									         		           icon:Ext.MessageBox.INFO,
+									         		           buttons: Ext.MessageBox.OK
+									         		       }); 
+														return
+													}
+													
+													if(parseInt(couponsField)>parseInt(couponsLeft)){
+														Ext.MessageBox.show({
+															   title:i18n._('notice'),
+															   msg:i18n._('couponsAmountInsufficient'),
+									         		           icon:Ext.MessageBox.INFO,
+									         		           buttons: Ext.MessageBox.OK
+									         		       }); 
+														return
+													}
+															
+													if(parseInt(giftsField)>parseInt(giftsLeft)){
+														Ext.MessageBox.show({
+															   title:i18n._('notice'),
+															   msg:i18n._('giftsBalanceInsufficient'),
+									         		           icon:Ext.MessageBox.INFO,
+									         		           buttons: Ext.MessageBox.OK
+									         		       }); 
+														return
+													}
+													
+													var amount =amountField*(-100)/100;
+													var consumecoupons =(couponsField)*(-100)/100;
+													var consumegifts = (giftsField)*(-100)/100;
+													//alert(consumecoupons);
+													var consumeremark = Ext.getCmp('consumeremark').getValue();
+													
+													
+													if(Ext.getCmp('consumeAccount').getValue()<=0){
+													     Ext.MessageBox.show({
+			        											title : i18n._('notice'),
+			        											msg : i18n._('greater2'),//
+			        											buttons : Ext.MessageBox.OK,
+			        											icon : Ext.MessageBox.INFO
+			        										});
+			        										return;
+													}
+								                	Ext.Ajax.request({
+								                		url: '../../bss/trLog!addTranLong.action',//user.id='+id	
+								                		method:'POST',	
+								                		params:{
+									                		"account.id":accountId,
+									                		"account.balance":amount,
+									                		"account.coupons":consumecoupons,
+									                		"account.giftsBalance":consumegifts,
+									                		"user.id":uid,
+								                			"remark":consumeremark
+									                	},	
+								                	    success: function(response){
+								                	    	consume.destroy();
+								                	    	var obj = Ext.decode(response.responseText);
+								                	    	if(obj.success==true){
+								                	    	accountstore.load();
+								                	        Ext.MessageBox.show({								         		           
+																   title:i18n._('notice'),
+																   msg:i18n._('consumeAccountSuccess'),
+										         		           icon:Ext.MessageBox.INFO,
+										         		           buttons: Ext.MessageBox.OK								         		           
+										         		       });						                	        
+								                	    	}else{
+								                	    		 Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:obj.resultMsg,
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		       });	
+									                	    }
+								                	    	
+								                	    }
+								                	});
+							                	}else{
+							                		  Ext.MessageBox.show({
+														   title:i18n._('notice'),
+														   msg:i18n._('InputAccount'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		       }); 
+							                	}
+							                }
+							           },{
+											margin:'0 0 0 20',
+							                minWidth: 80,
+							               // text: '确定',
+										    text: i18n._('cancel'),
+										    handler:function(){
+										    	consume.destroy();
+											}
+								          }					           
+							           ]
+							        }],
+							        items:[
+							        {
+							        id:'consumename',
+							        xtype:'displayfield',
+						            width : 300,
+				                    labelWidth:100,
+				                    labelAlign:'right',
+				                    margin :'15 5 15 20',
+					                fieldLabel : i18n._('username')
+					                },{
+					                id:'consumeemail',
+					                xtype:'displayfield',
+					                width : 200,
+					                labelWidth:55,
+					                labelAlign:'right',
+					                margin :'15 5 0 64',
+					                fieldLabel : i18n._('email')
+					                },
+					                {
+						                id:'oldAccount',
+						                xtype:'displayfield',
+						                width : 300,
+				                        labelWidth:100,
+				                        labelAlign:'right',
+				                        margin :'15 5 15 20',
+						                fieldLabel : i18n._('OldAccount')
+						            },
+									{
+									id:'consumeAccount',
+									xtype:'numberfield',//textfield
+									name:'consumeAccount',
+									labelAlign:'right',
+									margin:'0 0 5 17',							
+									fieldLabel:i18n._('ConsumeAccount'),							
+									style:'margin-left:0px;white-space: nowrap;',
+									decimalPrecision:2,
+							        minValue:0,
+							        width:328,
+							        maxValue:1000000,
+									emptyText:i18n._('consumeAccount'),
+									allowBlank: false							
+									},{
+						                id:'oldcoupons',
+						                xtype:'displayfield',
+						                width : 300,
+				                        labelWidth:100,
+				                        labelAlign:'right',
+				                        margin :'15 5 15 20',
+						                fieldLabel : i18n._('couponsBalance')
+						            },{
+									id:'consumecoupons',
+									xtype:'numberfield',//textfield
+									name:'couponsAccount',
+									labelAlign:'right',
+									margin:'0 0 5 17',							
+									fieldLabel:i18n._('consumecoupons'),							
+									style:'margin-left:0px;white-space: nowrap;',
+									decimalPrecision:2,
+							        minValue:0,
+							        width:328,
+							        maxValue:1000000,
+									emptyText:i18n._('InputConsumeCoupons'),
+									allowBlank: true							
+									},{
+						                id:'oldgifts',
+						                xtype:'displayfield',
+						                width : 300,
+				                        labelWidth:100,
+				                        labelAlign:'right',
+				                        margin :'15 5 15 20',
+						                fieldLabel : i18n._('giftsBalance')
+						            },{
+									id:'consumegifts',
+									xtype:'numberfield',//textfield
+									name:'consumegifts',
+									labelAlign:'right',
+									margin:'0 0 5 17',							
+									fieldLabel:i18n._('consumegifts'),							
+									style:'margin-left:0px;white-space: nowrap;',
+									decimalPrecision:2,
+							        minValue:0,
+							        width:328,
+							        maxValue:1000000,
+									emptyText:i18n._('InputConsumeGifts'),
+									allowBlank: true							
+									},{
+								      xtype:'textarea',
+								      margin:'10 0 5 17',
+								      width:328,
+								      labelAlign:'right',
+								      style:'margin-left:0px',	
+								      fieldLabel: i18n._('remark'),	
+								      maxLength:512,
+								      allowBlank:false,
+								      id:'consumeremark'
+						            }							
+									]
+							    }
+							});
+							Ext.getCmp('oldAccount').setValue(accountBalance);
+							Ext.getCmp('oldcoupons').setValue(couponsBalance);
+							Ext.getCmp('oldgifts').setValue(giftsBalance);
+                            Ext.getCmp('consumename').setValue(name);
+                            Ext.getCmp('consumeemail').setValue(email);
+						}else{
+			    	        Ext.MessageBox.show({
+			    		          // title: '提示',
+			  				   title:i18n._('notice'),
+			    		          // msg: '请选择一个用户',
+			  				   msg:i18n._('selectOne'),
+			    		           icon:Ext.MessageBox.INFO,
+			    		           buttons: Ext.MessageBox.OK
+			    		       }); 
+			  				return;
+						}
+						consume.show();
+					 }
+				},{
+		           icon: '../../images/edit_new.png', 
+		           text:'<font id="modify" color="white" >' + i18n._("modify") + '</font>',
+					listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("modify").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("modify").style.color = "black";
+						 }
+							
+					 },
+					handler:function(){
+						edit();
+					}
+				},{
+					icon: '../../images/detail.png', 
+			        text:'<font id="detailUser" color="white" >' + i18n._('details') + '</font>',
+					listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("detailUser").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("detailUser").style.color = "black";
+						 }
+							
+					 },
+					handler:function(){
+						viewDetail();
+					
+					}},'-',
+					/*{//账户关联
+						icon: '../../images/relevance.png', 
+						text:'<font id="relevanceId" color="white" >' + i18n._('relevance') + '</font>',
+				        listeners: {
+					       "mouseout" : function() {
+						         document.getElementById("relevanceId").style.color = "white";
+					        },
+					        "mouseover" : function() {
+						         document.getElementById("relevanceId").style.color = "black";
+					        }
+						
+				        },
+				        disabled:false,
+						hidden:false,//暂时隐藏，上线后用时改为false即可显示
+				        handler:function(){
+				        	//var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+				        	var result;
+				        	var row = Ext.getCmp('accountList').getSelectionModel().getSelection();
+							if (row.length == 0) {
+								Ext.MessageBox.show({
+									title : i18n._('notice'),
+									msg : i18n._('selectOne'),
+									icon : Ext.MessageBox.WARNING,
+									buttons : Ext.MessageBox.OK
+								});
+								return;
+							} 
+							
+							var relevanceWin= Ext.create('Ext.window.Window', {
+							    title:  i18n._('relevance'),
+							    height: 200,
+							    width: 300,
+							    layout: 'vbox',
+							    bodyPadding:10,
+							    constrain:true,
+							    items:[
+							           {
+							        	   xtype:'textfield',
+							        	   id:'externalUser',
+							        	   fieldLabel: i18n._('relevance'),//账户名
+							        	   labelWidth:80,
+							        	   labelAlign:'right',
+							        	   width:200,
+							        	   listeners: {
+							        		   blur:function(e, The, eOpts){
+							        			   alert(eval(row[0]));
+							        			   var domainCode=row[0].data.user.domain.code;
+							        			   var externalUser = Ext.getCmp('externalUser').getValue();
+							        			   if(externalUser != null && externalUser !=""){
+							        				 //请求客户账户信息
+														Ext.Ajax.request({  
+															//url: '../../bss/account!couponsDeposit.action',//user.id='+id	
+								                            url : '../../admin_mgmt/userManagement!getOuterInfomation.action',//注此处不能直接用path因为用path会多了一层system
+								                            params:{
+								                            	externalUser:externalUser,
+								                            	domainCode:domainCode
+								                            },      
+								                            success : function(response) {  		                            	
+								                               var obj = Ext.decode(response.responseText);	
+								                               //alert（typeof(obj)）；
+								                               //var obj={success:true,resultObject:{name:"海辉测试2",sex:"男",user_type:"Enterprise",email:"1453359137@qq.com",address:"北京东城区11号",phone:"13625032606"}};
+								                               //alert(typeof(obj));
+								                              // var user= row[0].get('user');
+														
+								                               if(obj.success){
+								                                	 result=obj.resultObject;
+								                                	if(result != null){
+								                                		Ext.getCmp('externalUserName').setValue(result.name);
+									                                	Ext.getCmp('externalUserTel').setValue(result.phone);
+									                                	Ext.getCmp('externalUserAddr').setValue(result.address);
+								                                	}							                                	
+								                                }
+								                            },  
+								                            failure : function(res) {  
+								                                Ext.MessageBox.show({
+								                                	title:i18n._('notice'),// title: '提示',
+																	msg:i18n._('internet error'),// msg: '网络错误',
+																	icon:Ext.MessageBox.ERROR,
+																	buttons: Ext.MessageBox.OK                                       
+								                                   }); 
+								                            } 
+								                          }); 
+							        			   }												
+							        		   }
+							        	   }
+							           },{
+							        	   xtype:'displayfield',
+							        	   id:'externalUserName',
+							        	   fieldLabel: i18n._('username'),//用户名
+							        	   labelWidth:80,
+							        	   labelAlign:'right',
+							        	   width:200,
+							        	   value: ''
+							           },{
+							        	   xtype:'displayfield',
+							        	   id:'externalUserTel',
+							        	   fieldLabel: i18n._('mobile'),//手机号
+							        	   labelWidth:80,
+							        	   labelAlign:'right',
+							        	   width:200,
+							        	   value: ''
+							           },{
+							        	   xtype:'displayfield',
+							        	   id:'externalUserAddr',
+							        	   fieldLabel: i18n._('address'),//联系地址
+							        	   labelWidth:80,
+							        	   labelAlign:'right',
+							        	   width:200,
+							        	   value: ''
+							           }
+							           ],
+							           buttons: [
+							                     {
+							                    	 text: i18n._('OK'),handler : function() {
+							                    		 var externalUser = Ext.getCmp('externalUser').getValue();
+							                    		// alert(result.email);
+							                    		 if(externalUser != null && externalUser !=""){
+							                    			//请求客户账户信息
+															Ext.Ajax.request({  
+									                            url : '../../admin_mgmt/userManagement!synchroExternalUser.action',
+									                            params:{
+									                            	externalUser:externalUser,
+									                            	email:result.email,//这个是无用且显示未定义的数据
+									                            	userId:row[0].get('user').id,
+									                            	domainCode:domainCode								                            	
+									                            },      
+									                            success : function(response) {
+									                                var obj = Ext.decode(response.responseText);
+									                                if(obj.success){
+									                                	Ext.MessageBox.show({
+										                                	title:i18n._('notice'),// title: '提示',
+																			msg:i18n._('Examine user success!'),// msg: '操作成功',
+																			icon:Ext.MessageBox.INFO,
+																			buttons: Ext.MessageBox.OK                                       
+										                                 }); 
+									                                }
+									                            },  
+									                            failure : function(res) {  
+									                                Ext.MessageBox.show({
+									                                	title:i18n._('notice'),// title: '提示',
+																		msg:i18n._('correlate failed'),// msg: '网络错误',
+																		icon:Ext.MessageBox.ERROR,
+																		buttons: Ext.MessageBox.OK                                       
+									                                   }); 
+									                            } 
+									                          }); 
+							                    		 }		
+							                    		 relevanceWin.destroy();
+							                    	 }  
+							                     },
+								        	     {text: i18n._('Cancel'),handler : function() {relevanceWin.destroy()} }
+							                     ]
+							}).show();						
+				        }
+					},*/
+					{xtype:'tbfill'},
+		{
+        xtype:'splitbutton',
+        text:'<font id="searchButton" color="white" >' + i18n._('username') + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("searchButton").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("searchButton").style.color = "black";
+			 }
+				
+		 },
+		id:'split',
+		margin:'0 0 0 2',
+		//arrowCls : "addUserArrow",
+		menu: new Ext.menu.Menu({
+        items: [
+        
+		{
+        text:i18n._('username'),
+		handler: function(){
+		Ext.getCmp('split').setText('<font id="searchButton" color="white" >' + i18n._('username') + '</font>'); 
+		itemValue='userName';
+		}
+		},
+		{
+         text:i18n._('email'),
+		handler: function(){
+		Ext.getCmp('split').setText('<font id="searchButton" color="white" >' + i18n._('email') + '</font>'); 
+		itemValue='userEmail';
+		}
+		},{
+	         text:i18n._('domainName'),
+	 		handler: function(){
+	 		Ext.getCmp('split').setText('<font id="searchButton" color="white" >' + i18n._('domainName') + '</font>'); 
+	 		itemValue='userDomain';
+	 		}
+	 		}
+       ]
+     })
+	 },
+	{	
+    labelWidth: 5,
+    xtype: 'searchfield',
+    store: accountstore,
+	id:'orderNoField',	
+	hasSearch:true,
+	//emptyText:i18n._('userName or userEmail'),
+	onTrigger1Click : function(){
+		var me = this,
+			store = me.store,
+			proxy = store.getProxy(),
+			val;
+			
+		if (me.hasSearch) {
+			me.setValue('');
+			proxy.extraParams[me.paramName] = '';
+			proxy.extraParams['type'] = '';
+			proxy.extraParams.start = 0;
+			//store.load();
+			store.loadPage(1,null);
+			me.hasSearch = false;
+			me.triggerEl.item(0).setDisplayed('none');
+			me.doComponentLayout();
+		}
+	},  
+	  
+	onTrigger2Click : function(){//点击查询按钮或回车调用该方法  
+		var me = this,
+		store = me.store,
+		proxy = store.getProxy(),
+		value = me.getValue();
+			
+		if (value.length < 1) {
+			me.onTrigger1Click();
+			return;
+		}
+		var i = itemValue;
+		store = me.store,
+		proxy = store.getProxy(),
+		proxy.extraParams['query'] = value;
+		proxy.extraParams['type'] = i;
+		proxy.extraParams.start = 0;
+		//store.load();
+		store.loadPage(1,null);
+		this.hasSearch = true;  
+		me.triggerEl.item(0).setDisplayed('block');
+		me.doComponentLayout();
+	}
+	 
+	 
+	}
+	
+           
+            
+	]}
+	]
+})
+});
+
+
+function isEnableCheck(isEnable){
+	var checkResult=true;
+	if(isEnable!=3){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountDisabledTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		checkResult=false;
+	}
+	
+	return checkResult;
+}
+
+function edit(){
+	var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+	if(rows.length > 0){
+
+		var row = rows[0];
+		var accountBalance = row.get('accountBalance');
+		var couponsBalance = row.get('couponsBalance');
+		var couponsRebateRateStr = row.get('couponsRebateRateStr');
+		var giftsBalanceStr  = row.get('giftsBalanceStr');
+		var giftsRebateRateStr  = row.get('giftsRebateRateStr');
+		var user = row.get('user');
+		var accountId=row.get('id');
+		var uid  = user.id;
+		var editaccount =Ext.create('Ext.window.Window', {
+		    //title: '用户详情',
+			title: i18n._('modify'),
+			height: 370,
+			//autoHeight:true,
+			layout:'fit',
+		    width: 480,
+		    border: false,
+			closable:false,
+			resizable : false,
+			constrain : true,
+			modal:true,
+			tools:[{
+			  type:'close',
+			  handler:function(){
+				  editaccount.destroy();
+			  }
+			}],
+		    items: [
+			 {
+				xtype: 'form',
+				height:'100%',
+				id:'infoForm',
+				width:480,
+				autoScroll:true,
+				border: false,
+				  items: [
+			{
+			xtype: 'fieldset',
+			title: i18n._("Basic information"),
+			//layout: 'anchor',
+			width:350,
+			style:'margin-left:50px;',
+			//defaults: {anchor: '20%'},
+			items:[
+					{
+					xtype:'textfield',
+					fieldLabel:'用户名id',
+					style:'margin-left:30px',
+					id:'user_id2',
+					hidden: true,
+					hideLabel: true
+					},
+					{
+					xtype: 'displayfield',
+					id:'email2',
+					fieldLabel: i18n._("email"),
+					name: i18n._("email"),
+					value: user.email,
+					style:'margin-left:30px;'
+					
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._("username"),
+					style:'margin-left:30px',
+					name:i18n._("username"),
+					value: user.name,
+					id:'username2'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._("balance of account"),
+						style:'margin-left:30px',
+						name:i18n._("balance of account"),
+						value: accountBalance,
+						id:'accountBalance'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._("couponsBalance"),
+						style:'margin-left:30px',
+						name:i18n._("couponsBalance"),
+						value: couponsBalance
+					},{xtype:'displayfield',
+						fieldLabel:i18n._("giftsBalance"),
+						style:'margin-left:30px',
+						name:i18n._("giftsBalance"),
+						value: giftsBalanceStr
+					},
+					{   id:'couponsRebateRate',
+						xtype:'numberfield',//textfield
+						name:'couponsRebateRate',						
+						fieldLabel:i18n._('RebateRate'),							
+						style:'margin-left:30px;white-space: nowrap;',
+						decimalPrecision:2,
+					    width:228,
+					    minValue:0,
+						maxValue:100,
+						editable:false,
+					    listeners :{
+					    	//spindown :function(){
+					    	//	var c = Ext.getCmp("couponsRebateRate");
+					    	//	var g = Ext.getCmp("giftsRebateRate");
+					    	//	var cvalue = c.getValue()-1;
+					    	//	var gvalue = g.getValue();
+					    	//	var value = cvalue+gvalue;
+					    	//	if(value>100){
+					    	//		g.setValue(100-cvalue);
+					    	//	}
+					    	//},
+					    	spinup :function(){
+					    		var c = Ext.getCmp("couponsRebateRate");
+					    		var g = Ext.getCmp("giftsRebateRate");
+					    		var cvalue = c.getValue()+1;
+					    		var gvalue = g.getValue();
+					    		var value = cvalue+gvalue;
+					    		if(value>100){
+					    			g.setValue(100-cvalue);
+					    		}
+					    	}
+					    },
+						value:couponsRebateRateStr,
+						allowBlank: false	
+					 },
+					 {  id:'giftsRebateRate',
+						xtype:'numberfield',//textfield
+						name:'couponsRebateRate',					
+						fieldLabel:i18n._('giftsRebateRate'),							
+						style:'margin-left:30px;white-space: nowrap;',
+						decimalPrecision:2,
+					    width:228,
+					    minValue:0,
+					    maxValue:100,
+					    editable:false,
+					    listeners :{
+					    	//spindown :function(){
+					    	//	var c = Ext.getCmp("couponsRebateRate");
+					    	//	var g = Ext.getCmp("giftsRebateRate");
+					    	//	var cvalue = c.getValue();
+					    	//	var gvalue = g.getValue()-1;
+					    	//	var value = cvalue+gvalue;
+					    	//	if(value>100){
+					    	//		c.setValue(100-gvalue);
+					    	//	}
+					    	//},
+					    	spinup :function(){
+					    		var c = Ext.getCmp("couponsRebateRate");
+					    		var g = Ext.getCmp("giftsRebateRate");
+					    		var cvalue = c.getValue();
+					    		var gvalue = g.getValue()+1;
+					    		var value = cvalue+gvalue;
+					    		if(value>100){
+					    			c.setValue(100-gvalue);
+					    		}
+					    	}
+					    },
+						value:giftsRebateRateStr,
+						allowBlank: false	
+					 },{
+						xtype:'textarea',
+						width:228,
+						style:'margin-left:30px',	
+						fieldLabel: i18n._('remark'),	
+						maxLength:512,
+						allowBlank:false,
+						id:'rebateratemark'
+					}	
+			]
+		}
+		]
+		}
+		],dockedItems: [{
+			xtype: 'toolbar',
+			dock: 'bottom',
+			ui: 'footer',
+			layout: {
+				pack: 'left'
+			},
+			items: [{
+				margin:'0 0 0 120',
+				minWidth: 80,
+			   // text: '确定',
+				text: i18n._('OK'),
+				handler:function(){
+					var couponsRebateRate= Ext.getCmp('couponsRebateRate').getValue();
+					var giftsRebateRate = Ext.getCmp('giftsRebateRate').getValue();
+					var rebateratemark = Ext.getCmp('rebateratemark').getValue();
+				    if(null == couponsRebateRate){
+						 Ext.MessageBox.show({
+						  title:i18n._('notice'),
+						  msg: i18n._('RebateRate') + i18n._('cannotBeNull'),
+						  icon:Ext.MessageBox.WARNING,
+					      buttons: Ext.MessageBox.OK												   
+						 }); 
+						 return;
+				    }
+				    if(null == giftsRebateRate){
+						 Ext.MessageBox.show({
+						  title:i18n._('notice'),
+						  msg: i18n._('giftsRebateRate') + i18n._('cannotBeNull'),
+						  icon:Ext.MessageBox.WARNING,
+					      buttons: Ext.MessageBox.OK												   
+						 }); 
+						 return;
+				    }
+				    if(giftsRebateRate+couponsRebateRate>100){
+						 Ext.MessageBox.show({
+						  title:i18n._('notice'),
+						  msg: i18n._('errorRate'),
+						  icon:Ext.MessageBox.WARNING,
+					      buttons: Ext.MessageBox.OK												   
+						 }); 
+						 return;	
+				    }
+				    if(null == rebateratemark || "" == rebateratemark){
+				         Ext.MessageBox.show({
+						  title:i18n._('notice'),
+						  msg: i18n._('remark') + i18n._('cannotBeNull'),
+						  icon:Ext.MessageBox.WARNING,
+					      buttons: Ext.MessageBox.OK												   
+						 }); 
+						 return;
+				    }
+				    Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether modify?'), function(btn) {  
+							if (btn == 'yes') { 
+								Ext.Ajax.request({
+									url: '../../bss/account!updateAccountRate.action',
+									jsonData:{
+										id:accountId,
+										userId:uid,
+										giftsRebateRate:giftsRebateRate,
+										couponsRebateRate:couponsRebateRate,
+										description:rebateratemark
+									},
+									success: function(response){
+										
+										var obj = Ext.decode(response.responseText);
+										if(obj.success){
+										Ext.MessageBox.show({
+											   title: i18n._('notice'),
+											   msg: i18n._('Edit Success!'),
+											   icon:Ext.MessageBox.INFO,
+											   buttons: Ext.MessageBox.OK
+											   
+										   });
+										   editaccount.destroy();
+								           accountstore.load();
+										}else{
+											Ext.MessageBox.show({
+						     	  		          // title: '提示',
+						     	  		          // msg: '网络错误',
+												   title:i18n._('notice'),
+												   msg:obj.resultMsg,
+						     	  		           icon:Ext.MessageBox.INFO,
+						     	  		           buttons: Ext.MessageBox.OK
+						     	  		           
+						     	  		       }); 
+										}
+									}
+								});
+							}
+				    });
+				}
+			},{
+				margin:'0 0 0 20',
+				minWidth: 80,
+				//text: '重置',
+				 text:i18n._('reset'),
+				handler:function(){
+					Ext.getCmp('couponsRebateRate').setValue(couponsRebateRateStr);
+					Ext.getCmp('giftsRebateRate').setValue(giftsRebateRateStr);
+		        }
+			   } 
+		   ]
+		}]
+
+		});
+		//用户详细信息页面结束
+		editaccount.show();
+	}else{
+	    	Ext.MessageBox.show({
+	          // title: '提示',
+	           //msg: '请选择一个用户',
+			   title:i18n._('notice'),
+		       msg:i18n._('selectOne'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		return;
+	}
+}
+
+
+function viewDetail(){
+	var rows = Ext.getCmp('accountList').getSelectionModel().getSelection();
+	if(rows.length > 0){
+
+		var row = rows[0];
+		var accountBalance = row.get('accountBalance');
+		var couponsBalance = row.get('couponsBalance');
+		var couponsRebateRateStr = row.get('couponsRebateRateStr');
+		var giftsBalanceStr  = row.get('giftsBalanceStr');
+		var giftsRebateRateStr  = row.get('giftsRebateRateStr');
+		var user = row.get('user');
+		var userProfile = user.userProfile;
+		
+		var info =Ext.create('Ext.window.Window', {
+		    //title: '用户详情',
+			title: i18n._('details'),
+			height: 460,
+			//autoHeight:true,
+			layout:'fit',
+		    width: 480,
+		    border: false,
+			closable:false,
+			resizable : false,
+			constrain : true,
+			modal:true,
+			tools:[{
+			  type:'close',
+			  handler:function(){
+			  info.destroy();
+			  }
+			}],
+		    items: [
+								{
+				xtype: 'form',
+				height:'100%',
+				id:'infoForm',
+				width:680,
+				autoScroll:true,
+				border: false,
+				  items: [
+			{
+			xtype: 'fieldset',
+			title: i18n._("Basic information"),
+			//layout: 'anchor',
+			width:350,
+			style:'margin-left:50px;',
+			//defaults: {anchor: '20%'},
+			items:[
+					{
+					xtype:'textfield',
+					fieldLabel:'用户名id',
+					style:'margin-left:30px',
+					id:'user_id2',
+					hidden: true,
+					hideLabel: true
+					},
+					{
+					xtype: 'displayfield',
+					id:'email2',
+					fieldLabel: i18n._("email"),
+					name: i18n._("email"),
+					value: user.email,
+					style:'margin-left:30px;'
+					
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._("username"),
+					style:'margin-left:30px',
+					name:i18n._("username"),
+					value: user.name,
+					id:'username2'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._("balance of account"),
+						style:'margin-left:30px',
+						name:i18n._("balance of account"),
+						value: accountBalance,
+						id:'accountBalance'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._("couponsBalance"),
+						style:'margin-left:30px',
+						name:i18n._("couponsBalance"),
+						value: couponsBalance
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._("RebateRate"),
+						style:'margin-left:30px',
+						name:i18n._("RebateRate"),
+						value: couponsRebateRateStr
+					},
+					{xtype:'displayfield',
+						fieldLabel:i18n._("giftsBalance"),
+						style:'margin-left:30px',
+						name:i18n._("giftsBalance"),
+						value: giftsBalanceStr
+					},
+					{xtype:'displayfield',
+						fieldLabel:i18n._("giftsRebateRate"),
+						style:'margin-left:30px',
+						name:i18n._("giftsRebateRate"),
+						value: giftsRebateRateStr
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._("sex"),
+					style:'margin-left:30px',
+					name:i18n._("username"),
+					value: userProfile.sex==0?i18n._('female'):i18n._('male'),
+					id:'sex2'
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._('User Type'),
+					name:i18n._('User Type'),
+					maxLength: 18,
+					minLength: 15,
+					style:'margin-left:30px;',
+					value: user.userType == 'NorUser'?i18n._('NorUser'):i18n._('EntUser'),
+					id:'userType2'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._('brand'),
+						name:i18n._('brand'),
+						maxLength: 18,
+						minLength: 15,
+						style:'margin-left:30px;',
+						value:function(){
+							if(brandStore.findRecord('code',user.level)){
+								return brandStore.findRecord('code',user.level).get('name');
+							}else{
+								return "";
+							}
+							
+						}(),//record.get('level')
+						id:'mBrand'
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._('Id number'),
+					name:i18n._('Id number'),
+					vtype: 'idCardCheck',
+					allowBlank:false,
+					maxLength: 18,
+					minLength: 15,
+					style:'margin-left:30px;',
+					value: userProfile.idCard,
+					id:'idCard2'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._('Contact'),
+						name:i18n._('Contact'),
+						vtype: 'phonecheck',
+						allowBlank:false,
+						style:'margin-left:30px;',
+						value: userProfile.telephone,
+						id:'telephone2'
+						}
+					,
+					{
+						style:'margin-left:30px;',
+						fieldLabel: i18n._('Country'),
+						name: i18n._('Country'),
+						xtype:'displayfield',
+						id:'country2',
+						mode: 'local',
+						value:i18n._('c'+userProfile.country.nameCode)
+					},
+					{
+					    
+								xtype: 'displayfield',
+								style:'margin-left:30px;',
+								fieldLabel: i18n._('Region'),
+								name: i18n._('Region'),
+								id:'province2',
+								mode: 'local',
+								value:getRegionDetail(userProfile.region)
+					},
+					{
+					    
+						xtype: 'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel: i18n._('detailed address'),
+						name: i18n._('detailed address'),
+						id:'address2',
+						mode: 'local',
+						value:userProfile.address
+			        },
+					{
+						style:'margin-left:30px;',
+						fieldLabel: i18n._('Industry'),
+						name: i18n._('Industry'),
+						xtype:'displayfield',
+						id:'industry2',
+						mode: 'local',
+						value:i18n._('i'+userProfile.industry.nameCode)
+						},
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('Company'),
+						name:i18n._('Company'),
+						value: userProfile.company,
+						id:'company2'
+						},				
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('createDate'),
+						name:i18n._('createDate'),
+					
+						renderer: function(){
+							if(null == user.createDate || ""==user.createDate ){
+								return "";
+							}else{
+								var d = new Date(user.createDate);
+								var date = d.getFullYear()+"-"+(d.getMonth()+1)+"-"+(d.getDate()<10?"0"+d.getDate():d.getDate())+"  "+((d.getHours()<10)?"0"+d.getHours():d.getHours())+":"+(d.getMinutes()<10?"0"+d.getMinutes():d.getMinutes())+":"+(d.getSeconds()<10?"0"+d.getSeconds():d.getSeconds());
+								return date;
+						   }
+							
+						},
+						id:'createDate2'
+						},
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('The last time login time'),
+						name:i18n._('lastLoginDate'),
+						renderer: function(){
+							if(null == user.lastLoginDate || ""==user.lastLoginDate ){
+								return "";
+							}else{
+								var d = new Date(user.lastLoginDate);
+								var date = d.getFullYear()+"-"+(d.getMonth()+1)+"-"+(d.getDate()<10?"0"+d.getDate():d.getDate())+"  "+((d.getHours()<10)?"0"+d.getHours():d.getHours())+":"+(d.getMinutes()<10?"0"+d.getMinutes():d.getMinutes())+":"+(d.getSeconds()<10?"0"+d.getSeconds():d.getSeconds());
+								return date;
+								
+							}
+							
+						},
+						id:'lastLoginDate2'
+						}
+			]
+		}
+		]
+		}
+		]
+
+		});
+		//用户详细信息页面结束
+		info.show();
+	}else{
+	    	Ext.MessageBox.show({
+	          // title: '提示',
+	           //msg: '请选择一个用户',
+			   title:i18n._('notice'),
+		       msg:i18n._('selectOne'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		return;
+	}
+	
+}
+
+	}
+        };
+    })();
+
+    MultiLang.init();
+    
+})
+ 
+ 
+function getRegionDetail(region){
+	if(region){
+		return i18n._('r'+region.nameCode);
+	}else{
+		return '';
+	}
+	
+}
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+ 
+ 
+
+	
+
+</script>
+</head>
+
+<body>
+
+</body>
+</html>

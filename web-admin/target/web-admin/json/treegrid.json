@@ -1,0 +1,117 @@
+{"text":".","children": [
+    {
+    	id:1,
+        name:'虚拟机管理虚拟机管理虚拟机管理虚拟机管理虚拟机管理',
+        show:true,        
+        iconCls:'task-folder',
+        expanded: true,
+        children:[{
+        	id:2,
+            name:'全局全局全局全局全局全局全局全局',
+            show:true,            
+            iconCls:'task-folder',
+            children:[{
+				id:3,
+                name:'概述概述概述概述概述概述概述概述概述概述',                
+                show:true,
+                leaf:true,
+                iconCls:'task'
+            },{
+            	id:4,
+                name:'节点列表节点列表节点列表节点列表节点列表节点列表节点列表',
+				show:true,				
+                leaf:true,
+                iconCls:'task'
+            },{
+            	id:5,
+                name:'虚拟机列表虚拟机列表虚拟机列表虚拟机列表',
+				show:true,
+                leaf:true,
+                iconCls:'task'
+            }]
+        }, {
+        	id:6,
+            name:'节点1节点1节点1节点1节点1节点1节点1节点1节点1',
+            iconCls:'task-folder',
+            expanded: true,
+            children:[{
+            	id:7,
+                name:'节点概述节点概述节点概述节点概述节点概述节点概述',
+                leaf:true,
+                iconCls:'task'
+            },{
+            	id:8,
+                name:'虚拟机虚拟机虚拟机虚拟机虚拟机虚拟机虚拟机',
+                iconCls:'name-folder',
+                children: [{
+                	id:9,
+                    name: '虚拟机概述虚拟机概述虚拟机概述虚拟机概述虚拟机概述虚拟机概述',
+                    iconCls: 'task',
+                    leaf: true
+                }, {
+                	id:10,
+                    name: '历史监控历史监控历史监控历史监控历史监控历史监控历史监控',
+                    iconCls: 'task',
+                    leaf: true
+                }, {
+                	id:11,
+                    name: '远程访问远程访问远程访问远程访问远程访问远程访问远程访问',
+                    iconCls: 'task',
+                    leaf: true
+                }]
+            },{
+            	id:12,
+                name:'虚拟机列表',
+                leaf:true,
+                iconCls:'task',
+                show: true
+            },{
+            	id:13,
+                name: '历史监控',
+                leaf: true,
+                iconCls: 'task',
+                show: true
+            }]
+        }]
+    },{
+    	id:14,
+        name:'套餐管理',
+        iconCls:'task-folder',
+        children:[{
+        	id:15,
+            name: '套餐列表',
+            iconCls: 'task-folder',
+            children: [{
+            	id:16,
+                name: 'FireFox',
+                iconCls: 'task',
+                leaf: true
+            }]
+        },{
+        	id:17,
+            name: '套餐资源',
+            iconCls: 'task-folder',
+            children: [{
+            	id:18,
+                name: 'CPU',
+                iconCls: 'task',
+                leaf: true
+            }, {
+            	id:19,
+                name: 'MEM',
+                iconCls: 'task',
+                leaf: true
+            }, {
+            	id:20,
+                name: 'DISK',
+                iconCls: 'task',
+                leaf: true
+            },{
+            	id:21,
+                name: 'EXTDISK',
+                iconCls: 'task',
+                leaf: true
+            }]
+        }]
+    }
+]}

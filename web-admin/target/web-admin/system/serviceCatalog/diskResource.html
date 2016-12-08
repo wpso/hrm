@@ -1,0 +1,792 @@
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="sccommon.js"></script>
+<style type="text/css">
+ #ext-quicktips-tip-body{
+ word-break:break-all;
+ word-wrap:break-word;
+ }
+</style>
+<script>
+	Ext.onReady(function() {
+				var params;
+				MultiLang = (function() {
+					return {
+						init : function() {
+							params = getCookie("lang");
+							i18n.set({
+								lang : params,
+								path : '../../resources'
+							});
+							if (params) {
+								var url = Ext.util.Format
+										.format(
+												'../../extjs-4.1.0/locale/ext-lang-{0}.js',
+												params);
+								Ext.Ajax.request({
+									url : url,
+									success : this.onLoadExtLocaleSuccess,
+									failure : this.onLoadExtLocaleFailure,
+									scope : this
+								});
+							} else {
+								// no language found, locale of ExtJS will be english as default
+								//this.loadmyprojectLocale();
+								this.setup();
+							}
+						},
+						onLoadExtLocaleSuccess : function(response) {
+							try {
+								eval(response.responseText);
+							} catch (e) {
+								//Ext.Msg.alert('Failure', e.toString());
+							}
+							//this.loadmyprojectLocale();
+							this.setup();
+						},
+						onLoadExtLocaleFailure : function() {
+							//Ext.Msg.alert('Failure','Failed to load locale file.');
+							this.setup();
+							//this.loadmyprojectLocale();
+						},
+						setup : function() {
+/*********************************************页面渲染开始******************************************************************/
+
+Ext.regModel("QosPolicy",{
+	fields:[
+	{name:"key",type:"string"},
+	{name:"value",type:"string"}
+	],
+	belongsTo:"ServiceItem"
+});
+
+Ext.define('ServiceItem', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'name',  type: 'string'},
+	{name: 'serviceType',  type: 'int'},
+	{name: 'createDate',  type: 'date',dateFormat : 'time'},
+	{name: 'updateDate',  type: 'date',dateFormat : 'time'},
+	{name: 'description',  type: 'string'}
+	],
+	hasMany:[{model:"QosPolicy",name:"qosPolicies"}]
+});
+
+var diskModel=Ext.define('Disk', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'capacity',  type: 'int'},
+	{name: 'model',  type: 'string'},
+	{name: 'rpm', type:'int'}
+	]
+});
+ 
+function tooltipRenderer(value,metedata,record,rowIndex,colIndex,store){
+	 metedata.tdAttr = 'data-qtip="' + value + '"';
+	 return value;
+}
+
+var disk_columns=[{xtype:'rownumberer', width: 30},
+                  {"text":i18n._('name'),"dataIndex":'name',"flex":1,renderer:tooltipRenderer},
+                  {"text":i18n._('capacity(G)'),"dataIndex":"capacity","flex":1},
+                  {"text":i18n._('rpm')+'(RPM)',"dataIndex":"rpm","flex":1},
+                  {"text":i18n._('model'),"dataIndex":"model","flex":1,renderer:tooltipRenderer},
+                  {"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d H:i:s"}
+                  ];
+
+var v_proxy=new Ext.create('Ext.data.proxy.Ajax',
+		 {
+		         type: 'ajax',
+		         url : path+'/../sc/serviceItem!pageServiceItem.action',
+		 		reader: {
+		             type: 'json',
+		 			root:'resultObject.result',
+		 			totalProperty: 'resultObject.totalCount'
+		         }
+		     }
+		 );
+
+		 var v_store=Ext.create('Ext.data.Store', {
+		     pageSize:pageSize,
+		 	width:'100%',
+		 	sorters: [
+		              {
+		            	  property : 'createDate',
+		                  direction: 'DESC'
+		              }
+		          ],
+		 	remoteSort:true,
+		 	proxy:v_proxy
+		 });
+		 
+		 
+		 v_proxy.setModel(diskModel);
+		 v_proxy.setExtraParam('serviceType',3);
+		 v_store.load();
+		 
+ var v_height = 25;
+ var v_width = 290;
+ var v_margin = '1px';
+ 
+ Ext.define('textPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	width:v_width,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		xtype:'textfield',
+ 		width:235,
+ 		enforceMaxLength:true,
+ 		maxLength:50,
+ 		fieldLabel:''
+ 		}]
+ 	
+ });
+ Ext.define('descPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:45,
+ 	width:450,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		height:45,
+ 		width:360,
+ 		xtype:'textarea',
+ 		enforceMaxLength:true,
+ 		maxLength:200,
+ 		fieldLabel:i18n._('ExpensesDesc')
+ 		}]
+ 	
+ });
+
+ Ext.define('numberPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	border:false,
+ 	layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[		
+ 		{
+ 	    xtype: 'numberfield',
+ 		fieldLabel:'',
+ 		allowDecimals:false,
+ 		width:235,
+ 		enforceMaxLength:true,
+		maxLength:9,
+		maxValue: 1000000,
+ 		minValue: 0,
+ 		allowBlank: false
+ 	    },
+ 		{
+ 		xtype: 'displayfield',
+ 		margin:'0 0 0 10',
+ 		value:''
+ 		}
+ 		],
+ 	setLabel:function(value){
+ 		this.getComponent(0).setFieldLabel(value);
+ 	},
+ 	setExt:function(value){
+ 		this.getComponent(1).setValue(value);
+ 	}
+ 	
+ });
+
+ Ext.define('commonForm',{ 
+ extend:'Ext.form.Panel',	
+                     border: false,
+                     items: [{
+ 					xtype:"fieldset",
+ 					border:true,
+ 					anchor:'100% 100%',
+                     style:{
+ 					 marginLeft:"5px",
+ 					 marginRight:"5px",
+                      marginTop:"5px"
+ 					}
+ 					}]
+
+                    });
+ 				   
+ Ext.define('commonWindow',{
+	 extend:'Ext.window.Window',
+	 title:i18n._('add resource'),
+	 modal:true,
+	 width: 600,
+	 manageHeight:true,
+	 resizable:false,
+	 layout: 'anchor',
+	 closable:false,
+	 constrain:true
+	 });
+ 
+ var disk_name= Ext.create('textPanel');
+ disk_name.getComponent(0).setFieldLabel(i18n._('name'));
+ var disk_model=Ext.create('textPanel');
+ disk_model.getComponent(0).setFieldLabel(i18n._('model'));
+ var disk_capacity= Ext.create('numberPanel');		
+ disk_capacity.setLabel(i18n._('capacity'));	
+ disk_capacity.setExt('G');
+ disk_capacity.getComponent(0).setMaxValue(500);
+ var disk_rpm= Ext.create('numberPanel');		
+ disk_rpm.setLabel(i18n._('rpm'));	
+ disk_rpm.setExt('RPM');				
+ var diskForm = Ext.create('commonForm');		
+ diskForm.getComponent(0).setTitle(i18n._('disk info'));
+ diskForm.getComponent(0).add([disk_name,disk_model,disk_capacity,disk_rpm]);
+ 
+ var addButton=Ext.create('Ext.button.Button',{
+			 style:'margin-right:5',
+			 text: i18n._('Add')
+ });	
+////////
+ var diskRLimitNumField = Ext.create('Ext.form.field.Number', {
+	 labelAlign : 'right',
+	 allowBlank :false,
+ 	labelWidth : 80,
+ 	fieldLabel : i18n._('diskRead'),//
+ 	allowBlank : false,
+ 	enforceMaxLength:true,
+ 	maxLength : 4,
+ 	width : 200,
+ 	minValue :1,	
+ 	regex : /(^[0-9]{1,4}$)/,// 禁止输入空白字符/(^[0-9]{1,25}$)/
+ 	regexText : i18n._('InputNumber')
+ });
+ var diskWLimitNumField = Ext.create('Ext.form.field.Number', {
+	 labelAlign : 'right',
+	 allowBlank :false,
+ 	labelWidth : 80,
+ 	fieldLabel : i18n._('diskWrite'),//
+ 	allowBlank : false,
+ 	enforceMaxLength:true,
+ 	maxLength : 4,
+ 	width : 200,
+ 	minValue :1,	
+ 	regex : /(^[0-9]{1,4}$)/,// 禁止输入空白字符/(^[0-9]{1,25}$)/
+ 	regexText : i18n._('InputNumber')
+ });
+ var diskRLimitUnitLabel=Ext.create('Ext.form.Label',{
+ 	text:i18n._('MB/sec')
+ });
+ var diskWLimitUnitLabel=Ext.create('Ext.form.Label',{
+ 	text:i18n._('MB/sec')
+ });
+ 
+ //iops
+  var iopsRLimitNumField = Ext.create('Ext.form.field.Number', {
+	  labelAlign : 'right',
+	 allowBlank :false,
+ 	labelWidth : 80,
+ 	fieldLabel : '读IOPS',//
+ 	allowBlank : false,
+ 	enforceMaxLength:true,
+ 	maxLength : 4,
+ 	width : 200,
+ 	minValue :1,	
+ 	regex : /(^[0-9]{1,4}$)/,// 禁止输入空白字符/(^[0-9]{1,25}$)/
+ 	regexText : i18n._('InputNumber')
+ });
+ var iopsWLimitNumField = Ext.create('Ext.form.field.Number', {
+	 labelAlign : 'right',
+	 allowBlank :false,
+ 	labelWidth : 80,
+ 	fieldLabel : '写IOPS',//
+ 	allowBlank : false,
+ 	enforceMaxLength:true,
+ 	maxLength : 4,
+ 	width : 200,
+ 	minValue :1,	
+ 	regex : /(^[0-9]{1,4}$)/,// 禁止输入空白字符/(^[0-9]{1,25}$)/
+ 	regexText : i18n._('InputNumber')
+ });
+ var iopsRLimitUnitLabel=Ext.create('Ext.form.Label',{
+	 	text:i18n._('IO/sec')
+	 });
+ var iopsWLimitUnitLabel=Ext.create('Ext.form.Label',{
+ 	text:i18n._('IO/sec')
+ });
+	 
+ var diskRLimitContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [diskRLimitNumField,diskRLimitUnitLabel,iopsRLimitNumField,iopsRLimitUnitLabel]
+ });
+ var diskWLimitContainer = Ext.create('Ext.form.FieldContainer', {
+ 	layout : 'hbox',
+ 	items : [diskWLimitNumField,diskWLimitUnitLabel,iopsWLimitNumField,iopsWLimitUnitLabel]
+ });
+ 
+ var diskFieldSet = Ext.create('commonForm');		
+ diskFieldSet.getComponent(0).setTitle(i18n._('qos_policies'));
+ diskFieldSet.getComponent(0).add([diskRLimitContainer,diskWLimitContainer]);
+ ///////
+var commonWindow=Ext.create('commonWindow', {
+			                   constrain:true,
+			 	            	tools:[{
+			 	                type:'close',
+			 	                handler:function(){					
+			 					commonWindow.getComponent(0).getForm().reset();
+			 					commonWindow.getComponent(1).getForm().reset();
+			 					commonWindow.hide();
+			 	                }
+			 	                }],               
+			                     buttons: [
+			 					addButton,
+			 					{   
+			 					    style:'margin-right:5',
+			                         text: i18n._('reset'),
+			 						handler:function(){
+			 						    commonWindow.getComponent(0).getForm().reset();
+			 						    commonWindow.getComponent(1).getForm().reset();
+			 						    disk_capacity.setExt('G');
+			 						    disk_rpm.setExt('RPM');
+			 						}
+			                     }]
+});
+
+function setRecord(record){
+	disk_capacity.getComponent(0).setValue(record.get('capacity'));
+	disk_model.getComponent(0).setValue(record.get('model'));
+	disk_rpm.getComponent(0).setValue(record.get('rpm'));
+	disk_name.getComponent(0).setValue(record.get('name'));
+	disk_rpm.setExt('RPM');
+	disk_capacity.setExt('G');
+	
+	var qos = record.qosPolicies() ; //qos策略
+	for (var i = 0; i < qos.getCount(); i++) { 
+		  var key = qos.getAt(i).get('key') ;  
+		  var value = qos.getAt(i).get('value') ;  
+		  if(key == 'disk_read_bytes_sec'){
+			  diskRLimitNumField.setValue(value);
+		  }else if(key == 'disk_read_iops_sec'){
+			  iopsRLimitNumField.setValue(value);
+		  }else if(key == 'disk_write_bytes_sec'){
+			  diskWLimitNumField.setValue(value);
+		  }else if(key == 'disk_write_iops_sec'){
+			  iopsWLimitNumField.setValue(value);
+		  }
+	}
+}
+
+function checkDiskAddField(oldName){
+	var diskName=disk_name.getComponent(0).getValue();
+	var capacity=disk_capacity.getComponent(0).getValue();
+	var rpm=disk_rpm.getComponent(0).getValue();
+	//alert(frequency+'===='+price);
+	if(diskName.length==0||diskName.length>50){
+		showMsg(i18n._("diskNameTip"));
+		return false;
+	}
+	if(!/^\S+$/g.test(diskName)){
+		showMsg(i18n._("The name can not contain blank characters"));
+		return false;
+	}
+	if(!checkResourceNameRepeat(diskName,3,oldName)){
+		showMsg(i18n._('sirepeat'));
+		return false;
+	}
+	if(!disk_capacity.getComponent(0).isValid()||!disk_rpm.getComponent(0).isValid()){
+		return false;
+	}
+	if(capacity==null||!/\d+/.test(capacity)){
+		showMsg(i18n._("diskCapacityNullTip"));
+		return false;
+	}
+	
+	if(capacity==0){
+		showMsg(i18n._("diskCapacityZeroTip"));
+		return false;
+	}
+	
+	if(rpm==null||!/\d+/.test(rpm)){
+		showMsg(i18n._("diskRpmNullTip"));
+		return false;
+	}
+	
+	if(rpm==0){
+		showMsg(i18n._("diskRpmZeroTip"));
+		return false;
+	}
+}
+
+function ajax_request(v_serviceType,v_json){
+	var v_mask = new Ext.LoadMask(Ext.getBody(), {
+	                        msg: i18n._('saving'),
+							//msg:i18n._('ServiceCatalog is saving,please wait!'),
+	                        removeMask: true //完成后移除
+	                    });
+					v_mask.show();					
+					Ext.Ajax.request({
+						url: path+'/../sc/serviceItem!save.action',
+						params:{serviceType:v_serviceType},
+						jsonData:v_json,
+						success:function(response){
+							v_mask.hide();
+							commonWindow.hide();
+							commonWindow.removeAll(false);
+           					var result=Ext.JSON.decode(response.responseText);
+           					if(result.success==false){
+           						Ext.MessageBox.show({
+ 	                              // title: '提示',
+                                    title:i18n._('notice'),
+ 	                               msg: result.resultMsg,
+ 	                               icon:Ext.MessageBox.INFO,	 	           		  
+ 	                               buttons: Ext.MessageBox.OK	 	                      
+ 	           				});
+           					}else{
+							    v_store.load();
+							}
+						}	
+					});	
+					commonWindow.getComponent(0).getForm().reset();
+					commonWindow.getComponent(1).getForm().reset();
+};
+
+function showMsg(msg){
+	 Ext.MessageBox.show({
+        title: i18n._('Prompt'),
+         msg: msg==null?i18n._('Input error'):msg,
+       icon:Ext.MessageBox.INFO,
+      buttons: Ext.MessageBox.OK
+      });
+}
+
+function showWindow(){
+	addButton.setText(i18n._('Add'));
+	commonWindow.setTitle(i18n._('add resource'));
+	disk_rpm.setExt('RPM');
+	 disk_capacity.setExt('G');
+	commonWindow.removeAll(false);					
+		commonWindow.add([diskForm,diskFieldSet]);
+		commonWindow.getComponent(0).getForm().getFields().each(function(f){ 
+			f.setReadOnly(false);
+		}); 
+		commonWindow.getComponent(1).getForm().getFields().each(function(f){ 
+			f.setReadOnly(false);
+		}); 
+		addButton.setHandler(
+			function(){
+				
+				if(!commonWindow.getComponent(0).getForm().isValid()){return;}
+				if(!commonWindow.getComponent(1).getForm().isValid()){return;}
+				if(checkDiskAddField()==false){ return;}
+				
+				var qos_arr = [] ;
+				var arr = {"key" : "disk_read_bytes_sec","value" : diskRLimitNumField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "disk_write_bytes_sec","value" : diskWLimitNumField.getValue()}
+				qos_arr.push(arr);
+				
+				arr = {"key" : "disk_read_iops_sec","value" : iopsRLimitNumField.getValue()}
+				qos_arr.push(arr);
+				arr = {"key" : "disk_write_iops_sec","value" : iopsWLimitNumField.getValue()}
+				qos_arr.push(arr);
+				
+				var v_json={
+							serviceType:3,
+							name:disk_name.getComponent(0).getValue(),
+							rpm:disk_rpm.getComponent(0).getValue(),
+							capacity:disk_capacity.getComponent(0).getValue(),
+							model:disk_model.getComponent(0).getValue(),
+							qosPolicies:qos_arr
+						};
+				ajax_request(3,v_json);		
+			}
+		);
+		commonWindow.show();
+}
+		 
+		 Ext.QuickTips.init();
+		 Ext.form.Field.prototype.msgTarget = 'side';
+		 var pluginExpanded = true;
+		 var dataGrid=Ext.create('Ext.grid.Panel', {
+		     layout:'fit',
+		 	title:i18n._('ServiceCatalog_resource')+'&nbsp;>&nbsp;DISK',
+		     store: v_store,
+		 	simpleSelect:true,	
+		 	//sortableColumns:false,
+		     columns: disk_columns,
+		 	selModel: Ext.create('Ext.selection.RowModel'),
+		     //selType: 'rowmodel',
+		 	bbar: Ext.create('Ext.PagingToolbar', {
+		           store:v_store ,
+		           displayInfo: true
+		     }),
+		     listeners:{
+			    	'itemdblclick':{
+			    		fn:function(){
+			    			viewDetail();
+			    		}
+			    	}
+			    },
+		     dockedItems:[
+		      			{xtype:'toolbar',
+		      			dock: 'top',
+		      			cls: 'toolbarCSS',
+		      			//style:'background-color:#4c4c4c; background-image:url();',
+		      			items:[{
+		      				xtype:'button',
+		      				margin:'0 0 0 0',
+		      				icon:'images/add_new.png',
+		      				text:'<font id="AddDisk" color="white" >' +i18n._("Add") + '</font>',
+		      				 listeners: {
+		    					 "mouseout" : function() {
+		    						 document.getElementById("AddDisk").style.color = "white";
+		    					 },
+		    					 "mouseover" : function() {
+		    						 document.getElementById("AddDisk").style.color = "black";
+		    					 }
+		    						
+		    				 },
+		      				handler:showWindow
+		      			},
+		      			 
+// 		      			{    
+// 		      			    margin:'0 0 0 0',
+// 		      			  text:'<font id="EditDisk" color="white" >' +i18n._("edit") + '</font>',
+// 		      				listeners: {
+// 		    					 "mouseout" : function() {
+// 		    						 document.getElementById("EditDisk").style.color = "white";
+// 		    					 },
+// 		    					 "mouseover" : function() {
+// 		    						 document.getElementById("EditDisk").style.color = "black";
+// 		    					 }
+		    						
+// 		    				},
+// 		      				style:'margin-left:750px;',
+// 		      				icon: 'images/edit_new.png',
+// 		      				handler:function(){
+// 		      				addButton.setText(i18n._('Save'));
+// 		      				commonWindow.setTitle(i18n._('edit'));
+// 		      				var rows=dataGrid.getSelectionModel().getSelection();
+// 		      				var scId=0;
+// 		      				if(rows.length > 0){
+// 		      				  scId=rows[0].get('id');
+// 		      				}else{
+// 		      						 Ext.MessageBox.show({
+// 		      						    title:i18n._('notice'),
+// 		      						    msg:i18n._('please choose one column'),
+// 		                                icon:Ext.MessageBox.WARNING,
+// 		                               buttons: Ext.MessageBox.OK
+// 		                               }); 
+// 		      						return;
+// 		      			    }
+// 		      				var record=	v_store.getById(scId);
+// 		      				setRecord(record);
+// 		      				var oldName=record.get('name');
+// 		      				commonWindow.add(diskForm);
+// 		      				addButton.setHandler(
+// 		      					function(){
+// 		      						if(checkDiskAddField(oldName)==false){ return;}
+// 		      					    var v_json={id:scId,
+// 		      								serviceType:3,
+// 		      								name:disk_name.getComponent(0).getValue(),
+// 		      								rpm:disk_rpm.getComponent(0).getValue(),
+// 		      								capacity:disk_capacity.getComponent(0).getValue(),
+// 		    								model:disk_model.getComponent(0).getValue(),							
+// 		    								price:disk_price.getComponent(0).getValue()
+// 		      							};
+// 		      					   ajax_request(3,v_json);		
+// 		      					});
+		      				
+// 		      	            commonWindow.show();
+// 		                  }},
+		                  {
+		                	  xtype:'button',
+			                    itemId: 'detailButton',
+			                    text:'<font id="detailDisk" color="white" >' +i18n._("detail") + '</font>',
+			      				listeners: {
+			    					 "mouseout" : function() {
+			    						 document.getElementById("detailDisk").style.color = "white";
+			    					 },
+			    					 "mouseover" : function() {
+			    						 document.getElementById("detailDisk").style.color = "black";
+			    					 }
+			    						
+			    				},
+			                    icon: 'images/detail.png',
+			      				handler:function(){
+			      					viewDetail();
+			      				}
+		                  },
+		      			{
+		                      itemId: 'removeButton',
+		                      text:'<font id="deleteDisk" color="white" >' +i18n._("delete") + '</font>',
+			      				listeners: {
+			    					 "mouseout" : function() {
+			    						 document.getElementById("deleteDisk").style.color = "white";
+			    					 },
+			    					 "mouseover" : function() {
+			    						 document.getElementById("deleteDisk").style.color = "black";
+			    					 }
+			    						
+			    				},
+		                      icon: 'images/delete.png',
+		      				handler:function(){
+		      				var rows=dataGrid.getSelectionModel().getSelection();
+		      				 var scId;
+		      				 if(rows.length > 0){
+		      				 scId=rows[0].get('id');
+		      				 
+		      				 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      								msg:i18n._('Are you sure to delete'),
+		      			                   buttons: Ext.MessageBox.YESNO,
+		      			                   icon: Ext.MessageBox.QUESTION,
+		      			                   fn:function(e){
+		      			                	   if(e=="no"){
+		      			                		   return;
+		      			                	   }else if(e=='yes'){
+		      			                		   Ext.Ajax.request({
+		      											url: path+'/../sc/serviceItem!delete.action',
+		      											method: 'POST',
+		      											params:{
+		      											'serviceItem.id':scId
+		      											},
+		      											success:function(response){
+		      					           					var result=Ext.JSON.decode(response.responseText);
+		      					           					if(result.success==false){
+		      					           						Ext.MessageBox.show({
+		      				                                        title:i18n._('notice'),
+		      					 	                               msg: result.resultMsg,
+		      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+		      					 	                               buttons: Ext.MessageBox.OK	 	                      
+		      					 	           				});
+		      					           					}else{
+		      					           						Ext.MessageBox.show({
+		      														  title: i18n._('notice'),
+		      														 msg:i18n._('delete successfully'),
+		      				                                          icon:Ext.MessageBox.INFO,
+		      				                                          buttons: Ext.MessageBox.OK
+		      				           
+		      														});
+		      					           					v_store.loadPage(1,null);
+		      												}
+		      											}
+		      												});
+		      			                	   }
+		      			                	 
+		      			                	}
+		      			    		});	 	
+		      					}else{
+		      						 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      							    msg:i18n._('please choose one column'),
+		                                      icon:Ext.MessageBox.WARNING,
+		                                      buttons: Ext.MessageBox.OK
+		      						}); 
+		      						return;
+		      			    	}		           
+		      			        }
+		                  },
+		      			{xtype:'tbfill'},
+		      			{
+		    				xtype:'displayfield',
+		    				hideLabel:true,
+		    				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+		    			},
+		    			{    
+		    				xtype: 'searchfield',
+		    			    hideLabel:true,
+		    				hasSearch:true,
+		    				emptyText:i18n._('name'),
+		    				store: v_store
+		    			}
+		      			]}],
+		     width: '100%'
+		     
+		 });
+		 
+		 
+		 var detailWindow=Ext.create('commonWindow', {
+	            constrain:true,
+	           	tools:[{
+		               type:'close',
+		               handler:function(){					
+		            	   detailWindow.getComponent(0).getForm().reset();
+		            	   detailWindow.getComponent(1).getForm().reset();
+		            	   detailWindow.getComponent(0).getForm().getFields().each(function(f){ 
+		            		    f.setReadOnly(false);
+							}); 
+							detailWindow.getComponent(1).getForm().getFields().each(function(f){ 
+								f.setReadOnly(false);
+							}); 
+		            	   detailWindow.hide();
+		               }
+	               }]
+	  	});
+		 
+		 function viewDetail(){
+				var rows = dataGrid.getSelectionModel().getSelection();
+				if(rows.length > 0){
+					var record = rows[0];
+					setRecord(record) ;
+					detailWindow.setTitle(i18n._('resourceDetail'));
+					detailWindow.removeAll(false);
+					detailWindow.add([diskForm,diskFieldSet]);
+					detailWindow.getComponent(0).getForm().getFields().each(function(f){ 
+						  f.setReadOnly(true);
+					}); 
+					detailWindow.getComponent(1).getForm().getFields().each(function(f){ 
+						  f.setReadOnly(true);
+					}); 
+					detailWindow.show() ;
+				}else{
+				    	Ext.MessageBox.show({
+				          // title: '提示',
+				           //msg: '请选择一个用户',
+						   title:i18n._('notice'),
+					       msg:i18n._('please choose one column'),
+				           icon:Ext.MessageBox.INFO,
+				           buttons: Ext.MessageBox.OK
+				           
+				       }); 
+					return;
+				}
+				
+			}
+		 
+		 Ext.create('Ext.Viewport',{
+			 layout:'fit',
+			 items: dataGrid
+			});
+ 
+ 
+/*********************************************页面渲染结束******************************************************************/
+
+						}
+					};
+				})();
+				MultiLang.init();
+});
+	
+	 function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+     }
+</script>
+</head>
+<body>
+</body>
+</html>

@@ -1,0 +1,952 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>试用订单列表 </title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/ProgressBarPager.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../business/common.js"></script>
+<script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+Ext.QuickTips.init(true,{dismissDelay:600000});
+Ext.require([
+    'Ext.data.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.ux.form.SearchField',
+	'Ext.ux.RowExpander',
+    'Ext.selection.CheckboxModel',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.ProgressBarPager'
+]);
+
+
+Ext.onReady(function() {
+	var vmid=0;
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {	
+var orderId = 0;
+var orderItemId = 0;
+Ext.define('Order', {
+    extend: 'Ext.data.Model',
+    fields: [//'totalPrice','quantity',
+        'id', 'orderNo', 'status','orderItemId','totalPrice','quantity','remark',
+        {name: 'tryDuration', mapping: 'tryDuration'},
+        {name: 'userName', mapping: 'userName'},//user.name
+        {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'},
+        {name: 'payDate', mapping: 'payDate', type: 'date', dateFormat: 'time'},
+        {name: 'updateDate', mapping: 'updateDate', type: 'date', dateFormat: 'time'},
+        {name: 'itemEffectiveDate', mapping: 'itemEffectiveDate', type: 'date', dateFormat: 'time'},
+        {name: 'itemExpirationDate', mapping: 'itemExpirationDate', type: 'date', dateFormat: 'time'}        
+    ],
+    idProperty: 'id'
+});
+
+  // create the Data Store
+  var store = Ext.create('Ext.data.Store', {
+      pageSize: pageSize,
+      model: 'Order',
+      sorters: [
+                {
+                    property : 'createDate',
+                    direction: 'DESC'
+                }
+            ],
+      remoteSort: true,
+      proxy: new Ext.data.proxy.Ajax({
+      	url: path+'/../order/order!getTryOrderByPage.action',
+		reader: {
+              type: 'json',
+              root: 'resultObject.result',
+              totalProperty: 'resultObject.totalCount'
+        },
+        listeners:{
+			exception:function(reader, response, error, eOpts){
+				ajaxException(reader, response, error, eOpts );
+			}
+		}
+      })
+  });
+ 
+
+
+ 
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // Grid 4
+    ////////////////////////////////////////////////////////////////////////////////////////
+var sellAction = Ext.create('Ext.Action', {    
+    text: i18n._('order_id'),
+    //disabled: true,
+    handler: function(widget, event) {
+        var rec = grid.getSelectionModel().getSelection()[0];        
+        if (rec) {
+        	var orderNumber = rec.get('orderNo');
+        	Ext.MessageBox.show({
+				title : i18n._('order_id'),				
+				//icon : Ext.MessageBox.INFO,
+				buttons : Ext.MessageBox.OK,
+				prompt :true,
+				value :orderNumber
+			});
+        }
+    }
+});
+//右键菜单
+var contextMenu = Ext.create('Ext.menu.Menu', {
+    items: [sellAction]
+});
+//延期天数输入框
+var orderDelayField = Ext.create('Ext.form.field.Number', {	
+	fieldLabel : i18n._('toDelay'),//
+	allowBlank : false,
+	maxLength : 20,
+	labelWidth : 40,
+	width : 150,
+	value: 1,
+    maxValue: 360,
+    minValue: 0
+});
+var orderDelayContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	items : [ orderDelayField, {
+		xtype : 'displayfield',
+		margin :'0 0 0 5',
+		value : i18n._('Day')
+	}]
+});
+//延期表单
+var orderDelayForm = Ext.create('Ext.form.Panel', {
+	frame : true,
+	items : [orderDelayContainer],
+	buttons : [ {
+		text : i18n._('OK'),
+		handler : function() {
+			var delayDays = orderDelayField.getValue();
+			if(delayDays<=0){
+				Ext.MessageBox.show({
+					title : i18n._('errorNotice'),
+					msg : i18n._('InputNumber'),
+					buttons : Ext.MessageBox.OK,
+					icon : Ext.MessageBox.WARNING
+				});
+				return;
+			}
+			Ext.Ajax.request({
+				url : path + '/../order/order!delayAudit.action',
+				method : 'POST',
+				params : {
+					'id' : orderId,
+					'orderStatus' : 'TryDelay',
+					'delayDays' : delayDays,
+					'orderItemId' : orderItemId
+				},				
+				success : function(form, action) {
+					var obj = Ext.decode(form.responseText);					
+					if (!obj.success) {
+						Ext.MessageBox.show({
+							title : i18n._('errorNotice'),
+							msg : obj.resultMsg,
+							buttons : Ext.MessageBox.OK,
+							icon : Ext.MessageBox.WARNING
+						});
+						return;
+					}
+					Ext.MessageBox.show({
+						title : i18n._('notice'),
+						msg : i18n._('Operating')+i18n._('Successful'),
+						icon : Ext.MessageBox.INFO,
+						buttons : Ext.MessageBox.OK,
+						fn: reLoadData
+					});					
+				},
+				failure : function(form, action) {
+					Ext.MessageBox.show({
+						title : i18n._('errorNotice'),
+						msg : i18n._('operateFail'),
+						buttons : Ext.MessageBox.OK,
+						icon : Ext.MessageBox.WARNING
+					});
+				}
+			});
+			orderDelayForm.getForm().reset();			
+			orderDelayWin.hide();
+		}
+	}, {
+		text : i18n._('Cancel'),
+		handler : function() {
+			orderDelayForm.getForm().reset();			
+			orderDelayWin.hide();
+		}
+	} ]
+});
+//延期弹出窗
+var orderDelayWin = Ext.create('Ext.window.Window', {
+	title:i18n._('延期试用订单'), // 延期试用订单
+	width : 200,// 400
+	height : 100,
+	autoDestroy : false,
+	closable : false,
+	constrain : true,
+	modal : true,
+	tools : [ {
+		type : 'close',
+		handler : function() {
+			orderDelayForm.getForm().reset();			
+			orderDelayWin.hide();
+		}
+	} ],
+	layout : 'fit',
+	defaults : {
+		split : false
+	},
+	items : [orderDelayForm]
+});
+    var selModel = Ext.create('Ext.selection.CheckboxModel', {
+        listeners: {
+            selectionchange: function(sm, selections) {
+                grid4.down('#removeButton').setDisabled(selections.length == 0);
+            }
+        }
+    });
+    var sm = Ext.create('Ext.selection.RowModel');
+    var pluginExpanded = true;
+    var grid = Ext.create('Ext.grid.Panel', {
+        id:'button-grid',
+        store: store,
+        title:i18n._('BusinessManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('Order management')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('TryOrderList'),
+		layout:'fit',
+		//sortableColumns:false,
+		margin:'0 0 0 0',
+	    width:'100%',
+		height:'100%',
+	//	height:300,
+        frame: true,
+		border:false,
+		simpleSelect :true,
+     	selModel:sm,
+        iconCls: 'icon-grid',
+		//自适应
+        viewConfig: {
+            stripeRows: true,
+			forceFit: true
+        },
+        columns:[
+		{xtype: 'rownumberer',width:50},
+       {
+            text: i18n._('order_id'),
+            dataIndex: 'orderNo',
+            flex: 1,
+            sortable: true
+        },{
+            text: i18n._('order_quantity'),
+            dataIndex: 'quantity',
+            xtype:'numbercolumn',
+            flex: 1,            
+            renderer:function(value){
+            	return 1;
+            	//if(value!='')
+            	//	return value+'RMB';
+            },
+            sortable: false
+        },{
+            text: i18n._('money')+"("+i18n._('cny')+")",
+            //xtype:'templatecolumn', tpl:'{totalPrice} RMB',
+            flex: 1,
+            dataIndex:'totalPrice',
+            align:'right',
+            renderer:function(value){
+            	return '0';
+            	//if(value!='')
+            	//	return value+'RMB';
+            },
+            sortable: false
+        },{
+            text: i18n._('createDate'),
+            dataIndex: 'createDate',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+            flex: 1,
+            sortable: true
+        },{
+            text: i18n._('endTime'),
+            dataIndex: 'payDate',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+            flex: 1,
+            sortable: false
+        },{
+            text: i18n._('Create User'),
+            dataIndex: 'userName',
+            flex: 1,
+            sortable: false
+        },{
+            text: i18n._('OrderStatus'),
+            dataIndex: 'status',
+            flex: 1,
+            sortable: true,
+            renderer: function(value){
+            	switch(value){
+			    	case 'Unpaid': return i18n._('Unpaid');break;
+			    	case 'Paid': return i18n._('Paid');break;
+			    	case 'Cancelled': return i18n._('Canceled');break;
+			    	case 'TryWaitApprove': return i18n._('TryWaitApprove');break;
+			    	default:return i18n._(value);
+            	}
+             }
+        }
+        /* ,{
+    	 text: i18n._('Remark'),
+         dataIndex: 'remark',
+         flex: 1,
+         sortable: true,
+         renderer: function(value,metaData,record,colIndex,store,view) {
+        	 if(value!=null){
+ 	        	var strLine=value.split("||");
+ 	        	var result=strLine.join("<br/>");
+ 	         	metaData.tdAttr = 'data-qtip="' + result + '"';
+ 	         	return value;
+         	}
+         }
+    } */
+        ],
+        columnLines: true,
+         //page
+
+		 bbar: Ext.create('Ext.PagingToolbar', {
+            store: store,
+			pageSize: 0,
+			displayInfo: true
+			//,plugins: Ext.create('Ext.ux.ProgressBarPager', {})
+        }),
+        
+        listeners:{
+        	"itemdblclick":{
+        		fn:function(){
+        			viewDetail();
+        		}
+        	},
+        	itemcontextmenu :function(instanceGrid,record, item, index, e, eOpts){
+    			e.stopEvent();
+                contextMenu.showAt(e.getXY());
+                return false;			
+    		}
+        },
+        
+        // inline buttons
+        dockedItems: [ {
+            xtype: 'toolbar',
+            cls: 'toolbarCSS',
+            //style:'background-color:#4c4c4c; background-image:url();',
+            items: [
+			/* {
+				xtype:'button',//转正
+			    text:'<font id="orderToNormal" color="white">'+i18n._('toNormal')+'</font>',
+			    listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("orderToNormal").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("orderToNormal").style.color = "black";
+					 }
+						
+				},
+			    tooltip:i18n._('toNormal'),
+			    shadow:false,
+			    icon:'images/toNormal.png',
+			    handler:function(){
+			    	var row = grid.getSelectionModel().getSelection();
+					if (row.length == 0) {
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('selectOne'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK
+						});
+						return;
+					}
+					var orderNo = row[0].get('orderNo');
+					var status = row[0].get('status');
+					orderId = row[0].get('id');
+					orderItemId = row[0].get('orderItemId');
+					if(status == 'WaitNormalApprove'){						
+						orderNormal(orderId,'Paid',orderItemId);
+					}else{
+						return;
+					}
+				}
+			}, */
+			{
+				xtype:'button',//延期
+			    text:'<font id="orderToDelay" color="white">'+i18n._('toDelay')+'</font>',
+			    listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("orderToDelay").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("orderToDelay").style.color = "black";
+					 }
+						
+				},
+			    tooltip:i18n._('toDelay'),
+			    shadow:false,
+			    icon:'images/toDelay.png',
+			    handler:function(){
+			    	var row = grid.getSelectionModel().getSelection();
+					if (row.length == 0) {
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('selectOne'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK
+						});
+						return;
+					}
+					var orderNo = row[0].get('orderNo');
+					var status = row[0].get('status');
+					var tryDuration = row[0].get('tryDuration');
+					orderId = row[0].get('id');
+					orderItemId = row[0].get('orderItemId');
+					if(status == 'DelayWaitApprove'){//DelayWaitApprove
+						orderDelayField.setMaxValue(tryDuration);
+						orderDelayWin.show();
+					}else{
+						return;
+					}			    	
+				}
+			},
+			{
+				xtype:'button',//审核
+			    text:'<font id="orderToAudit" color="white">'+i18n._('toAudit')+'</font>',
+			    listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("orderToAudit").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("orderToAudit").style.color = "black";
+					 }						
+				},
+			    tooltip:i18n._('toAudit'),
+			    shadow:false,
+			    icon:'images/toAudit.png',
+			    handler:function(){
+			    	var row = grid.getSelectionModel().getSelection();
+					if (row.length == 0) {
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('selectOne'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK
+						});
+						return;
+					}
+					var orderNo = row[0].get('orderNo');
+					var status = row[0].get('status');
+					orderId = row[0].get('id');
+					orderItemId = row[0].get('orderItemId');
+					if(status == 'TryWaitApprove'){						
+						orderAudit(orderId,'Try',orderItemId);
+					}else{
+						return;
+					}
+				}
+			},
+			{
+            	xtype:'button',
+                text:'<font id="orderDetail" color="white">'+i18n._('Details')+'</font>',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("orderDetail").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("orderDetail").style.color = "black";
+					 }						
+				},
+                tooltip:i18n._('Details'),
+                shadow:false,
+                icon:'../../images/detail.png',
+                handler:function(){
+                	viewDetail();
+            	}},
+            {xtype:'tbfill'},            
+			{
+                xtype:'splitbutton',
+                id:'tryOrderSplitbutton',
+                text:'<font color="#ffffff" id="tryOrderSplit">' + i18n._('QuickSearch')+':' + '</font>', 
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("tryOrderSplit").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("tryOrderSplit").style.color = "black";
+					 }
+						
+				},
+                menu: new Ext.menu.Menu({
+                    items: [
+						{
+						    text: i18n._('All'),
+						    handler: function(){
+						        Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('All') + '</font>');
+						        var tryOrderStoreProxy=store.getProxy();
+						        tryOrderStoreProxy.setExtraParam('order.status','All');
+						        store.loadPage(1,null);
+						    }
+						},
+                        {
+                            text: i18n._('Try'),
+                            handler: function(){
+                            	Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('Try') + '</font>');
+                            	var instanceStoreProxy=store.getProxy();
+                            	instanceStoreProxy.setExtraParam('order.status','Try');  
+                            	store.loadPage(1,null);
+                            }
+                        },
+                        {
+                            text: i18n._('TryWaitApprove'),
+                            handler: function(){
+                            	Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('TryWaitApprove') + '</font>');
+                            	var tryOrderStoreProxy=store.getProxy();
+                            	tryOrderStoreProxy.setExtraParam('order.status','TryWaitApprove');
+                            	store.loadPage(1,null);
+                            }
+                        },
+                        {
+                            text: i18n._('DelayWaitApprove'),
+                            handler: function(){
+                                Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('DelayWaitApprove') + '</font>');
+                                var tryOrderStoreProxy=store.getProxy();
+                                tryOrderStoreProxy.setExtraParam('order.status','DelayWaitApprove');
+                                store.loadPage(1,null);
+                            }
+                        },
+//                         {
+//                             text: i18n._('WaitNormalApprove'),
+//                             handler: function(){
+//                                 Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('WaitNormalApprove') + '</font>');
+//                                 var tryOrderStoreProxy=store.getProxy();
+//                                 tryOrderStoreProxy.setExtraParam('order.status','WaitNormalApprove');
+//                                 store.loadPage(1,null);
+//                             }
+//                         },
+                        {
+                            text: i18n._('TryDelay'),
+                            handler: function(){
+                                Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('TryDelay') + '</font>');
+                                var tryOrderStoreProxy=store.getProxy();
+                                tryOrderStoreProxy.setExtraParam('order.status','TryDelay');
+                                store.loadPage(1,null);
+                            }
+                        }
+//                         ,
+//                         {
+//                             text: i18n._('TryOver'),
+//                             handler: function(){
+//                                 Ext.getCmp('tryOrderSplitbutton').setText('<font color="#ffffff" id="tryOrderSplit">' + i18n._('TryOver') + '</font>');
+//                                 var tryOrderStoreProxy=store.getProxy();
+//                                 tryOrderStoreProxy.setExtraParam('order.status','TryOver');
+//                                 store.loadPage(1,null);
+//                             }
+//                         }
+                     ]
+                })
+            },
+//             {
+// 				xtype:'displayfield',
+// 				hideLabel:true,
+// 				style:{
+// 					marginTop:'-5px'
+// 				},
+// 				value:'<font color="white">'+i18n._('Order Search')+'</font><image style="margin-bottom:2px;" src="images/search_icon.png"></image>'
+// 			},
+	        {
+                xtype: 'searchfield',
+                hideLabel:true,
+				hasSearch:true,
+				emptyText:i18n._('order_id'),
+                store: store,
+				searchRegex:'^[0-9a-zA-Z]{0,255}$',
+				searchTip:i18n._('OrderNoSearchTip')
+				
+			 }
+            ]
+        }]
+    });
+    
+   
+function setUrl(rightUrl, url) {
+	if(rightUrl == '') {
+		rightUrl = url;
+	}
+	return rightUrl;
+};
+    
+    function viewDetail(){
+    	var rows = grid.getSelectionModel().getSelection();
+    	if(rows.length > 0){
+    		var id = rows[0].get('id');
+    		Ext.define('OrderItemVo', {
+    		      extend: 'Ext.data.Model',
+    		      fields: [
+    	    		          'id', 'serviceCatalogName','price','amount','quantity','totalPrice','orderNo','os','cpu','memory','disk','addDisk','network','software','serviceDesc','priceType','pricePeriod','pricePeriodType',
+    	    		          {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'}
+    	    		      ],
+    		      idProperty: 'id'
+    		  });
+
+    		
+    		  // create the Data Store
+    		  var store1 = Ext.create('Ext.data.Store', {
+    		      model: 'OrderItemVo',
+    		      remoteSort: true,
+    		      proxy: new Ext.data.proxy.Ajax({
+    		    	  url: path+'/../order/order!queryAllOrderItemsByOrder.action?order.id='+id,
+        				reader: {
+        		              type: 'json',
+        		              root: 'resultObject'
+        		        }
+    		      })
+    		  });
+              
+    		  var arr;
+    		  var orderNo='';
+    		  store1.on('load',function(){
+    	    		var total = 0;
+    	    		arr = new Array();
+    	    		orderNo=store1.getAt(0).get('orderNo');
+    	    		var orderNoField=Ext.create('Ext.form.Display',{
+    	    			fieldLabel:i18n._('order_id'),
+    	    			value:orderNo,
+    	    			margin:'10 10 10 10'
+    	    		})
+    	    		arr.push(orderNoField);
+    	    		for(var i=0;i<store1.getCount();i++){
+    	    			total += store1.getAt(i).get('price');
+
+    	    		fieldSet =  Ext.create('Ext.form.FieldSet', {
+    	    	        title: i18n._('Goods')+(i+1)+i18n._('Details'),
+    	    	        layout: 'anchor',
+    	    	        defaults: {anchor: '100%'},
+    	    				margin:'0 0 0 0',
+    	    				collapsible: true,
+    	    	        items: [
+    	    	{
+    	    	xtype: 'displayfield',
+    	    	style:'margin:10 0 10 30',
+    	    	fieldLabel: i18n._('serviceCatalog'),
+    	    	name: i18n._('serviceCatalog'),
+    	    	value: store1.getAt(i).get('serviceCatalogName')
+    	    	},
+    	    	{
+    	    	xtype: 'fieldset',
+    	    	width:400,
+    	    	height: 300,
+    	    	items: [{
+    	    	xtype: 'displayfield',
+    	        style:'margin:10 0 0 30',
+    	    	fieldLabel: 'OS',
+    	    	name: 'OS',
+    	    	value: store1.getAt(i).get('os')
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: 'CPU',
+    	    	name: 'CPU',
+    	    	value: store1.getAt(i).get('cpu')
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('Memory'),
+    	    	name: i18n._('Memory'),
+    	    	value: store1.getAt(i).get('memory')+' M'
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    	style:'margin:0 0 0 30',
+            	fieldLabel: i18n._('Disk'),
+    	    	name: i18n._('Disk'),
+    	    	value: store1.getAt(i).get('disk')+' G'
+    	    	}, 
+    	    	{
+    		    	xtype: 'displayfield',
+    		    	style:'margin:0 0 0 30',
+    	        	fieldLabel: i18n._('extDisk'),
+    		    	name: i18n._('extDisk'),
+    		    	value: splitExtDisk(store1.getAt(i).get('addDisk'))
+    		    	},
+    	    	{
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('Network'),
+    	    	name: i18n._('Network'),
+    	    	value: store1.getAt(i).get('network')+' M'
+    	    	},{
+    	    		xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('software'),
+    	    	name: i18n._('software'),
+    	    	value: store1.getAt(i).get('software')
+    	    	},{
+    	    	xtype: 'displayfield',
+    	    	style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('ExpensesDesc'),
+    	    	width:475,
+    	    	name: i18n._('ExpensesDesc'),
+    	    	value: store1.getAt(i).get('serviceDesc')
+    	    	}]
+    	    	},    	    	
+    	    		{
+    	    	xtype: 'displayfield',
+    	    		style:'margin:5 0 0 30',
+    	    	fieldLabel: i18n._('Quantity'),
+    	    	name: i18n._('Quantity'),
+    	    	value: store1.getAt(i).get('quantity')
+    	    	},
+    	    	{
+    	    		xtype: 'displayfield',
+    	    		name: 'price',
+    	    		fieldLabel: i18n._('Price'),
+    	    			style:'margin:5 0 0 30',
+    	    			width: 200,
+    	    			value: store1.getAt(i).get('priceType')==1?('一次性购买'+store1.getAt(i).get('pricePeriod')+(getPricePeriodTypeDisplayValue(store1.getAt(i).get('pricePeriodType')))+store1.getAt(i).get('price')+' RMB'):store1.getAt(i).get('priceType')==2?store1.getAt(i).get('price')+' RMB/'+i18n._('Hour'):store1.getAt(i).get('priceType')==3?store1.getAt(i).get('price')+' RMB/'+i18n._('Month'):store1.getAt(i).get('price')+' RMB/'+i18n._('Year')
+
+    	    		},
+    	    		{
+    	    			xtype: 'displayfield',
+    	    			name: 'price',
+    	    			fieldLabel: i18n._('Expenses'),
+    	    				style:'margin:5 0 0 30',
+    	    				width: 200,
+    	    				value: store1.getAt(i).get('amount')+' RMB'
+
+    	    			}]
+    	    		  });
+    	    		arr.push(fieldSet);
+
+    	    	}
+
+    	    		var win = Ext.create('Ext.window.Window', {
+    	    	        title: i18n._('Order Detail'),
+    	    	        width: 570,
+    	    	        height: 430,
+    	    	      //  minWidth: 300,
+    	    	      //  minHeight: 200,
+    	    	        layout: 'fit',
+    	    	        plain:true,
+    	    	        modal:true,
+    	    	        items: {
+    	    			    xtype: 'form',
+    						//layout:"fit",
+    	    		        height:'100%',
+    	    			    width:'80%',
+    	    				autoScroll:true,
+    	    			//	margin:10,
+    	    	            border: false,
+    	    			    items: arr
+    	    			},
+
+    	    	        buttons: [{
+    	    	            xtype: 'displayfield',
+    	    	            id:"totalPriceField",
+    	    	            name: 'price',
+    	    				layout:{pack:'start'},
+    	    	            fieldLabel: i18n._('Total Cost'),
+    	    		    	//style:'margin:5 0 0 45',
+    	    				margin:'0 0 0 0',
+    	    		    	width: 200
+    	    	     }]
+    	    	    }).show();
+    	    		
+    	    		Ext.getCmp('totalPriceField').setValue(total+' RMB');
+    	    		
+    	    	});
+    		  store1.load();
+    		  
+    		
+    		
+    	}else{
+    		Ext.MessageBox.show({
+    	           title: i18n._('Prompt'),
+    	           msg: i18n._('selectOne'),
+    		           icon:Ext.MessageBox.WARNING,
+    		           buttons: Ext.MessageBox.OK
+    		           
+    		       }); 
+    	}
+    }
+
+Ext.create('Ext.Viewport',{
+	 layout:'fit',
+	 title:i18n._('Order management')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('Try Order List'),
+	 items: grid
+	});
+
+
+		var new_params={'order.status':'All'};
+		Ext.apply(store.proxy.extraParams,new_params);
+		store.load();
+		
+		//操作完成后点确认刷新数据操作
+	    function reLoadData(btn){
+	    	store.load();
+	    };
+	    //审核转正申请的订单
+	    function orderNormal(orderId,status,orderItemId){
+	    	Ext.Ajax.request({
+	    		url : path + '/../order/order!regularAudit.action',
+	    		method : 'POST',
+	    		params : {
+	    			'id' : orderId,
+	    			'orderStatus' : status,
+	    			'orderItemId' : orderItemId
+	    		},				
+	    		success : function(form, action) {
+	    			var obj = Ext.decode(form.responseText);					
+	    			if (!obj.success) {
+	    				Ext.MessageBox.show({
+	    					title : i18n._('errorNotice'),
+	    					msg : obj.resultMsg,
+	    					buttons : Ext.MessageBox.OK,
+	    					icon : Ext.MessageBox.WARNING
+	    				});
+	    				return;
+	    			}
+	    			Ext.MessageBox.show({
+	    				title : i18n._('notice'),
+	    				msg : i18n._('Operating')+i18n._('Successful'),
+	    				icon : Ext.MessageBox.INFO,
+	    				buttons : Ext.MessageBox.OK,
+	    				fn: reLoadData
+	    			});					
+	    		},
+	    		failure : function(form, action) {
+	    			Ext.MessageBox.show({
+	    				title : i18n._('errorNotice'),
+	    				msg : i18n._('operateFail'),
+	    				buttons : Ext.MessageBox.OK,
+	    				icon : Ext.MessageBox.WARNING
+	    			});
+	    		}
+	    	});	
+	    };
+	    //审核试用申请的订单
+	    function orderAudit(orderId,status,orderItemId){
+	    	Ext.Ajax.request({
+	    		url : path + '/../order/order!trialAudit.action',
+	    		method : 'POST',
+	    		params : {
+	    			'id' : orderId,
+	    			'orderStatus' : status,
+	    			'orderItemId' : orderItemId
+	    		},				
+	    		success : function(form, action) {
+	    			var obj = Ext.decode(form.responseText);					
+	    			if (!obj.success) {
+	    				Ext.MessageBox.show({
+	    					title : i18n._('errorNotice'),
+	    					msg : obj.resultMsg,
+	    					buttons : Ext.MessageBox.OK,
+	    					icon : Ext.MessageBox.WARNING
+	    				});
+	    				return;
+	    			}
+	    			Ext.MessageBox.show({
+	    				title : i18n._('notice'),
+	    				msg : i18n._('Operating')+i18n._('Successful'),
+	    				icon : Ext.MessageBox.INFO,
+	    				buttons : Ext.MessageBox.OK,
+	    				fn: reLoadData
+	    			});					
+	    		},
+	    		failure : function(form, action) {
+	    			Ext.MessageBox.show({
+	    				title : i18n._('errorNotice'),
+	    				msg : i18n._('operateFail'),
+	    				buttons : Ext.MessageBox.OK,
+	    				icon : Ext.MessageBox.WARNING
+	    			});
+	    		}
+	    	});	
+	    };
+		
+            }
+        };
+    })();
+
+    MultiLang.init();
+      
+});
+
+
+
+function splitExtDisk(addDisk){
+	if(addDisk){
+		var extDiskNameArr=addDisk.split(",");
+		for(var i in extDiskNameArr){
+			extDiskNameArr[i]=extDiskNameArr[i]+'G';
+		}
+		return extDiskNameArr.join(',');
+		}else{
+			return '';
+		}
+}
+function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

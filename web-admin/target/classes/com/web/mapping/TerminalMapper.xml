@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.web.dao.TerminalMapper">
+	<resultMap id="TerminalResultMap" type="terminal">
+		<id column="id" property="id" jdbcType="VARCHAR" />
+		<result column="password" property="password" jdbcType="VARCHAR" />
+		<result column="status" property="status" jdbcType="INTEGER" />
+		<result column="channelid" property="channelid" jdbcType="VARCHAR" />
+		<result column="is_admin" property="isadmin" jdbcType="INTEGER"/>
+		<result column="is_login" property="islogin" jdbcType="INTEGER"/>
+	</resultMap>
+
+	<resultMap id="AdminMemuMap" type="adminmenuvo">
+		<id column="id" property="id" jdbcType="VARCHAR" />
+		<result column="name" property="name" jdbcType="VARCHAR" />
+		<result column="url" property="url" jdbcType="VARCHAR" />
+		<result column="icon" property="icon" jdbcType="VARCHAR" />
+		<result column="parentId" property="parentId" jdbcType="INTEGER" />
+	</resultMap>
+	
+	<resultMap id="MemuStoreMap" type="menuvo">
+		<id column="id" property="id" jdbcType="VARCHAR" />
+		<result column="name" property="name" jdbcType="VARCHAR" />
+		<result column="type" property="type" jdbcType="VARCHAR" />
+		<result column="permissionId" property="permissionId" jdbcType="INTEGER" />
+		<result column="resourceId" property="resourceId" jdbcType="INTEGER" />
+		<result column="actionId" property="actionId" jdbcType="INTEGER" />
+		<result column="parentId" property="parentId" jdbcType="VARCHAR" />
+		<result column="checked" property="checked" jdbcType="VARCHAR" />
+	</resultMap>
+	
+	<resultMap id="UserListMap" type="user">
+		<id column="id" property="id" jdbcType="VARCHAR" />
+		<result column="name" property="name" jdbcType="VARCHAR" />
+		<result column="email" property="email" jdbcType="VARCHAR" />
+		<result column="is_enable" property="is_enable" jdbcType="INTEGER" />
+		<result column="password" property="password" jdbcType="VARCHAR" />
+		<result column="telphone" property="telphone" jdbcType="VARCHAR" />
+		<result column="user_type" property="user_type" jdbcType="VARCHAR" />
+		<result column="online_status" property="online_status" jdbcType="VARCHAR" />
+		<result column="last_login_date" property="last_login_date" jdbcType="TIME" />
+	</resultMap>
+	
+	<resultMap id="PageRoleMap" type="role">
+		<id column="id" property="id" jdbcType="VARCHAR" />
+		<result column="name" property="name" jdbcType="VARCHAR" />
+		<result column="status" property="status" jdbcType="INTEGER" />
+		<result column="code" property="code" jdbcType="VARCHAR" />
+		<result column="create_date" property="create_date" jdbcType="TIMESTAMP" />
+	</resultMap>
+	
+	<sql id="Base_Column_List">
+		id, name, email, password, is_enable
+	</sql>
+	<select id="selectByPrimaryKey" resultMap="TerminalResultMap"
+		parameterType="java.lang.String">
+		select
+		<include refid="Base_Column_List" />
+		from t_terminal
+		where id = #{id,jdbcType=VARCHAR}
+	</select>
+	<delete id="deleteByPrimaryKey" parameterType="java.lang.String">
+		delete from
+		t_terminal
+		where id = #{id,jdbcType=VARCHAR}
+	</delete>
+	<insert id="insert" parameterType="terminal">
+		insert into t_terminal (id,
+		password, channelid)
+		values (#{id,jdbcType=VARCHAR},
+		#{password,jdbcType=VARCHAR},
+		#{channelid,jdbcType=VARCHAR}
+		)
+	</insert>
+	<insert id="insertSelective" parameterType="terminal">
+		insert into t_terminal
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+			<if test="id != null">
+				id,
+			</if>
+			<if test="password != null">
+				password,
+			</if>
+			<if test="channelid != null">
+				channelid,
+			</if>
+			<if test="status != null">
+				status,
+			</if>
+
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+			<if test="id != null">
+				#{id,jdbcType=VARCHAR},
+			</if>
+			<if test="password != null">
+				#{password,jdbcType=VARCHAR},
+			</if>
+			<if test="channelid != null">
+				#{channelid,jdbcType=VARCHAR},
+			</if>
+			<if test="status != null">
+				#{status,jdbcType=INTEGER},
+			</if>
+
+		</trim>
+	</insert>
+	<update id="updateByPrimaryKeySelective" parameterType="terminal">
+		update t_terminal
+		<set>
+			<if test="password != null">
+				password = #{password,jdbcType=VARCHAR},
+			</if>
+			<if test="channelid != null">
+				channelid = #{channelid,jdbcType=VARCHAR},
+			</if>
+			<if test="status != null">
+				status = #{status,jdbcType=INTEGER},
+			</if>
+			<if test="islogin != null">
+				is_login = #{islogin,jdbcType=INTEGER},
+			</if>
+		</set>
+		where id = #{id,jdbcType=VARCHAR}
+	</update>
+	<!-- 登陆 -->
+	<select id="selectByTid" resultMap="TerminalResultMap"
+		parameterType="java.lang.String">
+		select 
+		<include refid="Base_Column_List" />
+		from hc_admin
+		where email=#{parm} and password=#{parm}
+	</select>
+	<select id="queryByParm" parameterType="java.lang.String"
+		resultType="queryResult">
+		select
+		p.name,p.location,p.cage,p.status as
+		p_status,p.create_time,pt.pid,pt.tid,t.channelId,t.status as t_status
+		from
+		t_pigeon p
+		left join
+		t_pigeon_terminal pt
+		on p.id = pt.pid
+		left join
+		t_terminal t
+		on pt.tid = t.id
+		where p.id = #{parm} or t.id=#{parm} or p.cage=#{parm}
+	</select>
+	<insert id="insert_pigeon_terminal" parameterType="java.util.Map">
+		insert into t_pigeon_terminal (pid,tid) values (#{pid},#{tid})
+	</insert>
+	
+	<select id="selectPigeonInfo" resultType="pigeon">
+				select TOP 1 PigeonNo as id,Gender as name,Feather as location,Eye as cage 
+		from PGN_Pigeon t1 where t1.PigeonNO = (select dbo.GET_PIGEON_INFO())
+	
+	</select>
+<!-- 	查询用户列表（不包括管理员） -->
+	<select id="selectUserList" resultMap="TerminalResultMap">
+		select 
+		<include refid="Base_Column_List" />
+		from t_terminal
+		where is_admin != 1
+	</select>
+
+<!-- 	查询用户功能列表 -->
+	<select id="getAdminMenu" parameterType="java.lang.String" resultMap="AdminMemuMap">
+		select 
+		m.id, m.name, m.url, m.icon, m.parent_id as parentId
+		from hc_menu m
+		where m.parent_id in (#{parm})
+	</select>
+	
+<!-- 	查询用户功能列表 -->
+	<select id="getMenuStore" parameterType="java.lang.String" resultMap="MemuStoreMap">
+		select 
+		x.id, x.name, r.id as resourceId, r.resourceType as type, p.id as permissionId,  p.action_id as actionId, x.parent_id as parentId, rp.permission_id as checked  
+		from hc_menu x 
+		left join hc_resource r on (x.id = r.primKey and r.resourceType = "com.ttcloud.crm.usermanager.entity.Menu") 
+		left join hc_permission p on r.id = p.resource_id 
+		left join hc_role_permission rp on rp.permission_id = p.id and rp.role_id in (#{parm}) 
+		order by x.id 
+	</select>
+	
+<!-- 	查询角色分页列表 -->
+	<select id="getPageRole" parameterType="java.lang.Integer" resultMap="PageRoleMap">
+		select 
+		id, name,create_date as create_date,code as code, status as status
+		from hc_role 
+		<where>
+		<if test="param3 != null  and param3!= '' ">
+			AND name like concat(concat('%',#{param3}),'%')
+		</if>
+		</where>
+		limit #{param1},#{param2}
+	</select>
+	
+<!-- 	查询角色列表 -->
+	<select id="getAllRole" parameterType="java.lang.String" resultMap="PageRoleMap">
+		select 
+		id, name,create_date as create_date,code as code, status as status
+		from hc_role 
+		<where>
+		<if test="_parameter != null  and _parameter!= '' ">
+			AND name like concat(concat('%',#{_parameter}),'%')
+		</if>
+		</where>
+	</select>
+	
+<!-- 	查询角色 -->
+	<select id="findAdminRole" parameterType="java.lang.String" resultMap="PageRoleMap">
+		select 
+		id, name,create_date as create_date,code as code, status as status
+		from hc_role
+		where name = #{param}
+	</select>	
+	
+<!-- 	创建角色 -->
+	<select id="addAdminRole" parameterType="java.lang.String">
+		insert into
+		hc_role (name,create_date,create_id,update_date,update_Id,version)
+		values(#{param},now(),1,now(),0,0)
+	</select>	
+		
+<!-- 	删除角色 -->
+	<select id="deleteAdminRole" parameterType="java.lang.Long">
+		delete from
+		hc_role 
+		where id = #{param}
+	</select>	
+			
+<!-- 	查询用户列表（不包括管理员） -->
+	<select id="getAllUserByPage" parameterType="java.lang.String" resultMap="UserListMap">
+		select 
+		id, name, password,telephone,user_type,online_status
+		from hc_user
+	</select>
+
+</mapper>

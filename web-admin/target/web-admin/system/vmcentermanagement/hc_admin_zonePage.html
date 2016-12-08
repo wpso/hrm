@@ -1,0 +1,242 @@
+<html>
+<head>
+<title>hc_admin_zonePage</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+	href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<!--  <script src="../resources/myproject-lang.js"></script>-->
+<!--  <script src="../ext-4.0.7-gpl/ext-all-debug.js"></script>-->
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/form/DateTimePicker.js"></script>
+<script type="text/javascript" src="../../js/ux/form/DateTimeField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/common.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/zoneOutline.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/nodeForm.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/nodeList.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/vmCreateForm.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/vmMigrateForm.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/vmAdjustForm.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/volumeManagement.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/vmHistory.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/vmList.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/zoneTabPanels.js"></script>
+<script type="text/javascript" src="../vmcentermanagement/nodeErrorView.js"></script>
+<style type="text/css">
+/* style rows on mouseover */
+.x-grid-row-over .x-grid-cell-inner {
+	font-weight: bold;
+}
+/* shared styles for the ActionColumn icons */
+.x-action-col-cell img {
+	height: 16px;
+	width: 16px;
+	cursor: pointer;
+}
+/* custom icon for the "buy" ActionColumn icon */
+.x-action-col-cell img.buy-col {
+	background-image: url(../../images/accept.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img.alert-col {
+	background-image: url(../../images/image_add.png);
+}
+
+.x-ie6 .x-action-col-cell img.buy-col {
+	background-image: url(../images/accept.gif);
+}
+
+.x-ie6.x-action-col-cell img.alert-col {
+	background-image: url(../images/image_add.png);
+}
+
+.x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.gif);
+}
+
+.x-ie6.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img {
+	position: relative;
+	top: -1px;
+}
+.custom .x-progress-inner {
+	height:17px;
+	background: #ee8800;  
+} 
+.custom .x-progress-bar {	
+	background: #ee8800;
+	border-top:1px solid #ee8800;
+	border-bottom:1px solid #ee8800;
+	border-right:0;  
+}
+.x-tab-inner{
+	font-family:宋体,arial,verdana,sans-serif;font-size:12;font-weight:bold;px!important;
+}
+</style>
+
+
+<script>
+function showResult(btn){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+
+function showResultText(bt1, text){
+    Ext.example.msg('Button Click', 'You clicked the {0} button and entered the text "{1}".', btn, text);
+};
+
+function showResultText(bt1){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+	'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+	'Ext.selection.CheckboxModel',
+	'Ext.tip.*',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+Ext.onReady(function() {	
+	Ext.QuickTips.init();
+	Ext.apply(Ext.QuickTips.getQuickTip(), {
+	    maxWidth: 500,
+	    //minWidth: 100,
+	    //showDelay: 50,
+	    trackMouse: true,
+	    //width:500,
+	    //shrinkWrap:3,
+	    //hideDelay: true,
+	  
+	    //closable: true,
+	    //autoHide: false,
+	    //draggable: true,
+	    dismissDelay: 0
+	});
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {	
+            	//var val=getQuery("id");
+            	//alert('***'+val);            	
+				Ext.create('Ext.Viewport',{//Ext.Viewport
+					layout:'border',
+					width:'100%',					
+					items:[
+						{
+							region:'center',
+							xtype:'panel',
+							id:'panel_one',
+							title:i18n._('vmmanagement')+'&nbsp;&nbsp;>>&nbsp;&nbsp;'+i18n._('zone_monitor'),
+							width:'60%',
+							layout:'fit',
+							tools:[
+							/*{
+								type:'pin',
+								handler:function(){
+									 window.parent.document.getElementsByTagName('iframe')[0].src='./hc_admin_nodePage.html';
+								}
+							},*/
+							{
+								type:'refresh',
+								handler:function(){
+									window.parent.document.getElementsByTagName('iframe')[0].src='./hc_admin_zonePage.html';
+								}	
+							}/*,
+							{
+								type:'left',
+								handler:function(){
+									history.go(-1);
+								}
+							}*/
+							],
+							items:[
+								{
+									xtype:'panel',
+									layout:'fit',
+									//border:false,
+									items:tabZone
+								}
+							]
+						}
+					]//panel
+				});			
+				
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ };
+ function   getQuery(name) 
+ { 
+         var reg=new RegExp("" +name+ "=([^&?]*)");        
+         var keyVal=window.location.search.substr(1).match(reg);         
+        //alert(keyVal[1]);        
+         if   (keyVal!=null)   return   unescape(keyVal[1]);  
+         return null;
+ };
+ 
+</script>
+</head>
+<body>
+</body>
+</html>

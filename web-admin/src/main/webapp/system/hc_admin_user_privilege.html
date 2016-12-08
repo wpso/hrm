@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> New Document </title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="../extjs-4.1.0/resources/css/ext-all.css" />
+  <script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../js/head.js"></script>
+  <script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+  <script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+  <script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+			padding:0 0 0 0;
+        }
+
+    </style>
+  <script type="text/javascript">
+ Ext.Loader.setConfig({
+    enabled: true
+});
+
+     Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+]);
+
+
+
+ Ext.onReady(function(){
+	   var params;
+       MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {
+			
+
+    var store = Ext.create('Ext.data.TreeStore', {
+        proxy: {
+            type: 'ajax',
+            url: '../json/user_privilege.json'
+        },
+        sorters: [{
+            property: 'leaf',
+            direction: 'ASC'
+        }, {
+            property: 'text',
+            direction: 'ASC'
+        }]
+    });
+
+    var tree = Ext.create('Ext.tree.Panel', {
+        store: store,
+        rootVisible: false,
+        useArrows: true,
+        frame: true,
+    	title: i18n._('userManagement')+'&nbsp; &nbsp;>>&nbsp;&nbsp;'+i18n._('权限查看')+'&nbsp; &nbsp;>>&nbsp;&nbsp;'+i18n._('用户权限'),
+        renderTo: document.body,
+        width: 200,
+        height: 250
+    });
+Ext.create('Ext.Viewport',{
+    layout:'fit',
+    width:'100%',
+    items: tree
+});
+
+
+
+	     }
+        };
+    })();
+
+    MultiLang.init();
+    
+})
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

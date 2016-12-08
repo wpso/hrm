@@ -1,0 +1,1884 @@
+<html>
+<head>
+<title>hc_alarm_management</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+    href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../systemmanagement/common.js"></script>
+
+<script>
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+    'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.selection.CheckboxModel',
+    'Ext.tip.QuickTipManager',
+    'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+} 
+
+Ext.onReady(function() {    
+    Ext.QuickTips.init();
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+                  lang: params, 
+                  path: '../../resources'
+                });
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+            },
+            setup: function() { 
+            	
+            	Ext.create('Ext.Viewport',{//Ext.Viewport
+                    layout:'border',
+                    width:'100%',                   
+                    items:[
+                        {
+                            region:'center',
+                            xtype:'panel',
+                            id:'panel_one',
+                            title:i18n._('systemManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('Monitor-rule-management'),
+                            width:'60%',
+                            layout: 'absolute',
+							autoScroll : true,
+							bodyStyle : 'overflow-x:hidden; overflow-y:scroll;',                            
+                            items:[
+					        {
+								xtype: 'fieldset',
+								title: i18n._("physicalNodeCpuLoad"),
+						        width: 550,
+						        height: 230,
+						        x: 20,
+						        y: 20,								
+								items:[
+										{
+											id:'physicalNodeCpuLoadValue',
+											xtype:'numberfield',
+											labelAlign:'right',
+											margin:'0 0 5 24',
+											width:200,
+											fieldLabel:i18n._('LoadOver'),							
+											style:'white-space: nowrap',
+											decimalPrecision:2,
+											value:80,
+											minValue:80,
+											maxValue:100,
+											allowBlank: false
+										},{
+										    id:'physicalNodeCpuLoadValueId',
+								            xtype: 'textfield',
+								            hidden: true
+								        },{
+											id:'Cpu_frequency',
+											xtype:'radiogroup',
+											fieldLabel:i18n._("VM_frequency"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											items: [
+												{ boxLabel: i18n._("frequency_1min"), width:80, name: 'Cpu_frequency', inputValue: 1,checked:true},
+												{ boxLabel: i18n._("frequency_5min"), width:80, name: 'Cpu_frequency', inputValue: 5},
+												{ boxLabel: i18n._("frequency_15min"), width:80, name: 'Cpu_frequency', inputValue: 15}
+											]										
+										},{
+										    id:'Cpu_sms_alert',
+											xtype:'checkboxgroup',
+											fieldLabel:i18n._("triggerAction"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											width:500,
+											vertical: true,
+											items: [{ id:'Cpu_sms_alert_checkbox', 
+											          boxLabel: i18n._("短信报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('Cpu_sms_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('Cpu_sms_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											           
+											        },
+											        { id: 'Cpu_sms_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											          /* allowBlank: false,
+											          blankText: '不能为空' */											          
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var sms_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < sms_array.length; i++) {
+												                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+												                         if (!regex.test(sms_array[i])) {
+												                             me.markInvalid('手机号码格式不正确！');
+												                             return;
+												                         }
+												                    }										                    
+											                    }											                    
+											                }
+											            }											          
+
+											        }
+											]
+										},{
+										    id:'Cpu_email_alert',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 3,
+											labelWidth:55,
+											width:440,
+											vertical: true,
+											items: [{ id:'Cpu_email_alert_checkbox', 
+											          boxLabel: i18n._("邮件报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('Cpu_email_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('Cpu_email_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }												          
+											          
+											        },
+											        { id: 'Cpu_email_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var email_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < email_array.length; i++) {
+												                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+												                         if (!regex.test(email_array[i])) {
+												                             me.markInvalid('邮箱地址格式不正确！');
+												                             return;
+												                         }
+												                    }											                    
+											                    }
+											                }
+											            }
+											            								          
+											        }
+											]
+										},{
+										    id:'Cpu_migrate_vm',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 2,
+											labelWidth:55,
+											width:300,
+											vertical: true,
+											items: [{ id:'Cpu_migrate_vm_checkbox', boxLabel: i18n._("迁移VM"),inputValue: 1, xtype: 'checkbox'}]
+										},{
+										    id:'Cpu_button',
+											xtype:'button',
+											margin:'0 0 0 460',
+											width:50,
+										    text: i18n._('Save'),
+							                handler:function(){
+							                	     
+							                    if (parseInt(Ext.getCmp('physicalNodeCpuLoadValue').getValue()) > parseInt(Ext.getCmp('physicalNodeCpuLoadValue').maxValue) || 
+							                        parseInt(Ext.getCmp('physicalNodeCpuLoadValue').getValue()) < parseInt(Ext.getCmp('physicalNodeCpuLoadValue').minValue)) {
+							                        Ext.getCmp('physicalNodeCpuLoadValue').markInvalid('CPU负载输入不合法');
+							                        return;
+							                    }							                
+							                    var sms_array = new Array();
+							                    var email_array = new Array();
+							                    if (ltrim(rtrim(Ext.getCmp('Cpu_sms_alert_receiver').getValue())) != "") {
+							                        sms_array = ltrim(rtrim(Ext.getCmp('Cpu_sms_alert_receiver').getValue())).split(",");
+							                    }
+							                    if (ltrim(rtrim(Ext.getCmp('Cpu_email_alert_receiver').getValue())) != "") {
+								                    email_array = ltrim(rtrim(Ext.getCmp('Cpu_email_alert_receiver').getValue())).split(",");							                        
+							                    }							                    
+							                    for(var i = 0; i < sms_array.length; i++) {
+							                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+							                         if (!regex.test(sms_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('手机号码格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }	
+							                    for(var i = 0; i < email_array.length; i++) {
+							                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+							                         if (!regex.test(email_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('邮箱地址格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }    
+							                    if (Ext.getCmp('Cpu_sms_alert_checkbox').getValue() == true) {
+							                        if (sms_array.length == 0) {
+							                            Ext.getCmp('Cpu_sms_alert_receiver').markInvalid('请输入手机号码!');
+							                            return;
+							                        }
+							                    }
+							                    if (Ext.getCmp('Cpu_email_alert_checkbox').getValue() == true) {
+							                        if (email_array.length == 0) {
+							                            Ext.getCmp('Cpu_email_alert_receiver').markInvalid('请输入邮箱地址!');
+							                            return;
+							                        }
+							                    }
+							                    if (Ext.getCmp('Cpu_sms_alert_checkbox').getValue() == false && Ext.getCmp('Cpu_email_alert_checkbox').getValue() == false 
+							                        && Ext.getCmp('Cpu_migrate_vm_checkbox').getValue() == false) {
+						                	        Ext.MessageBox.show({								         		           
+														   title:i18n._('notice'),
+														   msg:i18n._('请选择触发动作！'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK								         		           
+								         		    });
+								         		    return;		                            
+							                    }							                    
+							                    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+				            						msg : i18n._('please wait'),
+				            						removeMask : true
+				            					});
+							                	v_mask.show(); 
+								                if (Ext.getCmp('physicalNodeCpuLoadValueId').getValue() == "") {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!saveMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "cpu",
+									                		"overload": Ext.getCmp('physicalNodeCpuLoadValue').getValue(),
+									                		"continue_time": Ext.getCmp('Cpu_frequency').getValue()['Cpu_frequency'],
+									                		"isPhoneAlarmed": Ext.getCmp('Cpu_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('Cpu_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('Cpu_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();						                	        
+									               	    	}
+									               	    }
+									               	});								                
+								                }
+								                else {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!modifyMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "cpu",
+									                		"monitorPolicyId": Ext.getCmp('physicalNodeCpuLoadValueId').getValue(),
+									                		"overload": Ext.getCmp('physicalNodeCpuLoadValue').getValue(),
+									                		"continue_time": Ext.getCmp('Cpu_frequency').getValue()['Cpu_frequency'],
+									                		"isPhoneAlarmed": Ext.getCmp('Cpu_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('Cpu_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('Cpu_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();						                	        
+									               	    	}
+									               	    }
+									               	});									                
+								                }
+								               	
+							                }
+							           }	
+								]
+							},{
+								xtype: 'fieldset',
+								title: i18n._("physicalNodeMemLoad"),
+						        width: 550,
+						        height: 230,
+						        x: 590,
+						        y: 20,		
+								items:[
+										{
+											id:'physicalNodeMemLoadValue',
+											xtype:'numberfield',
+											labelAlign:'right',
+											margin:'0 0 5 24',
+											width:200,
+											fieldLabel:i18n._('LoadOver'),							
+											style:'white-space: nowrap',
+											decimalPrecision:2,
+											value:80,
+											minValue:80,
+											maxValue:100,
+											allowBlank: false
+										},{
+										    id:'physicalNodeMemLoadValueId',
+								            xtype: 'textfield',
+								            hidden: true
+								        },{
+											id:'Mem_frequency',
+											xtype:'radiogroup',
+											fieldLabel:i18n._("VM_frequency"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											items: [
+												{ boxLabel: i18n._("frequency_1min"), width:80, name: 'Mem_frequency', inputValue: 1,checked:true},
+												{ boxLabel: i18n._("frequency_5min"), width:80, name: 'Mem_frequency', inputValue: 5},
+												{ boxLabel: i18n._("frequency_15min"), width:80, name: 'Mem_frequency', inputValue: 15}
+											]										
+										},{
+										    id:'Mem_sms_alert',
+											xtype:'checkboxgroup',
+											fieldLabel:i18n._("triggerAction"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											width:500,
+											vertical: true,
+											items: [{ id:'Mem_sms_alert_checkbox', 
+											          boxLabel: i18n._("短信报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('Mem_sms_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('Mem_sms_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'Mem_sms_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var sms_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < sms_array.length; i++) {
+												                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+												                         if (!regex.test(sms_array[i])) {
+												                             me.markInvalid('手机号码格式不正确！');
+												                             return;
+												                         }
+												                    }										                    
+											                    }
+											                }
+											            }											          
+											          
+											        }
+											]										
+										},{
+										    id:'Mem_email_alert',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 3,
+											labelWidth:55,
+											width:440,
+											vertical: true,
+											items: [{ id:'Mem_email_alert_checkbox', 
+											          boxLabel: i18n._("邮件报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('Mem_email_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('Mem_email_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											        },
+											        { id: 'Mem_email_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var email_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < email_array.length; i++) {
+												                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+												                         if (!regex.test(email_array[i])) {
+												                             me.markInvalid('邮箱地址格式不正确！');
+												                             return;
+												                         }
+												                    }											                    
+											                    }
+											                }
+											            }			
+											            				
+											        }
+											]										
+										},{
+										    id:'Mem_migrate_vm',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 2,
+											labelWidth:55,
+											width:300,
+											vertical: true,
+											items: [{ id:'Mem_migrate_vm_checkbox', boxLabel: i18n._("迁移VM"),inputValue: 1, xtype: 'checkbox'}]
+										},{
+										    id:'Mem_button',
+											xtype:'button',
+											margin:'0 0 0 460',
+											width:50,
+										    text: i18n._('Save'),
+							                handler:function(){
+							                	    
+
+							                    if (parseInt(Ext.getCmp('physicalNodeMemLoadValue').getValue()) > parseInt(Ext.getCmp('physicalNodeMemLoadValue').maxValue) || 
+							                        parseInt(Ext.getCmp('physicalNodeMemLoadValue').getValue()) < parseInt(Ext.getCmp('physicalNodeMemLoadValue').minValue)) {
+							                        Ext.getCmp('physicalNodeMemLoadValue').markInvalid('内存负载输入不合法');
+							                        return;
+							                    }							                
+							                    var sms_array = new Array();
+							                    var email_array = new Array();
+							                    if (ltrim(rtrim(Ext.getCmp('Mem_sms_alert_receiver').getValue())) != "") {
+							                        sms_array = ltrim(rtrim(Ext.getCmp('Mem_sms_alert_receiver').getValue())).split(",");
+							                    }
+							                    if (ltrim(rtrim(Ext.getCmp('Mem_email_alert_receiver').getValue())) != "") {
+								                    email_array = ltrim(rtrim(Ext.getCmp('Mem_email_alert_receiver').getValue())).split(",");							                        
+							                    }							                    
+							                    for(var i = 0; i < sms_array.length; i++) {
+							                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+							                         if (!regex.test(sms_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('手机号码格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }	
+							                    for(var i = 0; i < email_array.length; i++) {
+							                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+							                         if (!regex.test(email_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('邮箱地址格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    } 				
+							                    if (Ext.getCmp('Mem_sms_alert_checkbox').getValue() == true) {
+							                        if (sms_array.length == 0) {
+							                            Ext.getCmp('Mem_sms_alert_receiver').markInvalid('请输入手机号码!');
+							                            return;
+							                        }
+							                    }
+							                    if (Ext.getCmp('Mem_email_alert_checkbox').getValue() == true) {
+							                        if (email_array.length == 0) {
+							                            Ext.getCmp('Mem_email_alert_receiver').markInvalid('请输入邮箱地址!');
+							                            return;
+							                        }
+							                    }								                    
+							                    if (Ext.getCmp('Mem_sms_alert_checkbox').getValue() == false && Ext.getCmp('Mem_email_alert_checkbox').getValue() == false 
+							                        && Ext.getCmp('Mem_migrate_vm_checkbox').getValue() == false) {
+						                	        Ext.MessageBox.show({								         		           
+														   title:i18n._('notice'),
+														   msg:i18n._('请选择触发动作！'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK								         		           
+								         		    });
+								         		    return;		                            
+							                    }
+							                    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+				            						msg : i18n._('please wait'),
+				            						removeMask : true
+				            					});
+							                	v_mask.show(); 						                    			                
+								                if (Ext.getCmp('physicalNodeMemLoadValueId').getValue() == "") {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!saveMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "memory",
+									                		"overload": Ext.getCmp('physicalNodeMemLoadValue').getValue(),
+									                		"continue_time": Ext.getCmp('Mem_frequency').getValue()['Mem_frequency'],
+									                		"isPhoneAlarmed": Ext.getCmp('Mem_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('Mem_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('Mem_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();					                	        
+									               	    	}
+									               	    }
+									               	});
+									            }
+									            else {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!modifyMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "memory",
+									                		"monitorPolicyId": Ext.getCmp('physicalNodeMemLoadValueId').getValue(),
+									                		"overload": Ext.getCmp('physicalNodeMemLoadValue').getValue(),
+									                		"continue_time": Ext.getCmp('Mem_frequency').getValue()['Mem_frequency'],
+									                		"isPhoneAlarmed": Ext.getCmp('Mem_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('Mem_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('Mem_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();					                	        
+									               	    	}
+									               	    }
+									               	});									            
+									            }
+								               	
+							                }
+							           }	
+								]
+							},{
+								xtype: 'fieldset',
+								title: i18n._("ExteralNetworkInteruppt"),
+						        width: 550,
+						        height: 200,
+						        x: 20,
+						        y: 270,		
+								items:[
+										{
+											id:'ExteralNetworkTimeout',
+											xtype:'numberfield',
+											labelAlign:'right',
+											margin:'0 0 5 24',
+											width:200,
+											fieldLabel:i18n._('NetworkTimeout'),							
+											style:'white-space: nowrap',
+											decimalPrecision:2,
+											value:3,
+											minValue:1,
+											maxValue:60,
+											allowBlank: false
+										},{
+										    id:'ExteralNetworkTimeoutId',
+								            xtype: 'textfield',
+								            hidden: true
+								        },{
+										    id:'ExteralNetwork_sms_alert',
+											xtype:'checkboxgroup',
+											fieldLabel:i18n._("triggerAction"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											width:500,
+											vertical: true,
+											items: [{ id:'ExteralNetwork_sms_alert_checkbox', 
+											          boxLabel: i18n._("短信报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('ExteralNetwork_sms_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('ExteralNetwork_sms_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'ExteralNetwork_sms_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var sms_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < sms_array.length; i++) {
+												                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+												                         if (!regex.test(sms_array[i])) {
+												                             me.markInvalid('手机号码格式不正确！');
+												                             return;
+												                         }
+												                    }										                    
+											                    }
+											                }
+											            }											          
+											          
+											        }
+											]										
+										},{
+										    id:'ExteralNetwork_email_alert',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 3,
+											labelWidth:55,
+											width:440,
+											vertical: true,
+											items: [{ id:'ExteralNetwork_email_alert_checkbox', 
+											          boxLabel: i18n._("邮件报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('ExteralNetwork_email_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('ExteralNetwork_email_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'ExteralNetwork_email_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var email_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < email_array.length; i++) {
+												                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+												                         if (!regex.test(email_array[i])) {
+												                             me.markInvalid('邮箱地址格式不正确！');
+												                             return;
+												                         }
+												                    }											                    
+											                    }
+											                }
+											            }			
+											            				
+											        }
+											]										
+										},{
+										    id:'ExteralNetwork_migrate_vm',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 2,
+											labelWidth:55,
+											width:300,
+											vertical: true,
+											items: [{ id:'ExteralNetwork_migrate_vm_checkbox', boxLabel: i18n._("迁移VM"),inputValue: 1, xtype: 'checkbox'}]
+										},{
+										    id:'ExteralNetwork_button',
+											xtype:'button',
+											margin:'0 0 0 460',
+											width:50,
+										    text: i18n._('Save'),
+							                handler:function(){
+							                	    
+							                
+							                    if (parseInt(Ext.getCmp('ExteralNetworkTimeout').getValue()) > parseInt(Ext.getCmp('ExteralNetworkTimeout').maxValue) || 
+							                        parseInt(Ext.getCmp('ExteralNetworkTimeout').getValue()) < parseInt(Ext.getCmp('ExteralNetworkTimeout').minValue)) {
+							                        Ext.getCmp('ExteralNetworkTimeout').markInvalid('超时时间输入不合法');
+							                        return;
+							                    }							                
+							                    var sms_array = new Array();
+							                    var email_array = new Array();
+							                    if (ltrim(rtrim(Ext.getCmp('ExteralNetwork_sms_alert_receiver').getValue())) != "") {
+							                        sms_array = ltrim(rtrim(Ext.getCmp('ExteralNetwork_sms_alert_receiver').getValue())).split(",");
+							                    }
+							                    if (ltrim(rtrim(Ext.getCmp('ExteralNetwork_email_alert_receiver').getValue())) != "") {
+								                    email_array = ltrim(rtrim(Ext.getCmp('ExteralNetwork_email_alert_receiver').getValue())).split(",");							                        
+							                    }							                    
+							                    for(var i = 0; i < sms_array.length; i++) {
+							                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+							                         if (!regex.test(sms_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('手机号码格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }	
+							                    for(var i = 0; i < email_array.length; i++) {
+							                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+							                         if (!regex.test(email_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('邮箱地址格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    } 		
+							                    if (Ext.getCmp('ExteralNetwork_sms_alert_checkbox').getValue() == true) {
+							                        if (sms_array.length == 0) {
+							                            Ext.getCmp('ExteralNetwork_sms_alert_receiver').markInvalid('请输入手机号码!');
+							                            return;
+							                        }
+							                    }
+							                    if (Ext.getCmp('ExteralNetwork_email_alert_checkbox').getValue() == true) {
+							                        if (email_array.length == 0) {
+							                            Ext.getCmp('ExteralNetwork_email_alert_receiver').markInvalid('请输入邮箱地址!');
+							                            return;
+							                        }
+							                    }							                    
+							                    if (Ext.getCmp('ExteralNetwork_sms_alert_checkbox').getValue() == false && Ext.getCmp('ExteralNetwork_email_alert_checkbox').getValue() == false 
+							                        && Ext.getCmp('ExteralNetwork_migrate_vm_checkbox').getValue() == false) {
+						                	        Ext.MessageBox.show({								         		           
+														   title:i18n._('notice'),
+														   msg:i18n._('请选择触发动作！'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK								         		           
+								         		    });
+								         		    return;		                            
+							                    }
+							                    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+				            						msg : i18n._('please wait'),
+				            						removeMask : true
+				            					});
+							                	v_mask.show(); 					                    					                
+								                if (Ext.getCmp('ExteralNetworkTimeoutId').getValue() == "") {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!saveMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "public_network",
+									                		"timeout": Ext.getCmp('ExteralNetworkTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('ExteralNetwork_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('ExteralNetwork_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('ExteralNetwork_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();					                	        
+									               	    	}
+									               	    }
+									               	});
+									            }
+									            else {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!modifyMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "public_network",
+									                		"monitorPolicyId": Ext.getCmp('ExteralNetworkTimeoutId').getValue(),
+									                		"timeout": Ext.getCmp('ExteralNetworkTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('ExteralNetwork_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('ExteralNetwork_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('ExteralNetwork_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();						                	        
+									               	    	}
+									               	    }
+									               	});									            
+									            }
+								               	
+							                }
+							           }	
+								]
+							},{
+								xtype: 'fieldset',
+								title: i18n._("InteralNetworkInteruppt"),
+						        width: 550,
+						        height: 200,
+						        x: 590,
+						        y: 270,		
+								items:[
+										{
+											id:'InteralNetworkTimeout',
+											xtype:'numberfield',
+											labelAlign:'right',
+											margin:'0 0 5 24',
+											width:200,
+											fieldLabel:i18n._('NetworkTimeout'),							
+											style:'white-space: nowrap',
+											decimalPrecision:2,
+											value:3,
+											minValue:1,
+											maxValue:60,
+											allowBlank: false
+										},{
+										    id:'InteralNetworkTimeoutId',
+								            xtype: 'textfield',
+								            hidden: true
+								        },{
+										    id:'InteralNetwork_sms_alert',
+											xtype:'checkboxgroup',
+											fieldLabel:i18n._("triggerAction"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											width:500,
+											vertical: true,
+											items: [{ id:'InteralNetwork_sms_alert_checkbox', 
+											          boxLabel: i18n._("短信报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('InteralNetwork_sms_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('InteralNetwork_sms_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											        
+											        },
+											        { id: 'InteralNetwork_sms_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var sms_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < sms_array.length; i++) {
+												                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+												                         if (!regex.test(sms_array[i])) {
+												                             me.markInvalid('手机号码格式不正确！');
+												                             return;
+												                         }
+												                    }										                    
+											                    }
+											                }
+											            }											          
+											          
+											        }
+											]										
+										},{
+										    id:'InteralNetwork_email_alert',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 3,
+											labelWidth:55,
+											width:440,
+											vertical: true,
+											items: [{ id:'InteralNetwork_email_alert_checkbox', 
+											          boxLabel: i18n._("邮件报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('InteralNetwork_email_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('InteralNetwork_email_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'InteralNetwork_email_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var email_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < email_array.length; i++) {
+												                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+												                         if (!regex.test(email_array[i])) {
+												                             me.markInvalid('邮箱地址格式不正确！');
+												                             return;
+												                         }
+												                    }											                    
+											                    }
+											                }
+											            }			
+											            				
+											        }
+											]										
+										},{
+										    id:'InteralNetwork_migrate_vm',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 2,
+											labelWidth:55,
+											width:300,
+											vertical: true,
+											items: [{ id:'InteralNetwork_migrate_vm_checkbox', boxLabel: i18n._("迁移VM"),inputValue: 1, xtype: 'checkbox'}]
+										},{
+										    id:'InteralNetwork_button',
+											xtype:'button',
+											margin:'0 0 0 460',
+											width:50,
+										    text: i18n._('Save'),
+							                handler:function(){
+							                	
+							                
+							                    if (parseInt(Ext.getCmp('InteralNetworkTimeout').getValue()) > parseInt(Ext.getCmp('InteralNetworkTimeout').maxValue) || 
+							                        parseInt(Ext.getCmp('InteralNetworkTimeout').getValue()) < parseInt(Ext.getCmp('InteralNetworkTimeout').minValue)) {
+							                        Ext.getCmp('InteralNetworkTimeout').markInvalid('超时时间输入不合法');
+							                        return;
+							                    }							                
+							                    var sms_array = new Array();
+							                    var email_array = new Array();
+							                    if (ltrim(rtrim(Ext.getCmp('InteralNetwork_sms_alert_receiver').getValue())) != "") {
+							                        sms_array = ltrim(rtrim(Ext.getCmp('InteralNetwork_sms_alert_receiver').getValue())).split(",");
+							                    }
+							                    if (ltrim(rtrim(Ext.getCmp('InteralNetwork_email_alert_receiver').getValue())) != "") {
+								                    email_array = ltrim(rtrim(Ext.getCmp('InteralNetwork_email_alert_receiver').getValue())).split(",");							                        
+							                    }							                    
+							                    for(var i = 0; i < sms_array.length; i++) {
+							                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+							                         if (!regex.test(sms_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('手机号码格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }	
+							                    for(var i = 0; i < email_array.length; i++) {
+							                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+							                         if (!regex.test(email_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('邮箱地址格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    } 	
+							                    if (Ext.getCmp('InteralNetwork_sms_alert_checkbox').getValue() == true) {
+							                        if (sms_array.length == 0) {
+							                            Ext.getCmp('InteralNetwork_sms_alert_receiver').markInvalid('请输入手机号码!');
+							                            return;
+							                        }
+							                    }
+							                    if (Ext.getCmp('InteralNetwork_email_alert_checkbox').getValue() == true) {
+							                        if (email_array.length == 0) {
+							                            Ext.getCmp('InteralNetwork_email_alert_receiver').markInvalid('请输入邮箱地址!');
+							                            return;
+							                        }
+							                    }		
+							                    if (Ext.getCmp('InteralNetwork_sms_alert_checkbox').getValue() == false && Ext.getCmp('InteralNetwork_email_alert_checkbox').getValue() == false 
+							                        && Ext.getCmp('InteralNetwork_migrate_vm_checkbox').getValue() == false) {
+						                	        Ext.MessageBox.show({								         		           
+														   title:i18n._('notice'),
+														   msg:i18n._('请选择触发动作！'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK								         		           
+								         		    });
+								         		    return;		                            
+							                    }							                    					                    
+							                    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+				            						msg : i18n._('please wait'),
+				            						removeMask : true
+				            					});
+							                	v_mask.show();     					                
+								                if (Ext.getCmp('InteralNetworkTimeoutId').getValue() == "") {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!saveMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "inner_network",
+									                		"timeout": Ext.getCmp('InteralNetworkTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('InteralNetwork_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('InteralNetwork_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('InteralNetwork_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();					                	        
+									               	    	}
+									               	    }
+									               	});
+									            }
+									            else {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!modifyMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "inner_network",
+									                		"monitorPolicyId": Ext.getCmp('InteralNetworkTimeoutId').getValue(),
+									                		"timeout": Ext.getCmp('InteralNetworkTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('InteralNetwork_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('InteralNetwork_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('InteralNetwork_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();				                	        
+									               	    	}
+									               	    }
+									               	});									            
+									            }
+								               	
+							                }
+							           }	
+								]
+							},{
+								xtype: 'fieldset',
+								title: i18n._("StorageNetworkInteruppt"),
+						        width: 550,
+						        height: 200,
+						        x: 20,
+						        y: 490,	
+								items:[
+										{
+											id:'StorageNetworkTimeout',
+											xtype:'numberfield',
+											labelAlign:'right',
+											margin:'0 0 5 24',
+											width:200,
+											fieldLabel:i18n._('NetworkTimeout'),							
+											style:'white-space: nowrap',
+											decimalPrecision:2,
+											value:3,
+											minValue:1,
+											maxValue:60,
+											allowBlank: false
+										},{
+										    id:'StorageNetworkTimeoutId',
+								            xtype: 'textfield',
+								            hidden: true
+								        },{
+										    id:'StorageNetwork_sms_alert',
+											xtype:'checkboxgroup',
+											fieldLabel:i18n._("triggerAction"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											width:500,
+											vertical: true,
+											items: [{ id:'StorageNetwork_sms_alert_checkbox', 
+											          boxLabel: i18n._("短信报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('StorageNetwork_sms_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('StorageNetwork_sms_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'StorageNetwork_sms_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var sms_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < sms_array.length; i++) {
+												                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+												                         if (!regex.test(sms_array[i])) {
+												                             me.markInvalid('手机号码格式不正确！');
+												                             return;
+												                         }
+												                    }										                    
+											                    }
+											                }
+											            }											          
+											          
+											        }
+											]										
+										},{
+										    id:'StorageNetwork_email_alert',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 3,
+											labelWidth:55,
+											width:440,
+											vertical: true,
+											items: [{ id:'StorageNetwork_email_alert_checkbox', 
+											          boxLabel: i18n._("邮件报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('StorageNetwork_email_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('StorageNetwork_email_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'StorageNetwork_email_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var email_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < email_array.length; i++) {
+												                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+												                         if (!regex.test(email_array[i])) {
+												                             me.markInvalid('邮箱地址格式不正确！');
+												                             return;
+												                         }
+												                    }											                    
+											                    }
+											                }
+											            }			
+											            				
+											        }
+											]										
+										},{
+										    id:'StorageNetwork_migrate_vm',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 2,
+											labelWidth:55,
+											width:300,
+											vertical: true,
+											items: [{ id:'StorageNetwork_migrate_vm_checkbox', boxLabel: i18n._("迁移VM"),inputValue: 1, xtype: 'checkbox'}]
+										},{
+										    id:'StorageNetwork_button',
+											xtype:'button',
+											margin:'0 0 0 460',
+											width:50,
+										    text: i18n._('Save'),
+							                handler:function(){
+							                	
+							                
+							                    if (parseInt(Ext.getCmp('StorageNetworkTimeout').getValue()) > parseInt(Ext.getCmp('StorageNetworkTimeout').maxValue) || 
+							                        parseInt(Ext.getCmp('StorageNetworkTimeout').getValue()) < parseInt(Ext.getCmp('StorageNetworkTimeout').minValue)) {
+							                        Ext.getCmp('StorageNetworkTimeout').markInvalid('超时时间输入不合法');
+							                        return;
+							                    }							                
+							                    var sms_array = new Array();
+							                    var email_array = new Array();
+							                    if (ltrim(rtrim(Ext.getCmp('StorageNetwork_sms_alert_receiver').getValue())) != "") {
+							                        sms_array = ltrim(rtrim(Ext.getCmp('StorageNetwork_sms_alert_receiver').getValue())).split(",");
+							                    }
+							                    if (ltrim(rtrim(Ext.getCmp('StorageNetwork_email_alert_receiver').getValue())) != "") {
+								                    email_array = ltrim(rtrim(Ext.getCmp('StorageNetwork_email_alert_receiver').getValue())).split(",");							                        
+							                    }							                    
+							                    for(var i = 0; i < sms_array.length; i++) {
+							                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+							                         if (!regex.test(sms_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('手机号码格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }	
+							                    for(var i = 0; i < email_array.length; i++) {
+							                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+							                         if (!regex.test(email_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('邮箱地址格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    } 
+							                    if (Ext.getCmp('StorageNetwork_sms_alert_checkbox').getValue() == true) {
+							                        if (sms_array.length == 0) {
+							                            Ext.getCmp('StorageNetwork_sms_alert_receiver').markInvalid('请输入手机号码!');
+							                            return;
+							                        }
+							                    }
+							                    if (Ext.getCmp('StorageNetwork_email_alert_checkbox').getValue() == true) {
+							                        if (email_array.length == 0) {
+							                            Ext.getCmp('StorageNetwork_email_alert_receiver').markInvalid('请输入邮箱地址!');
+							                            return;
+							                        }
+							                    }				
+							                    if (Ext.getCmp('StorageNetwork_sms_alert_checkbox').getValue() == false && Ext.getCmp('StorageNetwork_email_alert_checkbox').getValue() == false 
+							                        && Ext.getCmp('StorageNetwork_migrate_vm_checkbox').getValue() == false) {
+						                	        Ext.MessageBox.show({								         		           
+														   title:i18n._('notice'),
+														   msg:i18n._('请选择触发动作！'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK								         		           
+								         		    });
+								         		    return;		                            
+							                    }							                    
+							                    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+				            						msg : i18n._('please wait'),
+				            						removeMask : true
+				            					});
+							                	v_mask.show();              
+								                if (Ext.getCmp('StorageNetworkTimeoutId').getValue() == "") {    
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!saveMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "storage_network",
+									                		"timeout": Ext.getCmp('StorageNetworkTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('StorageNetwork_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('StorageNetwork_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('StorageNetwork_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();						                	        
+									               	    	}
+									               	    }
+									               	});
+									            }
+									            else {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!modifyMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "storage_network",
+									                		"monitorPolicyId": Ext.getCmp('StorageNetworkTimeoutId').getValue(),
+									                		"timeout": Ext.getCmp('StorageNetworkTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('StorageNetwork_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('StorageNetwork_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('StorageNetwork_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();					                	        
+									               	    	}
+									               	    }
+									               	});									            
+									            }
+								               								                    
+							                }
+							           }	
+								]
+							},{
+								xtype: 'fieldset',
+								title: i18n._("physicalMachineLoseTouch"),
+						        width: 550,
+						        height: 200,
+						        x: 590,
+						        y: 490,		
+								items:[							
+										{
+											id:'physicalMachineLoseTouchTimeout',
+											xtype:'numberfield',
+											labelAlign:'right',
+											margin:'0 0 5 24',
+											width:200,
+											fieldLabel:i18n._('NetworkTimeout'),							
+											style:'white-space: nowrap',
+											decimalPrecision:2,
+											value:3,
+											minValue:1,
+											maxValue:60,
+											allowBlank: false
+										},{
+										    id:'physicalMachineLoseTouchTimeoutId',
+								            xtype: 'textfield',
+								            hidden: true
+								        },{
+										    id:'physicalMachineLoseTouch_sms_alert',
+											xtype:'checkboxgroup',
+											fieldLabel:i18n._("triggerAction"),
+											margin:'0 0 5 65',
+											columns: 3,
+											labelWidth:55,
+											width:500,
+											vertical: true,
+											items: [{ id:'physicalMachineLoseTouch_sms_alert_checkbox', 
+											          boxLabel: i18n._("短信报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('physicalMachineLoseTouch_sms_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('physicalMachineLoseTouch_sms_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'physicalMachineLoseTouch_sms_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var sms_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < sms_array.length; i++) {
+												                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+												                         if (!regex.test(sms_array[i])) {
+												                             me.markInvalid('手机号码格式不正确！');
+												                             return;
+												                         }
+												                    }										                    
+											                    }
+											                }
+											            }											          
+											          
+											        }
+											]										
+										},{
+										    id:'physicalMachineLoseTouch_email_alert',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 3,
+											labelWidth:55,
+											width:440,
+											vertical: true,
+											items: [{ id:'physicalMachineLoseTouch_email_alert_checkbox', 
+											          boxLabel: i18n._("邮件报警"), 
+											          inputValue: 1, 
+											          xtype: 'checkbox',
+											          listeners: {
+											              change: function (me, event, eOpts) {
+											                  // 两种方法都可以 Ext.getCmp("Cpu_sms_alert_receiver").setDisabled(false);
+														      if (me.value == true) {
+																  Ext.getCmp('physicalMachineLoseTouch_email_alert_receiver').enable();
+																  return;
+														      }
+														      else {
+																  Ext.getCmp('physicalMachineLoseTouch_email_alert_receiver').disable();
+																  return;
+														      }										                    
+											               }
+											           }			
+											          
+											        },
+											        { id: 'physicalMachineLoseTouch_email_alert_receiver', 
+											          width:250, 
+											          xtype: 'textfield',
+											          disabled: true,
+											            listeners: {
+											                //失去焦点事件
+											                blur: function (me, event, eOpts) {
+											                    var flag_result = true;
+											                    if (ltrim(rtrim(me.value)) != "") {
+												                    var email_array = ltrim(rtrim(me.value)).split(",");
+												                    for(var i = 0; i < email_array.length; i++) {
+												                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+												                         if (!regex.test(email_array[i])) {
+												                             me.markInvalid('邮箱地址格式不正确！');
+												                             return;
+												                         }
+												                    }											                    
+											                    }
+											                }
+											            }			
+											            				
+											        }
+											]										
+										},{
+										    id:'physicalMachineLoseTouch_migrate_vm',
+											xtype:'checkboxgroup',
+											margin:'0 0 5 125',
+											columns: 2,
+											labelWidth:55,
+											width:300,
+											vertical: true,
+											items: [{ id:'physicalMachineLoseTouch_migrate_vm_checkbox', boxLabel: i18n._("迁移VM"),inputValue: 1, xtype: 'checkbox'}]
+										},{
+										    id:'physicalMachineLoseTouch_button',
+											xtype:'button',
+											margin:'0 0 0 460',
+											width:50,
+										    text: i18n._('Save'),
+							                handler:function(){
+							                	     
+							                
+							                    if (parseInt(Ext.getCmp('physicalMachineLoseTouchTimeout').getValue()) > parseInt(Ext.getCmp('physicalMachineLoseTouchTimeout').maxValue) || 
+							                        parseInt(Ext.getCmp('physicalMachineLoseTouchTimeout').getValue()) < parseInt(Ext.getCmp('physicalMachineLoseTouchTimeout').minValue)) {
+							                        Ext.getCmp('physicalMachineLoseTouchTimeout').markInvalid('超时时间输入不合法');
+							                        return;
+							                    }							                
+							                    var sms_array = new Array();
+							                    var email_array = new Array();
+							                    if (ltrim(rtrim(Ext.getCmp('physicalMachineLoseTouch_sms_alert_receiver').getValue())) != "") {
+							                        sms_array = ltrim(rtrim(Ext.getCmp('physicalMachineLoseTouch_sms_alert_receiver').getValue())).split(",");
+							                    }
+							                    if (ltrim(rtrim(Ext.getCmp('physicalMachineLoseTouch_email_alert_receiver').getValue())) != "") {
+								                    email_array = ltrim(rtrim(Ext.getCmp('physicalMachineLoseTouch_email_alert_receiver').getValue())).split(",");							                        
+							                    }							                    
+							                    for(var i = 0; i < sms_array.length; i++) {
+							                         var regex = /^(13[0-9]|14[0-9]|15[0-9]|18[0-9])\d{8}$/;
+							                         if (!regex.test(sms_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('手机号码格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }	
+							                    for(var i = 0; i < email_array.length; i++) {
+							                         var regex = /^([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+@([a-zA-Z0-9]+[_|\_|\.]?)*[a-zA-Z0-9]+\.[a-zA-Z]{2,3}$/;
+							                         if (!regex.test(email_array[i])) {
+							                             Ext.MessageBox.show({								         		           
+														     title:i18n._('notice'),
+															 msg:i18n._('邮箱地址格式不正确！'),
+									         		         icon:Ext.MessageBox.INFO,
+									         		         buttons: Ext.MessageBox.OK								         		           
+									         		     });	
+							                             return;
+							                         }
+							                    }		
+							                    if (Ext.getCmp('physicalMachineLoseTouch_sms_alert_checkbox').getValue() == true) {
+							                        if (sms_array.length == 0) {
+							                            Ext.getCmp('physicalMachineLoseTouch_sms_alert_receiver').markInvalid('请输入手机号码!');
+							                            return;
+							                        }
+							                    }
+							                    if (Ext.getCmp('physicalMachineLoseTouch_email_alert_checkbox').getValue() == true) {
+							                        if (email_array.length == 0) {
+							                            Ext.getCmp('physicalMachineLoseTouch_email_alert_receiver').markInvalid('请输入邮箱地址!');
+							                            return;
+							                        }
+							                    }				
+							                    if (Ext.getCmp('physicalMachineLoseTouch_sms_alert_checkbox').getValue() == false && Ext.getCmp('physicalMachineLoseTouch_email_alert_checkbox').getValue() == false 
+							                        && Ext.getCmp('physicalMachineLoseTouch_migrate_vm_checkbox').getValue() == false) {
+						                	        Ext.MessageBox.show({								         		           
+														   title:i18n._('notice'),
+														   msg:i18n._('请选择触发动作！'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK								         		           
+								         		    });
+								         		    return;		                            
+							                    }							                    			                    
+							                    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+				            						msg : i18n._('please wait'),
+				            						removeMask : true
+				            					});
+							                	v_mask.show();     		                    
+							                    if (Ext.getCmp('physicalMachineLoseTouchTimeoutId').getValue() == "") {    
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!saveMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "manage_network",
+									                		"timeout": Ext.getCmp('physicalMachineLoseTouchTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('physicalMachineLoseTouch_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('physicalMachineLoseTouch_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('physicalMachineLoseTouch_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();					                	        
+									               	    	}
+									               	    }
+									               	});
+									            }
+									            else {
+									               	Ext.Ajax.request({
+									               		url: '../../ops/monitorPolicy!modifyMonitorPolicy.action',
+									               		method:'POST',	
+									               		params:{
+									                		"monitorType": "manage_network",
+									                		"monitorPolicyId": Ext.getCmp('physicalMachineLoseTouchTimeoutId').getValue(),
+									                		"timeout": Ext.getCmp('physicalMachineLoseTouchTimeout').getValue(),
+									                		"isPhoneAlarmed": Ext.getCmp('physicalMachineLoseTouch_sms_alert_checkbox').getValue(),
+									                		"phone": sms_array,
+									                		"isEmailAlarmed": Ext.getCmp('physicalMachineLoseTouch_email_alert_checkbox').getValue(),
+									                		"email": email_array,
+									                		"isVmMigrated": Ext.getCmp('physicalMachineLoseTouch_migrate_vm_checkbox').getValue()
+									                	},				                	    
+									               	    success: function(response){
+									               	    	v_mask.hide();
+									               	    	var obj = Ext.decode(response.responseText);
+									               	    	if(obj.success==true){
+									                	        Ext.MessageBox.show({								         		           
+																	   title:i18n._('notice'),
+																	   msg:i18n._('SaveSuccess'),
+											         		           icon:Ext.MessageBox.INFO,
+											         		           buttons: Ext.MessageBox.OK								         		           
+											         		    });
+											         		    loadData();					                	        
+									               	    	}
+									               	    }
+									               	});									            
+									            }
+								               	
+							                }
+							           }	
+								]
+							}
+                            ]
+                        }
+                    ]//panel
+                });         
+                
+                function loadData() {
+	               	Ext.Ajax.request({
+	               		url: '../../ops/monitorPolicy!getAllMonitorPolicy.action',
+	               		method:'GET',	
+	               	    success: function(response){
+	               	    	var responseData = Ext.decode(response.responseText);
+	               	    	if(responseData.success==true){
+						          var monitor_rule_config_list = responseData.resultObject;
+						          for(var i = 0; i < monitor_rule_config_list.length; i++) {
+						              if (monitor_rule_config_list[i].monitorrulesvo.cpu != null) {
+						                  Ext.getCmp('physicalNodeCpuLoadValueId').setValue(monitor_rule_config_list[i].id);
+									      Ext.getCmp('physicalNodeCpuLoadValue').setValue(monitor_rule_config_list[i].monitorrulesvo.cpu.overload);
+									      Ext.getCmp('Cpu_frequency').setValue({Cpu_frequency: monitor_rule_config_list[i].monitorrulesvo.cpu.continue_time});
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.phone != null) {
+									          Ext.getCmp('Cpu_sms_alert_checkbox').setValue(true);
+									          Ext.getCmp('Cpu_sms_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.phone);
+									          Ext.getCmp('Cpu_sms_alert_receiver').setDisabled(false);
+									      }
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.email != null) {
+									          Ext.getCmp('Cpu_email_alert_checkbox').setValue(true);
+									          Ext.getCmp('Cpu_email_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.email);
+									          Ext.getCmp('Cpu_email_alert_receiver').setDisabled(false);
+									      }
+									      Ext.getCmp('Cpu_migrate_vm_checkbox').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.vm);
+						              }
+						              if (monitor_rule_config_list[i].monitorrulesvo.memory != null) {
+						                  Ext.getCmp('physicalNodeMemLoadValueId').setValue(monitor_rule_config_list[i].id);
+									      Ext.getCmp('physicalNodeMemLoadValue').setValue(monitor_rule_config_list[i].monitorrulesvo.memory.overload);
+									      Ext.getCmp('Mem_frequency').setValue({Mem_frequency: monitor_rule_config_list[i].monitorrulesvo.memory.continue_time});
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.phone != null) {
+									          Ext.getCmp('Mem_sms_alert_checkbox').setValue(true);
+									          Ext.getCmp('Mem_sms_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.phone);
+									          Ext.getCmp('Mem_sms_alert_receiver').setDisabled(false);
+									      }
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.email != null) {
+									          Ext.getCmp('Mem_email_alert_checkbox').setValue(true);
+									          Ext.getCmp('Mem_email_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.email);
+									          Ext.getCmp('Mem_email_alert_receiver').setDisabled(false);
+									      }
+									      Ext.getCmp('Mem_migrate_vm_checkbox').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.vm);					              
+						              }
+						              if (monitor_rule_config_list[i].monitorrulesvo.public_network != null) {
+						                  Ext.getCmp('ExteralNetworkTimeoutId').setValue(monitor_rule_config_list[i].id);
+									      Ext.getCmp('ExteralNetworkTimeout').setValue(monitor_rule_config_list[i].monitorrulesvo.public_network.timeout);
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.phone != null) {
+									          Ext.getCmp('ExteralNetwork_sms_alert_checkbox').setValue(true);
+									          Ext.getCmp('ExteralNetwork_sms_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.phone);
+									          Ext.getCmp('ExteralNetwork_sms_alert_receiver').setDisabled(false);
+									      }
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.email != null) {
+									          Ext.getCmp('ExteralNetwork_email_alert_checkbox').setValue(true);
+									          Ext.getCmp('ExteralNetwork_email_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.email);
+									          Ext.getCmp('ExteralNetwork_email_alert_receiver').setDisabled(false);
+									      }
+									      Ext.getCmp('ExteralNetwork_migrate_vm_checkbox').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.vm);						              
+						              }
+						              if (monitor_rule_config_list[i].monitorrulesvo.inner_network != null) {
+						                  Ext.getCmp('InteralNetworkTimeoutId').setValue(monitor_rule_config_list[i].id);
+									      Ext.getCmp('InteralNetworkTimeout').setValue(monitor_rule_config_list[i].monitorrulesvo.inner_network.timeout);
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.phone != null) {
+									          Ext.getCmp('InteralNetwork_sms_alert_checkbox').setValue(true);
+									          Ext.getCmp('InteralNetwork_sms_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.phone);
+									          Ext.getCmp('InteralNetwork_sms_alert_receiver').setDisabled(false);
+									      }
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.email != null) {
+									          Ext.getCmp('InteralNetwork_email_alert_checkbox').setValue(true);
+									          Ext.getCmp('InteralNetwork_email_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.email);
+									          Ext.getCmp('InteralNetwork_email_alert_receiver').setDisabled(false);
+									      }
+									      Ext.getCmp('InteralNetwork_migrate_vm_checkbox').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.vm);						              
+						              }						              
+						              if (monitor_rule_config_list[i].monitorrulesvo.storage_network != null) {
+						                  Ext.getCmp('StorageNetworkTimeoutId').setValue(monitor_rule_config_list[i].id);
+									      Ext.getCmp('StorageNetworkTimeout').setValue(monitor_rule_config_list[i].monitorrulesvo.storage_network.timeout);
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.phone != null) {
+									          Ext.getCmp('StorageNetwork_sms_alert_checkbox').setValue(true);
+									          Ext.getCmp('StorageNetwork_sms_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.phone);
+									          Ext.getCmp('StorageNetwork_sms_alert_receiver').setDisabled(false);
+									      }
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.email != null) {
+									          Ext.getCmp('StorageNetwork_email_alert_checkbox').setValue(true);
+									          Ext.getCmp('StorageNetwork_email_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.email);
+									          Ext.getCmp('StorageNetwork_email_alert_receiver').setDisabled(false);
+									      }
+									      Ext.getCmp('StorageNetwork_migrate_vm_checkbox').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.vm);						              
+						              }
+						              if (monitor_rule_config_list[i].monitorrulesvo.manage_network != null) {
+						                  Ext.getCmp('physicalMachineLoseTouchTimeoutId').setValue(monitor_rule_config_list[i].id);
+									      Ext.getCmp('physicalMachineLoseTouchTimeout').setValue(monitor_rule_config_list[i].monitorrulesvo.manage_network.timeout);
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.phone != null) {
+									          Ext.getCmp('physicalMachineLoseTouch_sms_alert_checkbox').setValue(true);
+									          Ext.getCmp('physicalMachineLoseTouch_sms_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.phone);
+									          Ext.getCmp('physicalMachineLoseTouch_sms_alert_receiver').setDisabled(false);
+									      }
+									      if (monitor_rule_config_list[i].monitorpolicyactionvo.email != null) {
+									          Ext.getCmp('physicalMachineLoseTouch_email_alert_checkbox').setValue(true);
+									          Ext.getCmp('physicalMachineLoseTouch_email_alert_receiver').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.email);
+									          Ext.getCmp('physicalMachineLoseTouch_email_alert_receiver').setDisabled(false);
+									      }
+									      Ext.getCmp('physicalMachineLoseTouch_migrate_vm_checkbox').setValue(monitor_rule_config_list[i].monitorpolicyactionvo.vm);	
+						              }
+						          }      	        
+	               	    	}
+	               	    }
+	               	});                
+                }
+                loadData();
+
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+         return null;
+ };
+ 
+</script>
+</head>
+<body>
+</body>
+</html>

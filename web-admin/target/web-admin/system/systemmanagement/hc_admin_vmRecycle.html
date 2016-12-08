@@ -1,0 +1,194 @@
+<html>
+<head>
+<title>hc_admin_vmRecycle</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+	href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/form/DateTimePicker.js"></script>
+<script type="text/javascript" src="../../js/ux/form/DateTimeField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../systemmanagement/common.js"></script>
+<script type="text/javascript" src="../systemmanagement/vmRecycle.js"></script>
+<style type="text/css">
+/* style rows on mouseover */
+.x-grid-row-over .x-grid-cell-inner {
+	font-weight: bold;
+}
+/* shared styles for the ActionColumn icons */
+.x-action-col-cell img {
+	height: 16px;
+	width: 16px;
+	cursor: pointer;
+}
+/* custom icon for the "buy" ActionColumn icon */
+.x-action-col-cell img.buy-col {
+	background-image: url(../../images/accept.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img.alert-col {
+	background-image: url(../../images/image_add.png);
+}
+
+.x-ie6 .x-action-col-cell img.buy-col {
+	background-image: url(../images/accept.gif);
+}
+
+.x-ie6.x-action-col-cell img.alert-col {
+	background-image: url(../images/image_add.png);
+}
+
+.x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.gif);
+}
+
+.x-ie6.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img {
+	position: relative;
+	top: -1px;
+}
+.x-tab-inner{
+	font-family:宋体,arial,verdana,sans-serif;font-size:12;font-weight:bold;px!important;
+}
+</style>
+
+
+<script>
+function showResult(btn){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+
+function showResultText(bt1, text){
+    Ext.example.msg('Button Click', 'You clicked the {0} button and entered the text "{1}".', btn, text);
+};
+
+function showResultText(bt1){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+Ext.Ajax.on('requestcomplete', function(conn,response,options){  
+    if(response.getResponseHeader("sessionstatus")){
+    	alert('sessionstatus:'+response.getResponseHeader("sessionstatus"));
+        window.location = "<c:url value='/'>";  
+    }  
+});
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+	'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+	'Ext.selection.CheckboxModel',
+	'Ext.tip.*',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+Ext.onReady(function() {	
+	Ext.QuickTips.init();
+	Ext.apply(Ext.QuickTips.getQuickTip(), {
+	    maxWidth: 500,
+	    trackMouse: true,
+	    dismissDelay: 0
+	});
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {	
+            	vmStore.load();                   
+                Ext.create('Ext.Viewport',{
+                    layout:'border',
+                    width:'100%',
+                    items:[
+                        {
+                            region:'center',
+                            xtype:'panel',
+                            id:'panel_one',
+                            title:i18n._('systemManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('platformMaintenance')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('vmRecycle'),
+                            width:'50%',
+                            layout:'fit',                           
+                            items:[
+                                {
+                                    xtype:'panel',
+                                    layout:'fit',
+                                    items:vmGrid
+                                }
+                            ]
+                        }
+                    ]//panel
+                });				
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ };
+ function   getQuery(name) 
+ { 
+         var reg=new RegExp("" +name+ "=([^&?]*)");        
+         var keyVal=window.location.search.substr(1).match(reg);         
+        //alert(keyVal[1]);        
+         if   (keyVal!=null)   return   unescape(keyVal[1]);  
+         return null;
+ };
+ 
+</script>
+</head>
+<body>
+</body>
+</html>

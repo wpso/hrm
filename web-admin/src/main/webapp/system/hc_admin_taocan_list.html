@@ -1,0 +1,1138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>管理员用户 </title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="../extjs-4.1.0/resources/css/ext-all.css" />
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+			padding:0 0 0 0;
+        }
+        .x-form-unit {  
+            height: 22px;  
+            line-height: 22px;  
+            padding-left: 2px;  
+            display: inline-block;  
+            display: inline;  
+        }  
+    </style>
+
+<script type="text/javascript">
+
+Ext.Loader.setConfig({
+    enabled: true
+});
+
+Ext.require([
+    'Ext.grid.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+	// 'Ext.selection.CheckboxModel'
+    
+]);
+
+// var sm = Ext.create('Ext.selection.CheckboxModel');
+Ext.onReady(function() {
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources',
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            
+            setup: function() {
+			     Ext.Ajax.timeout = 120000;  	
+// /////////////////////////////////////// 创建数据
+ Ext.define('Cpu', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'model',  type: 'string'},
+	{name: 'params',  type: 'string'},
+	{name: 'unitPrice',  type: 'float'},
+	{name: 'createDate',  type: 'date'},
+	{name: 'lastUpdateDate',  type: 'date'},
+	{name: 'version',  type: 'string'},
+	{name: 'imageId',  type: 'string'}
+	],
+	belongsTo: 'serviceCatalog'
+});
+
+Ext.define('Memory', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'model',  type: 'string'},
+	{name: 'params',  type: 'string'},
+	{name: 'unitPrice',  type: 'float'},
+	{name: 'createDate',  type: 'date'},
+	{name: 'lastUpdateDate',  type: 'date'},
+	{name: 'version',  type: 'string'}
+	],
+	belongsTo: 'serviceCatalog'
+});
+
+Ext.define('Disk', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'model',  type: 'string'},
+	{name: 'params',  type: 'string'},
+	{name: 'unitPrice',  type: 'float'},
+	{name: 'createDate',  type: 'date'},
+	{name: 'lastUpdateDate',  type: 'date'},
+	{name: 'version',  type: 'string'}
+	],
+	belongsTo: 'serviceCatalog'
+});
+
+Ext.define('Network', {
+    extend: 'Ext.data.Model',
+   fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'model',  type: 'string'},
+	{name: 'params',  type: 'string'},
+	{name: 'unitPrice',  type: 'float'},
+	{name: 'createDate',  type: 'date'},
+	{name: 'lastUpdateDate',  type: 'date'},
+	{name: 'version',  type: 'string'}
+	],
+	belongsTo: 'serviceCatalog'
+});
+
+Ext.define('Os', {
+    extend: 'Ext.data.Model',
+   fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'model',  type: 'string'},
+	{name: 'params',  type: 'string'},
+	{name: 'unitPrice',  type: 'float'},
+	{name: 'createDate',  type: 'date'},
+	{name: 'lastUpdateDate',  type: 'date'},
+	{name: 'version',  type: 'string'},
+	{name: 'imageId',  type: 'string'}
+	],
+	belongsTo: 'serviceCatalog'
+});
+Ext.define('ServiceCatalog', {
+    extend: 'Ext.data.Model',
+    fields: ['id', 'name','flavorId',
+	{model: 'Cpu', name: 'cpu'},
+	{model: 'Memory', name: 'memory'},
+	{model: 'Disk', name: 'disk'},
+	{model: 'Network', name: 'network'},
+	{model: 'Os', name: 'os'},
+	{name: 'osInfo', mapping: 'os.model'},
+	{name: 'cpuInfo', mapping: 'cpu.model'},
+	{name: 'memory', mapping: 'memory.params/1024'},
+	{name: 'disk', mapping: 'disk.params'},
+	{name: 'network', mapping: 'network.params'},
+	{name: 'price', type:'float'},
+	{name:'version',type:'string'},
+	{name:'description',type:'string'}
+	]
+});
+	
+var store1=Ext.create('Ext.data.Store', {
+storeId:'simpsonsStore',
+pageSize:10,
+	width:'100%',
+    model: 'ServiceCatalog',
+    sorters: [
+              {
+                  property : 'id',
+                  direction: 'DESC'
+              }
+          ],
+	  remoteSort:true,
+	proxy: {
+        type: 'ajax',
+        url : path+'/sc/sc!page.action',
+		reader: {
+            type: 'json',
+			root:'resultObject.result',
+			totalProperty: 'resultObject.totalCount'
+        }
+    },
+	autoLoad: true
+});
+//store1.sort('id', 'DESC');
+
+var osStore=Ext.create('Ext.data.Store', {
+storeId:'osStore',
+	width:'100%',
+    model: 'Os',
+	proxy: {
+        type: 'ajax',
+        url : path+'/sc/os!getAll.action',
+		reader: {
+            type: 'json',
+            root:'resultObject'
+        }
+    },
+	autoLoad: true
+});
+
+
+var cpuStore=Ext.create('Ext.data.Store', {
+storeId:'cpuStore',
+	width:'100%',
+    model: 'Cpu',
+	proxy: {
+        type: 'ajax',
+        url : path+'/sc/cpu!getAll.action',
+		reader: {
+            type: 'json',
+            root:'resultObject'
+        }
+    },
+	autoLoad: true
+});
+
+
+function fuc(value){
+
+if(value=="undefined"){
+value="";
+}
+return value;
+
+}
+
+Ext.QuickTips.init();
+Ext.form.Field.prototype.msgTarget = 'side';
+ var pluginExpanded = true;
+ var dataGrid=Ext.create('Ext.grid.Panel', {
+    layout:'fit',
+    //title: '套餐管理&nbsp&nbsp>>&nbsp&nbsp套餐列表',
+	title:i18n._('ServiceCatalog_management')+'&nbsp;&nbsp;>>&nbsp;&nbsp;'+i18n._('ServiceCatalog_list'),
+    store: Ext.data.StoreManager.lookup('simpsonsStore'),
+	simpleSelect:true,
+	selModel: Ext.create('Ext.selection.RowModel'),
+    columns: [Ext.create('Ext.grid.RowNumberer',
+	    {header:i18n._('row_Num'),dataIndex:'item',align:'left',flex:1}),//////////////////////////////////////////////////////////////
+		
+       /* {header: '套餐名称',  dataIndex: 'name', flex:1},
+        {header: '操作系统',  dataIndex: 'osInfo', flex:1},
+        {header: 'CPU', dataIndex: 'cpuInfo',flex:1},
+		{header: '内存(G)', dataIndex: 'memory',flex:1,sortable:true},
+		{header: '硬盘(G)', dataIndex: 'disk',flex:1,sortable:true},
+		{header: '带宽(M)', dataIndex: 'network',flex:1,sortable:true},
+		{header: '价格(RMB/小时)', dataIndex: 'price',flex:1,sortable:true}*/
+		{header: i18n._('ServiceCatalog_name'),  dataIndex: 'name', flex:1},
+        {header: i18n._('system'),  dataIndex: 'osInfo', flex:1},
+        {header: i18n._('cpu'), dataIndex: 'cpuInfo',flex:1},
+		{header: i18n._('Memory')+"(G)", dataIndex: 'memory',flex:1,sortable:true},
+		{header: i18n._('Disk')+"(G)", dataIndex: 'disk',flex:1,sortable:true},
+		{header: i18n._('Bandwidth')+"(M)", dataIndex: 'network',flex:1,sortable:true},
+		{header: i18n._('Price')+"("+i18n._('RMB/hour')+")", dataIndex: 'price',flex:1,sortable:true}
+    ],
+	// //////////////
+            selType: 'cellmodel',
+	        bbar: Ext.create('Ext.PagingToolbar', {
+            store:'simpsonsStore' ,
+            displayInfo: true
+        }),       
+// //////////////////////////////
+    viewConfig: {
+        plugins: {
+            ptype: 'gridviewdragdrop',
+            dragText: 'Drag and drop to reorganize'
+        }
+    },
+// //////////////////////////////
+	
+	 dockedItems:[
+
+			{xtype:'toolbar',
+			dock: 'top',
+			
+			items:[
+			
+			  {    
+			    margin:'0 0 0 0',
+               // text:'添加套餐',
+			   text:i18n._('Add_ServiceCatalog'),
+
+				style:'margin-left:750px;',
+               
+				icon: '../images/add.png',
+				handler:function(){
+				var memorySlider= Ext.create('Ext.slider.Single', {
+					id:'memory1',
+                    //fieldLabel: '内存',
+					fieldLabel:i18n._('Memory'),
+                    width: 220,
+                    increment: 1,
+                    minValue: 1,
+                    maxValue: 2,
+                    value:1,
+	            	style:'margin:5 0 0 10',
+	                tipText: function(thumb){
+                        return Ext.String.format('<b>{0}G</b>', thumb.value);
+	            		},
+	            	listeners:{
+						'change':{
+						fn:function(){
+							var memory_value=  Ext.getCmp('memory1').getValue();
+							Ext.getCmp('memoryValue').setValue(memory_value+'G');
+								}
+							}
+						}	
+                  });
+                
+					var memoryPanel= Ext.create('Ext.panel.Panel',{
+	                 xtype:'panel',
+	            	 height:30,
+	            	 width:290,
+	            	 border:false,
+	            	 layout:'hbox',
+	            	 items:[memorySlider,{
+	            	        xtype: 'displayfield',
+							id:'memoryValue',
+	            			margin:'0 0 0 8',
+                            value:'1G'
+	            	 }]
+	              });
+                
+                 
+                  var diskSlider= Ext.create('Ext.slider.Single', {
+					id:'disk',
+                    //fieldLabel: '硬盘',
+                    fieldLabel:i18n._('Disk'),
+                    width: 220,
+                    increment: 1,
+                    minValue: 1,
+                    maxValue: 20,
+                    value:5,
+	            	style:'margin:5 0 0 10',
+	                tipText: function(thumb){
+                        return Ext.String.format('<b>{0}G</b>', thumb.value);
+	            		},
+						listeners:{
+						'change':{
+						fn:function(){
+						var disk_value=  Ext.getCmp('disk').getValue();
+	  				  Ext.getCmp('diskValue').setValue(disk_value+'G');
+						}
+	  			  }
+	  			}
+                  });
+                
+                
+	              
+	              var diskPanel= Ext.create('Ext.panel.Panel',{
+	                    xtype:'panel',
+	            	    height:30,
+	            	    width:290,
+	            	    border:false,
+	            	    layout:'hbox',
+	            	   items:[diskSlider,{
+	            	        xtype: 'displayfield',
+							id:'diskValue',
+	            			margin:'0 0 0 8',
+                            value:'5G'
+	            	 }]
+	              });
+                
+                
+	              
+                
+	             
+	               var bandwidthSlider= Ext.create('Ext.slider.Single', {
+					id:'network',
+                   // fieldLabel: '带宽',
+					fieldLabel:i18n._('Bandwidth'),
+                    width: 220,
+                    increment: 1,
+                    minValue: 1,
+                    maxValue: 10,
+                    value:5,
+	            	style:'margin:5 0 0 10',
+	                tipText: function(thumb){
+                        return Ext.String.format('<b>{0}M</b>', thumb.value);
+	            		},
+						listeners:{
+				'change':{
+				   fn:function(){
+				  	 var bandwidth_value=  Ext.getCmp('network').getValue();
+				  	 Ext.getCmp('bandwidthValue').setValue(bandwidth_value+'M');
+				  		 }
+				  	 }
+				}	
+                  });
+                
+                
+	              
+	              var bandwidthPanel= Ext.create('Ext.panel.Panel',{
+	                    xtype:'panel',
+	            	    height:30,
+	            	    width:290,
+	            	    border:false,
+	            	    layout:'hbox',
+	            	   items:[bandwidthSlider,{
+	            	        xtype: 'displayfield',
+							id:'bandwidthValue',
+	            			margin:'0 0 0 8',
+                            value:'5M'
+	            	 }]
+	              });
+                 
+                  var combobox1 = Ext.create('Ext.form.ComboBox', {
+				  id: 'os.id',		
+					editable:false,
+                   // fieldLabel: '操作系统',
+				    fieldLabel:i18n._('system'),
+                    store: osStore,
+	                width: 250,
+	                style:'margin:10 0 10 10',
+                    queryMode: 'local',
+                    displayField: 'model',
+                    valueField: 'id',
+                    renderTo: Ext.getBody()
+                
+                  });
+         
+                  Ext.getCmp('os.id').setValue(osStore.getRange()[0].data.id);
+                   var combobox2 = Ext.create('Ext.form.ComboBox', {
+					id:'cpu.id',
+					editable:false,
+                    //fieldLabel: 'CPU',
+					fieldLabel:i18n._('CPU'),
+                    store: cpuStore,
+	                width: 250,
+	                style:'margin:10 0 10 10',
+                    queryMode: 'local',
+                    displayField: 'model',
+	            	emptyText:i18n._('please choose'),
+                    valueField: 'id'
+                  });
+                   Ext.getCmp('cpu.id').setValue(cpuStore.getRange()[0].data.id);
+// // ///////////////添加套餐
+                 var isok = true;
+                
+                var form = Ext.create('Ext.form.Panel', { 
+					id:'addForm',
+	            	 height:350,
+                    border: false,
+                    items: [
+	            	{    
+					id:'name',
+					xtype: 'textfield',		
+                       // fieldLabel: '套餐名称',
+					    fieldLabel:i18n._('ServiceCatalog_name'),
+	            	    style:'margin:5 0 0 10',
+	            	    width: 250,
+	            	    allowBlank: false ,
+	            	  	//blankText:'套餐名不能为空',
+						blankText:i18n._('ServiceCatalog_name can not be empty'),
+
+	            	  	validateOnBlur:true,
+	            	    textValid: true,
+	            	    validator: function(){
+	            	        return this.textValid;
+	            	    },
+	            	    listeners : {
+	            	        'change': function(textfield,newValue,oldValue) {
+	            	           Ext.Ajax.request({
+	            	        	   
+	            	        	   
+	            	        	   url: path+'/sc/sc!checkServiceCatalogName.action',
+	            		    	    params: {
+	            		    	        'serviceCatalog.name': newValue
+	            		    	    },
+	            		    	    scope: textfield,
+	            		    	    success: function(response){
+	            		    	    	var rs=Ext.JSON.decode(response.responseText);
+	            		    	    	//alert(rs.resultObject);
+	            		    	    	if(rs.resultObject=='false'){
+	   	            	                  this.textValid = true;
+	            		    	    		this.clearInvalid();
+	            		    	    	}else{
+	  	            	                  	//this.textValid = '套餐名称已存在！';
+											this.textValid=i18n._('ServiceCatalog_name exist');
+
+	            		    	    		//this.markInvalid('套餐名称已存在！');
+                                             this.markInvalid(i18n._('ServiceCatalog_name exist'));
+	            		    	    	}
+	            		    	    	}
+	            	        	   
+	            	            
+	            	           });
+	            	         }       
+	            	      }
+
+	            	    
+
+                    },combobox1,combobox2,
+	            	  memoryPanel,diskPanel,bandwidthPanel,
+	            	/*
+					 * { xtype: 'fieldcontainer', style:'margin:5 0 0 5',
+					 * fieldLabel: '存储器', layout:'hbox', combineErrors: false,
+					 * defaults: { hideLabel: true }, },
+					 */
+	            	{
+	            	     xtype: 'fieldcontainer',
+	            	     style:'margin:5 0 0 10',
+                        // fieldLabel: '套餐价格',
+						 fieldLabel:i18n._('ServiceCatalog_price'),
+	            		 layout:'hbox',
+                         combineErrors: false,
+                         defaults: {
+                         hideLabel: true
+                                    },
+                       items: [
+                                  {
+									id:'price',
+                                     xtype: 'numberfield',
+								//	 vtype:'integer',
+                                     width: 80,
+                                     allowBlank: false,
+                                  //   blankText:'套餐价格不能为空'
+								  	blankText:i18n._('ServiceCatalog_price can not be empty')
+                                   },
+                                   {
+									xtype: 'displayfield',
+									margin:'0 0 0 10',
+									//value:' RMB/小时'
+                                   value:i18n._('RMB/hour')
+									}	
+	            					
+	            					
+                            ]
+                      }
+	            	  ,{
+	            	  xtype: 'textfield',
+					  id:'description',
+                        //fieldLabel: '详细信息',
+						fieldLabel:i18n._('details'),
+	            	    style:'margin:5 0 0 10',
+	            	    width: 430,
+	            		height:80,
+	            	    allowBlank: true,
+						value:'',
+	            		emptyText:''
+	            	
+	            	
+	            	
+	            	}]
+                });
+
+				Ext.create('Ext.window.Window', {
+					id:'addWindow',
+                   // title: '添加套餐',
+				    title:i18n._('Add_ServiceCatalog'),
+	            	modal:'true',
+                    width: 460,
+                    autoHeight:true,
+                    layout: 'fit',
+                    closable:false,
+					// plain:true,
+                    items: form,
+	            	tools:[{
+	                 type:'close',
+	                 handler:function(){
+	                   Ext.getCmp('addWindow').destroy();
+	               }
+	                }],
+                
+                    buttons: [
+	            	{   style:'margin-right:5',
+                        //text: '确定',
+						text:i18n._('OK'),
+						handler:function(){
+							if(Ext.getCmp('name').getValue()==''){
+								 Ext.MessageBox.show({
+                                    // title: '提示',
+                                    // msg: '套餐名不能为空！',
+									 title: i18n._('notice'),
+								     msg:i18n._('ServiceCatalog_name can not be empty'),
+                                     icon:Ext.MessageBox.WARNING,
+                                     buttons: Ext.MessageBox.OK
+									 //buttons:{ok:"确定"}
+                
+     							}); 
+								return;
+							}
+							if(Ext.getCmp('price').getValue()==''||Ext.getCmp('price').getValue()==undefined){
+								return;
+							}
+							var myMask1 = new Ext.LoadMask(Ext.getBody(), {
+		                        //msg: '正在保存套餐，请稍候！',
+								msg:i18n._('ServiceCatalog is saving,please wait!'),
+		                        removeMask: true //完成后移除
+		                    });
+		                    myMask1.show();
+					
+	           					var name =  Ext.getCmp('name').value;
+	           		    		var memory = memorySlider.getValue()*1024;
+	           		    		var disk =  diskSlider.getValue();
+	           		    		var network= bandwidthSlider.getValue();
+	           		    		var os =  Ext.getCmp('os.id').value;
+	           		    		var cpu =  Ext.getCmp('cpu.id').value;
+	           		    		var price =  Ext.getCmp('price').value;
+	           		    		var description =  Ext.getCmp('description').value;
+	           		    		
+	           		    		Ext.Ajax.request({
+	           		    		    url: path+'/sc/sc!save.action',
+	           						 jsonData:'{"name":"'+name+'","memory":{"params":"'+memory+'"},"disk":{"params":"'+disk+'"},"network":{"params":"'+network+'"},"os":{"id":'+os+'},"cpu":{"id":'+cpu+'},"price":'+price+',"description":"'+description+'"}',
+	           							success: function(response){
+	           								myMask1.hide();
+	           								var result=Ext.JSON.decode(response.responseText);
+	           								if(result.success==false){
+	           									Ext.MessageBox.show({
+	 	                                          // title: '提示',
+                                                    title:i18n._('notice'),
+	 	                                           msg: result.resultMsg,
+	 	                                           icon:Ext.MessageBox.INFO,
+	 	           		  
+	 	                                           buttons: Ext.MessageBox.OK
+	 	                      
+	 	           							});
+	           									return;
+	           								}else{	           								
+	           								Ext.getCmp('addWindow').destroy();	           						
+	           							 	Ext.MessageBox.show({
+	                                          // title: '提示',
+											   title:i18n._('notice'),
+                                                msg:i18n._('ServiceCatalog is added succefully'),
+	                                           //msg: '套餐添加成功',
+	                                           icon:Ext.MessageBox.INFO,
+	           		  
+	                                           buttons: Ext.MessageBox.OK
+	                      
+	           							}); 
+	           		    		    	store1.load();
+	           								}
+	           								
+	           		    		    }
+	           		    		});
+	            	    	        
+	            	    	  
+	            	    
+								}
+                    },
+	            	{    style:'margin-right:0',
+                       // text: '重置',
+					     text:i18n._('rebuilt'),
+						 handler:function(){
+	                  Ext.getCmp('addForm').getForm().reset();
+	               			}
+                    }]
+                }).show();
+				}
+   
+            },'-',
+			{    
+			    margin:'0 0 0 0',
+                //text:'修改套餐',
+				text:i18n._('Modify_ServiceCatalog'),
+				style:'margin-left:750px;',
+               
+				icon: '../images/refresh.png',
+				handler:function(){
+				 // 修改套餐
+				 var rows=dataGrid.getSelectionModel().getSelection();
+				 var scId;
+				 if(rows.length > 0){
+				 scId=rows[0].get('id');
+			
+					}else{
+			    		
+						 Ext.MessageBox.show({
+                          // title: '提示',
+						    title:i18n._('notice'),
+                           // msg: '请选择一列',
+						    msg:i18n._('please choose one column'),
+                          icon:Ext.MessageBox.WARNING,
+                          buttons: Ext.MessageBox.OK
+						  //buttons:{ok:'确定'}
+                         }); 
+						return;
+			    	}
+				var record=	store1.getById(scId);
+	
+	var memorySlider= Ext.create('Ext.slider.Single', {
+		id:'memory',
+        //fieldLabel: '内存',
+		fieldLabel:i18n._('Memory'),
+        width: 220,
+        increment: 1,
+		value: record.get('memory'),
+        minValue: 1,
+        maxValue: 2,
+		style:'margin:5 0 0 10',
+	  tipText: function(thumb){
+            return Ext.String.format('<b>{0}G</b>', thumb.value);
+			},
+			listeners:{
+			'change':{
+			   fn:function(){
+			  	 var memory_value=  Ext.getCmp('memory').getValue();
+			  	 Ext.getCmp('memoryValue').setValue(memory_value+'G');
+			  		 }
+			  	 }
+			}
+      });
+      var rememory_panel= Ext.create('Ext.panel.Panel',{
+	     xtype:'panel',
+		 height:30,
+		 width:290,
+		 border:false,
+		 layout:'hbox',
+		 items:[memorySlider,{
+		        xtype: 'displayfield',
+				id:'memoryValue',
+				margin:'0 0 0 8',
+                value:record.get('memory')+'G'
+		 }]
+	  });
+
+      var diskSlider=Ext.create('Ext.slider.Single', {
+	  id:'disk',
+        //fieldLabel: '硬盘',
+		fieldLabel:i18n._('Disk'),
+        width: 220,
+        increment: 1,
+		value: record.get('disk'),
+        minValue: 1,
+        maxValue: 20,
+		style:'margin:5 0 0 10',
+	    tipText: function(thumb){
+            return Ext.String.format('<b>{0}G</b>', thumb.value);
+			},
+			listeners:{
+						'change':{
+						fn:function(){
+						var disk_value=  Ext.getCmp('disk').getValue();
+	  				  Ext.getCmp('diskValue').setValue(disk_value+'G');
+						}
+	  			  }
+	  			}
+      });
+	    
+	  var redisk_panel= Ext.create('Ext.panel.Panel',{
+	       xtype:'panel',
+		   height:30,
+		   width:290,
+		   border:false,
+		   layout:'hbox',
+		   items:[diskSlider,{
+		        xtype: 'displayfield',
+				id:'diskValue',
+				margin:'0 0 0 8',
+                value:record.get('disk')+'G'
+		 }]
+	  });
+	 
+	  
+	   var bandwidthSlider= Ext.create('Ext.slider.Single', {
+	   id:'network',
+       // fieldLabel: '带宽',
+        fieldLabel:i18n._('Bandwidth'),
+        width: 220,
+        increment: 1,
+		value: record.get('network'),
+        minValue: 1,
+        maxValue: 10,
+		style:'margin:5 0 0 10',
+	    tipText: function(thumb){
+            return Ext.String.format('<b>{0}M</b>', thumb.value);
+			},
+			listeners:{
+				'change':{
+				   fn:function(){
+				  	 var bandwidth_value=  Ext.getCmp('network').getValue();
+				  	 Ext.getCmp('bandwidthValue').setValue(bandwidth_value+'M');
+				  		 }
+				  	 }
+				}
+      });
+
+
+	  
+	  var rebandwidth_panel= Ext.create('Ext.panel.Panel',{
+	        xtype:'panel',
+		    height:30,
+		    width:290,
+		    border:false,
+		    layout:'hbox',
+		   items:[bandwidthSlider,{
+		        xtype: 'displayfield',
+				id:'bandwidthValue',
+				margin:'0 0 0 8',
+                value:record.get('network')+'M'
+		 }]
+	  });
+	 var combobox3 = Ext.create('Ext.form.ComboBox', {
+		id:'os.id',
+		editable:false,
+       // fieldLabel: '操作系统',
+	    fieldLabel:i18n._('system'),
+        store: osStore,
+	    width: 250,
+	    style:'margin:10 0 10 10',
+        queryMode: 'local',
+        displayField: 'model',
+	
+		value:{
+		'id':record.get('os').id,
+		'model':record.get('os').model
+		},
+        valueField: 'id'   
+      });
+       var combobox4 = Ext.create('Ext.form.ComboBox', {
+	   id:'cpu.id',
+	   editable:false,
+        //fieldLabel: 'CPU',
+		fieldLabel:i18n._('cpu'),
+        store: cpuStore,
+	    width: 250,
+	    style:'margin:10 0 10 10',
+        queryMode: 'local',
+        displayField: 'model',
+		value:{
+		'id':record.get('cpu').id,
+		'model':record.get('cpu').model
+		},
+        valueField: 'id'
+      });
+	 var fs = Ext.create('Ext.form.Panel', {
+		 id:'modifyForm',
+		height:350,
+        border: false,
+        items: [
+		{    xtype: 'textfield',
+			id:'name',
+            //fieldLabel: '套餐名称',
+			fieldLabel:i18n._('ServiceCatalog_name'),
+		    style:'margin:5 0 0 10',
+		    width: 250,
+		    value:record.get('name'),
+		    allowBlank:false,
+		    //blankText:'套餐名不能为空',
+			blankText:i18n._('ServiceCatalog_name can not be empty'),
+    	  	validateOnBlur:true,
+
+    	    textValid: true,
+    	    validator: function(){
+    	        return this.textValid;
+    	    },
+    	    listeners : {
+    	        'change': function(textfield,newValue,oldValue) {
+    	           Ext.Ajax.request({
+    	        	   
+    	        	   
+    	        	   url: path+'/sc/sc!checkServiceCatalogName.action',
+    		    	    params: {
+    		    	        'serviceCatalog.name': newValue,
+    		    	        'serviceCatalog.id':record.get('id')
+    		    	    },
+    		    	    scope: textfield,
+    		    	    success: function(response){
+    		    	    	var rs=Ext.JSON.decode(response.responseText);
+    		    	    	if(rs.resultObject=='false'){
+           	                  this.textValid = true;
+    		    	    		this.clearInvalid();
+    		    	    	}else{
+          	                  
+								           //this.textValid = '套餐名称已存在！';
+											this.textValid=i18n._('ServiceCatalog_name exist');
+
+	            		    	    		//this.markInvalid('套餐名称已存在！');
+                                             this.markInvalid(i18n._('ServiceCatalog_name exist'));
+    		    	    	}
+    		    	    	}
+    	        	   
+    	            
+    	           });
+    	         }       
+    	      }
+	
+             
+        },combobox3,combobox4,rememory_panel,redisk_panel,rebandwidth_panel,
+		{
+		     xtype: 'fieldcontainer',
+		     style:'margin:5 0 0 10',
+             //fieldLabel: '套餐价格',
+			   fieldLabel:i18n._('ServiceCatalog_price'),
+			 layout:'hbox',
+             combineErrors: false,
+             defaults: {
+             hideLabel: true
+                        },
+            items: [
+                      {
+                         id : 'price',
+                         xtype: 'numberfield',
+						  value:record.get('price'),
+                         width: 80,
+                         allowBlank: false,
+                         //blankText:'套餐价格不能为空'
+						 blankText:i18n._('ServiceCatalog_price can not be empty')
+                       },
+                       {
+						xtype: 'displayfield',
+						margin:'0 0 0 10',
+						//value:' RMB/小时'
+						value:i18n._('RMB/hour')
+						}	
+					
+						
+                ]
+          }
+		  ,{
+		    xtype: 'textfield',
+			id:'description2',
+            //fieldLabel: '详细信息',
+			fieldLabel:i18n._('details'),
+		    style:'margin:5 0 0 10',
+		    width: 430,
+			height:80,
+		    allowBlank: true,
+			value:record.get('description')
+		
+
+		}]
+    });
+
+	var modify = Ext.create('Ext.window.Window', {
+		id:'modifyWindow',
+        //title: '修改套餐',
+	    title:i18n._('Modify_ServiceCatalog'),
+		modal:'true',
+        width: 460,
+        autoHeight:true,
+	    closable:false,
+		items: fs,
+		tools:[{
+			type:'close',
+	    	handler:function(){
+	                   Ext.getCmp('modifyWindow').destroy();
+	               }
+	    }],
+        layout: 'fit',
+        // plain:true,
+        
+        buttons: [
+		{   style:'margin-right:5',
+            //text: '确定',
+			text:i18n._('OK'),
+            handler:function(){
+            	if(Ext.getCmp('name').getValue()==''){
+					 Ext.MessageBox.show({
+                       // title: '提示',
+                       // msg: '套餐名不能为空！',
+					    title: i18n._('notice'),
+					    msg:i18n._('ServiceCatalog_name can not be empty!'),
+                        icon:Ext.MessageBox.WARNING,
+  
+                        buttons: Ext.MessageBox.OK
+   
+					}); 
+					return;
+				}
+				if(Ext.getCmp('price').getValue()==''||Ext.getCmp('price').getValue()==undefined){
+					return;
+				}
+            	
+				var myMask1 = new Ext.LoadMask(Ext.getBody(), {
+                    //msg: '正在保存！',
+					msg:i18n._('saving'),
+                    removeMask: true //完成后移除
+                });
+            myMask1.show();
+            var id=record.get('id');
+				var name =  Ext.getCmp('name').value;
+	    		var memory = memorySlider.getValue()*1024;
+	    		var disk =  diskSlider.getValue();
+	    		var network= bandwidthSlider.getValue();
+	    		var os =  combobox3.getValue().id==undefined?combobox3.getValue():combobox3.getValue().id;
+	    		var cpu =  combobox4.getValue().id==undefined?combobox4.getValue():combobox4.getValue().id;
+	    		var price =  Ext.getCmp('price').value;
+	    		var description =  fuc(Ext.getCmp('description2').getValue());
+				var flavorId=record.get('flavorId');
+	    		
+				Ext.Ajax.request({
+				timeout:30000,						
+    		    url: path+'/sc/sc!save.action',
+				 jsonData:'{"id":'+id+',"name":"'+name+'","memory":{"params":"'+memory+'"},"disk":{"params":"'+disk+'"},"network":{"params":"'+network+'"},"os":{"id":'+os+'},"cpu":{"id":'+cpu+'},"price":'+price+',"description":"'+description+'","flavorId":"'+flavorId+'"}',
+				success: function(response){
+						myMask1.hide();
+						var result=Ext.JSON.decode(response.responseText);
+							if(result.success==false){
+								Ext.MessageBox.show({
+                                //title: '提示',
+								 title: i18n._('notice'),
+                                msg: result.resultMsg,
+                                icon:Ext.MessageBox.INFO,
+		  
+                                buttons: Ext.MessageBox.OK
+           
+							});
+								return;
+							}else{
+    		    		store1.load();
+						Ext.getCmp('modifyWindow').destroy();
+					}
+    		    }
+    				});
+				
+					}
+            
+            
+        },
+		{    style:'margin-right:0',
+            //text: '重置',
+			text:i18n._('reset'),
+			handler:function(){
+	    Ext.getCmp('modifyForm').getForm().reset();
+	   }
+			
+        }]
+    }).show();}
+   
+            },'-',
+			{
+                itemId: 'removeButton',
+                //text:'删除套餐',
+				text:i18n._('Delete_ServiceCatalog'),
+                icon: '../images/delete.png',
+				handler:function(){
+				var rows=dataGrid.getSelectionModel().getSelection();
+				 var scId;
+				 if(rows.length > 0){
+				 scId=rows[0].get('id');
+				 
+				 Ext.MessageBox.show({
+			                  // title:'提示',
+			                 //  msg: '确定删除吗',
+							    title: i18n._('notice'),
+								msg:i18n._('Are you sure to delete'),
+			                   buttons: Ext.MessageBox.YESNO,
+			                   icon: Ext.MessageBox.QUESTION,
+			                   fn:function(e){
+			                	   if(e=="no"){
+			                		   return;
+			                	   }
+			                	 Ext.Ajax.request({
+									url: path+'/sc/sc!delete.action',
+										method: 'POST',
+									params:{
+									'serviceCatalog.id':scId
+									},
+									callback: function (options, success, response) {
+									if(success){　　　　　　　　　　
+									 Ext.MessageBox.show({
+                                         // title: '提示',
+										  title: i18n._('notice'),
+                                         // msg: '删除成功',
+										 msg:i18n._('delete successfully'),
+                                          icon:Ext.MessageBox.INFO,
+                                          buttons: Ext.MessageBox.OK
+           
+										}); 
+									store1.load();
+										}
+										}
+										});
+			                	}
+			    		});	 	
+					}else{
+						 Ext.MessageBox.show({
+                               // title: '提示',
+							    title: i18n._('notice'),
+                               // msg: '请选择一列',
+							    msg:i18n._('please choose one column'),
+                                icon:Ext.MessageBox.WARNING,
+                                buttons: Ext.MessageBox.OK
+						}); 
+						return;
+			    	}		           
+			        }
+            },
+			{xtype:'tbfill'},			
+			{    
+			    margin:'0 0 0 65',
+				//fieldLabel: '套餐名称',
+				fieldLabel:i18n._('ServiceCatalog_name'),
+                labelWidth: 100,
+                xtype: 'searchfield',
+				store: store1
+			}]}],
+    plugins: [
+        Ext.create('Ext.grid.plugin.CellEditing', {
+            clicksToEdit: 1
+        })
+    ],
+   // height:600,
+    width: '100%'
+    
+})
+
+ Ext.create('Ext.Viewport',{
+ layout:'fit',
+ items: dataGrid
+});
+
+
+            }
+        };
+    })();
+
+     MultiLang.init();  
+ });
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

@@ -1,0 +1,979 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>市场推广</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/ProgressBarPager.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../business/common.js"></script>
+<script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+Ext.QuickTips.init(true,{dismissDelay:600000});
+Ext.require([
+    'Ext.data.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.ux.form.SearchField',
+	'Ext.ux.RowExpander',
+    'Ext.selection.CheckboxModel',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.ProgressBarPager'
+]);
+
+
+Ext.onReady(function() {
+	var vmid=0;
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+            },
+            setup: function() {	
+	  Ext.define('MarketingPromotion', {
+	      extend: 'Ext.data.Model',
+	      fields: ['id', 'name', 'code','address','domain_id','domain_abbreviation','brand_code','brand_name','status','description',
+	    	  {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'}],
+	      idProperty: 'id'
+	  });
+	  // 定义分平台
+	  Ext.define('Domain',{
+		  extend:'Ext.data.Model',
+		  fields:['id',{name:'name',mapping:'abbreviation'}]
+	  });
+	  // 定义Brand
+	  Ext.define('UserBrand',{
+		  extend: 'Ext.data.Model',
+		  fields:[
+		  {name:'id',type:'long'},
+		  {name:'code',type:'string'},
+		  {name:'name',type:'string'}
+		  ]
+	  });	  
+	  
+	  var brandArr=[];
+	  
+	  // create the Data Store
+	  var store = Ext.create('Ext.data.Store', {
+	      pageSize: pageSize,
+	      model: 'MarketingPromotion',
+	      proxy: new Ext.data.proxy.Ajax({
+	      	url: path+'/../marketing/marketingpromotion!getMarketingPromotionByPage.action',
+			reader: {
+	              type: 'json',
+	              root: 'resultObject.result',
+	              totalProperty: 'resultObject.totalCount'
+	        },
+	        listeners:{
+				exception:function(reader, response, error, eOpts){
+					ajaxException(reader, response, error, eOpts );
+				}
+			}
+	      })
+	  });
+      store.load();
+    
+      // 加载所有的分平台
+	  var domainStore=Ext.create('Ext.data.Store',{
+	        model: 'Domain',
+	        proxy: new Ext.data.proxy.Ajax({
+	      	  url: path+'/../admin_mgmt/domain!getAllDomain.action',
+			  reader: {
+	              type: 'json',
+	              root: 'resultObject',
+	              totalProperty: 'resultObject.totalCount'
+	          }
+	        })
+	  });
+	  domainStore.load();
+	  
+	  // 根据domain_id查询出domain下面的所有品牌数据
+      function getBrandByDomain(domain_id){
+        	$.ajax({
+        		url:path+'/../admin_mgmt/domain!findRelatedBrandByDomainId.action',
+        		async:false,
+        		dataType:'json',
+        		type:'POST',
+        		data:{
+        			domainId:domain_id
+        		},
+        		success:function(brandObj){
+        		    brandArr=[];
+        			if(brandObj.success){
+        				var brandArrTemp=brandObj.resultObject;
+        				for(var i=0;i<brandArrTemp.length;i++){
+        					var item={id:brandArrTemp[i].brandId,code:brandArrTemp[i].brandCode,name:brandArrTemp[i].brandName};
+        					brandArr.push(item);
+        				}
+        			}else{
+        				alert("load brand failure");
+        			}
+		}
+        	});
+        	brandStore.loadData(brandArr);
+        	return brandArr;
+      }	  
+	  // 根据domain_abbreviation查询出domain下面的所有品牌数据
+      function getBrandByDomain_Abbreviation(abbreviation){
+        	$.ajax({
+        		url:path+'/../admin_mgmt/domain!findRelatedBrand.action',
+        		async:false,
+        		dataType:'json',
+        		type:'POST',
+        		data:{
+        			abbreviation:abbreviation
+        		},
+        		success:function(brandObj){
+        		    brandArr=[];
+        			if(brandObj.success){
+        				var brandArrTemp=brandObj.resultObject;
+        				for(var i=0;i<brandArrTemp.length;i++){
+        					var item={id:brandArrTemp[i].brandId,code:brandArrTemp[i].brandCode,name:brandArrTemp[i].brandName};
+        					brandArr.push(item);
+        				}
+        			}else{
+        				alert("load brand failure");
+        			}
+		}
+        	});
+        	return brandArr;
+      }		  
+	  // 根据domain_id查询出domain下面的所有品牌数据
+      function getBrandByDomain2(domain_id){
+        	$.ajax({
+        		url:path+'/../admin_mgmt/domain!findRelatedBrandByDomainId.action',
+        		async:false,
+        		dataType:'json',
+        		type:'POST',
+        		data:{
+        			domainId:domain_id
+        		},
+        		success:function(brandObj){
+        		    brandArr=[];
+        			if(brandObj.success){
+        				var brandArrTemp=brandObj.resultObject;
+        				for(var i=0;i<brandArrTemp.length;i++){
+        					var item={id:brandArrTemp[i].brandId,code:brandArrTemp[i].brandCode,name:brandArrTemp[i].brandName};
+        					brandArr.push(item);
+        				}
+        			}else{
+        				alert("load brand failure");
+        			}
+		}
+        	});
+        	return brandArr;
+      }	  	  
+	  
+      var brandStore = Ext.create("Ext.data.Store",{
+    	   model:"UserBrand",
+    	   data:brandArr
+      });
+      
+    var sm = Ext.create('Ext.selection.RowModel');
+    var pluginExpanded = true;
+    var grid = Ext.create('Ext.grid.Panel', {
+        id:'button-grid',
+        store: store,
+        title:i18n._('BusinessManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('MarketingPromotion'),
+		layout:'fit',
+		sortableColumns:false,
+		margin:'0 0 0 0',
+	    width:'100%',
+		height:'100%',
+        frame: true,
+		border:false,
+		simpleSelect :true,
+     	selModel:sm,
+        iconCls: 'icon-grid',
+        viewConfig: {
+            stripeRows: true,
+			forceFit: true
+        },
+        columns:[
+		{xtype: 'rownumberer',flex:0.05},
+        {
+            text: i18n._('PromotionName'),
+            dataIndex: 'name',
+            flex: 0.1
+        },{
+        	 text: i18n._('PromotionCode'),
+             flex: 0.1,
+             dataIndex:'code',
+        },{
+        	 text: i18n._('PromotionAddress'),
+             flex: 0.15,
+             dataIndex:'address',
+             renderer:function(value,metaData){
+            	 if(value!=null){
+            		 metaData.tdAttr = 'data-qtip="' + value + '"';
+            		 return value;
+            	 }
+             }             
+        },{
+        	 text: i18n._('PromotionDomain'),
+             flex: 0.1,
+             dataIndex:'domain_abbreviation',
+        },{
+        	 text: i18n._('PromotionBrand'),
+             flex: 0.1,
+             dataIndex:'brand_name',
+        },{
+        	text: i18n._('status'),
+        	flex:0.1,
+        	dataIndex:'status',
+        	align:'center',
+        	renderer:function(value){
+        		if(value==0){
+        			return i18n._('Disable_ServiceCatalog');
+        		}else if(value=1){
+        			return i18n._('Enable');
+        		}
+        	}
+        },{
+            text: i18n._('createDate'),
+            dataIndex: 'createDate',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+			flex: 0.15
+        },{
+            text: i18n._('PromotionDesc'),
+            flex: 0.2,
+            dataIndex:'description',
+            renderer:function(value,metaData){
+            	if(value!=null){
+            		metaData.tdAttr = 'data-qtip="' + value + '"';
+            		return value;
+            	}
+            }
+        }],
+        columnLines: true,
+		 bbar: Ext.create('Ext.PagingToolbar', {
+            store: store,
+			pageSize: 16,
+			displayInfo: true
+        }),
+        listeners:{
+        	"itemdblclick":{
+        		fn:function(){
+        			viewDetail();
+        		}
+        	}
+        },
+        dockedItems: [ {
+            xtype: 'toolbar',
+            cls: 'toolbarCSS',
+            items: [
+			{
+				xtype:'button',
+  				margin:'0 0 0 0',
+  				icon:'images/add_new.png',
+  				text:'<font id="addMarketingPromotion" color="white" >' +i18n._("Add") + '</font>',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("addMarketingPromotion").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("addMarketingPromotion").style.color = "black";
+					 }
+						
+				},
+			    handler: function(e) {
+			    	getSessionUser();
+			    	addMarketingPromotion();
+            }},{
+            	xtype:'button',
+                text:'<font id="modifyMarketingPromotion" color="white">'+i18n._('modify')+'</font>',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("modifyMarketingPromotion").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("modifyMarketingPromotion").style.color = "black";
+					 }
+						
+				},
+                icon: 'images/edit_new.png',
+                handler:function(){
+                	getSessionUser();
+                	modifyMarketingPromotion();
+            	}
+				},
+				{
+					xtype:'button',
+	                text:'<font id="enableMarketingPromotion" color="white">'+i18n._('Enable')+'</font>',
+	                listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("enableMarketingPromotion").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("enableMarketingPromotion").style.color = "black";
+						 }
+							
+					},
+	                icon: 'images/enable.png',
+	                handler:function(){
+	                	getSessionUser();
+	                	var rows=grid.getSelectionModel().getSelection();
+	      				 if(rows.length > 0){
+	      				 var marketingPromotionId=rows[0].get('id');
+	      				 if(rows[0].get('status')!=0){
+	      					Ext.MessageBox.show({
+								  title: i18n._('notice'),
+								 msg:i18n._('enablePromotionTip'),
+                                  icon:Ext.MessageBox.INFO,
+                                  buttons: Ext.MessageBox.OK
+								});
+	      					return;
+	      				 }
+	      				 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      								msg:i18n._('confirmEnableSC'),
+	      			                   buttons: Ext.MessageBox.YESNO,
+	      			                   icon: Ext.MessageBox.QUESTION,
+	      			                   fn:function(e){
+	      			                	   if(e=="no"){
+	      			                		   return;
+	      			                	   }else if(e=='yes'){
+	      			                		   Ext.Ajax.request({
+	      											url: path+'/../marketing/marketingpromotion!enableMarketingPromotion.action',
+	      											method: 'POST',
+	      											params:{
+	      											'marketingPromotionId':marketingPromotionId
+	      											},
+	      											success:function(response){
+	      					           					var result=Ext.JSON.decode(response.responseText);
+	      					           					if(result.success==false){
+	      					           						Ext.MessageBox.show({
+	      				                                        title:i18n._('notice'),
+	      					 	                               msg: result.resultMsg,
+	      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+	      					 	                               buttons: Ext.MessageBox.OK	 	                      
+	      					 	           				});
+	      					           					}else{
+	      					           						Ext.MessageBox.show({
+	      														  title: i18n._('notice'),
+	      														 msg:i18n._('enableSCSuccess'),
+	      				                                          icon:Ext.MessageBox.INFO,
+	      				                                          buttons: Ext.MessageBox.OK
+	      				           
+	      														});
+	      												store.load();
+	      												}
+	      											}
+	      												});
+	      			                	   }
+	      			                	 
+	      			                	}
+	      			    		});	 	
+	      					}else{
+	      						 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      							    msg:i18n._('please choose one column'),
+	                                      icon:Ext.MessageBox.WARNING,
+	                                      buttons: Ext.MessageBox.OK
+	      						}); 
+	      						return;
+	      			    	}
+	            	}
+            	},
+				{
+					xtype:'button',
+	                text:'<font id="disableMarketingPromotion" color="white">'+i18n._('Disable_ServiceCatalog')+'</font>',
+	                listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("disableMarketingPromotion").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("disableMarketingPromotion").style.color = "black";
+						 }
+							
+					},
+	                icon: 'images/disable.png',
+	                handler:function(){
+	                	getSessionUser();
+	                	var rows=grid.getSelectionModel().getSelection();
+	      				 if(rows.length > 0){
+	      				 var marketingPromotionId=rows[0].get('id');
+	      				if(rows[0].get('status')!=1){
+	      					Ext.MessageBox.show({
+								  title: i18n._('notice'),
+								 msg:i18n._('disablePromotionTip'),
+                                  icon:Ext.MessageBox.INFO,
+                                  buttons: Ext.MessageBox.OK
+   
+								});
+	      					return;
+	      				 }
+	      				 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      								msg:i18n._('confirmDisableSC'),
+	      			                   buttons: Ext.MessageBox.YESNO,
+	      			                   icon: Ext.MessageBox.QUESTION,
+	      			                   fn:function(e){
+	      			                	   if(e=="no"){
+	      			                		   return;
+	      			                	   }else if(e=='yes'){
+	      			                		   Ext.Ajax.request({
+	      											url: path+'/../marketing/marketingpromotion!disableMarketingPromotion.action',
+	      											method: 'POST',
+	      											params:{
+	      											'marketingPromotionId':marketingPromotionId
+	      											},
+	      											success:function(response){
+	      					           					var result=Ext.JSON.decode(response.responseText);
+	      					           					if(result.success==false){
+	      					           						Ext.MessageBox.show({
+	      				                                        title:i18n._('notice'),
+	      					 	                               msg: result.resultMsg,
+	      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+	      					 	                               buttons: Ext.MessageBox.OK	 	                      
+	      					 	           				});
+	      					           					}else{
+	      					           						Ext.MessageBox.show({
+	      														  title: i18n._('notice'),
+	      														 msg:i18n._('disableSCSuccess'),
+	      				                                          icon:Ext.MessageBox.INFO,
+	      				                                          buttons: Ext.MessageBox.OK
+	      				           
+	      														});
+	      												store.load();
+	      												}
+	      											}
+	      												});
+	      			                	   }
+	      			                	 
+	      			                	}
+	      			    		});	 	
+	      					}else{
+	      						 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      							    msg:i18n._('please choose one column'),
+	                                      icon:Ext.MessageBox.WARNING,
+	                                      buttons: Ext.MessageBox.OK
+	      						}); 
+	      						return;
+	      			    	}
+	            	}
+            	},
+            {xtype:'tbfill'},
+            {
+				xtype:'displayfield',
+				hideLabel:true,
+				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+			},
+	        {
+                xtype: 'searchfield',
+                hideLabel:true,
+				hasSearch:true,
+				emptyText:i18n._('SearchDescriptionTip'),
+                store: store
+				
+			 }
+            ]
+        }]
+    });
+ 
+    function addMarketingPromotion(){
+        var brandCombox=Ext.create("Ext.form.ComboBox",{
+					margin:'10 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('PromotionBrand'),
+					allowBlank: false,
+					id:'brandAddField',
+                    editable : false,
+                  	queryMode : 'local',
+					triggerAction : 'all',
+					emptyText:i18n._('Please Select'),
+					store : brandStore,// [['金牌','金牌'],['银牌','银牌'],['铜牌','铜牌']]
+					displayField: 'name',
+					valueField: 'code'
+					//multiSelect: true,
+					//forceSelection: true
+    	});
+		var addMarketingPromotionWin=Ext.create('Ext.window.Window', {
+		    title:i18n._('addPromotion'),
+			layout:'fit',
+		    height: 350,
+			modal:true,
+		    width: 400,
+		    constrain:true,
+			closable:false,
+			tools:[{
+			  type:'close',
+			  handler:function(){
+				  addMarketingPromotionWin.destroy();
+			  }
+			}],
+		    items: {  
+		        xtype: 'form',
+				height:'100%',
+				width:'100%',
+				id:'restForm',
+				fieldDefaults:{
+					msgTarget:'side',
+					autoFitErrors:false
+				},
+		        border: false,
+		        dockedItems: [{
+		            xtype: 'toolbar',
+		            dock: 'bottom',
+		            ui: 'footer',
+		            layout: {
+		                pack: 'left'
+		            },
+		            items: [{
+						margin:'0 0 0 140',
+		                minWidth: 80,
+					    text: i18n._('OK'),
+		                handler:function(){
+		                	if(Ext.getCmp("nameAddField").isValid() && Ext.getCmp("codeAddField").isValid()
+		                			&& Ext.getCmp("addressAddField").isValid() && Ext.getCmp("domainAddField").isValid() 
+		                			&& Ext.getCmp("brandAddField").isValid() && Ext.getCmp("descriptionAddField").isValid()){
+		                		Ext.Ajax.request({
+									url: path+'/../marketing/marketingpromotion!addMarketingPromotion.action',
+									method: 'POST',
+								params:{
+									'name':Ext.getCmp('nameAddField').getValue(),
+									'code':Ext.getCmp('codeAddField').getValue(),
+									'address':Ext.getCmp('addressAddField').getValue(),
+									'domain_id':Ext.getCmp('domainAddField').getValue(),
+									'brand_code':Ext.getCmp('brandAddField').getValue(),
+									'description':Ext.getCmp('descriptionAddField').getValue(),
+								},
+								success: function (response) {
+									var obj = Ext.decode(response.responseText);
+		                	    	if(obj.success){　　　
+										store.load();
+									}else{
+										showMsg(obj.resultMsg);   
+									}
+								}
+						    }); 
+		                		addMarketingPromotionWin.destroy();
+		                	}
+		                }
+						
+		           }
+		           ]
+		        }],
+		        items:[
+				{
+					xtype:'textfield',
+					margin:'20 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('PromotionName'),
+					allowBlank: false,
+					id:'nameAddField',
+					maxLength:50,
+					regex:/\S+/,
+					regexText:'请输入推广名称',
+					validateOnBlur:true,
+				    textValid: true,
+				    validator: function(){
+				        return this.textValid;
+				    },
+					listeners : {
+				        'change': function(textfield,newValue,oldValue) {
+				        		Ext.Ajax.request({
+						        	   url: path+'/../marketing/marketingpromotion!checkMarketingPromotionNameDup.action',
+							    	    params: {
+							    	        'name': newValue
+							    	    },
+							    	    scope: textfield,
+							    	    success: function(response){
+							    	    	var rs=Ext.JSON.decode(response.responseText);
+							    	    	if(rs.resultObject==true){
+					   	                  		this.textValid = true;
+							    	    		this.clearInvalid();
+							    	    	}else{
+												this.textValid=i18n._('PromotionNameExist');
+					                            this.markInvalid(i18n._('PromotionNameExist'));
+							    	    	}
+							    	    	}
+						           });
+				         }       
+				      }
+				},{
+					xtype:'textfield',
+					margin:'10 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('PromotionCode'),
+					allowBlank: false,
+					id:'codeAddField',
+					maxLength:50,
+					regex:/\S+/,
+					regexText:'请输入推广代码',
+					validateOnBlur:true,
+				    textValid: true,
+				    validator: function(){
+				        return this.textValid;
+				    },
+					listeners : {
+				        'change': function(textfield,newValue,oldValue) {
+				        		Ext.Ajax.request({
+						        	   url: path+'/../marketing/marketingpromotion!checkMarketingPromotionCodeDup.action',
+							    	    params: {
+							    	        'code': newValue
+							    	    },
+							    	    scope: textfield,
+							    	    success: function(response){
+							    	    	var rs=Ext.JSON.decode(response.responseText);
+							    	    	if(rs.resultObject==true){
+					   	                  		this.textValid = true;
+							    	    		this.clearInvalid();
+							    	    	}else{
+												this.textValid=i18n._('PromotionCodeExist');
+					                            this.markInvalid(i18n._('PromotionCodeExist'));
+							    	    	}
+							    	    	}
+						           });
+				         }       
+				      }
+				},{
+					xtype:'textfield',
+					margin:'10 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('PromotionAddress'),
+					allowBlank: false,
+					id:'addressAddField',
+					maxLength:50,
+					regex:/\S+/,
+					regexText:'请输入推广地址',
+					validateOnBlur:true,
+				    textValid: true,
+				    validator: function(){
+				        return this.textValid;
+				    },
+					listeners : {
+				        'change': function(textfield,newValue,oldValue) {
+				        		Ext.Ajax.request({
+						        	   url: path+'/../marketing/marketingpromotion!checkMarketingPromotionUrlDup.action',
+							    	    params: {
+							    	        'address': newValue
+							    	    },
+							    	    scope: textfield,
+							    	    success: function(response){
+							    	    	var rs=Ext.JSON.decode(response.responseText);
+							    	    	if(rs.resultObject==true){
+					   	                  		this.textValid = true;
+							    	    		this.clearInvalid();
+							    	    	}else{
+												this.textValid=i18n._('PromotionUrlExist');
+					                            this.markInvalid(i18n._('PromotionUrlExist'));
+							    	    	}
+							    	    	}
+						           });
+				         }       
+				      }
+				},{
+					xtype:'combobox',
+					margin:'10 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('PromotionDomain'),
+					allowBlank: false,
+					id:'domainAddField',
+                    editable : false,
+                  	mode : 'local',
+					triggerAction : 'all',
+					emptyText:i18n._('Please Select'),
+					store : domainStore,
+					displayField: 'name',
+					valueField: 'id',
+			        listeners:{     
+			            select : function(){
+			                Ext.getCmp('brandAddField').setRawValue('');   
+			            	getBrandByDomain(Ext.getCmp('domainAddField').getValue());
+			            	if(brandArr.length==0){
+			            		Ext.getCmp('brandAddField').setRawValue('');
+			            	}   
+			            }   
+			        } 			         
+				},
+				brandCombox
+				,{
+					xtype:'textarea',
+					margin:'10 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('PromotionDesc'),
+					id:'descriptionAddField',
+					enforceMaxLength:true,
+					maxLength:200
+				}
+				]
+		    }
+		});
+		addMarketingPromotionWin.show();
+    }
+
+    function modifyMarketingPromotion(){
+    	var rows=grid.getSelectionModel().getSelection();
+		var marketingPromotionId;
+		 if(rows.length > 0){
+			marketingPromotionId=rows[0].get('id');
+			var name=rows[0].get('name');
+			var code=rows[0].get('code');
+			var address=rows[0].get('address');
+			var domain_abbreviation=rows[0].get('domain_abbreviation');
+			var brand_name=rows[0].get('brand_name');
+			var description=rows[0].get("description");
+			var domain_id=domainStore.findRecord('name',domain_abbreviation).get('id');
+			
+			// 修改市场推广,加载当前选中的这一行的当前分平台下面所有的关联品牌
+			var brandStore2 = Ext.create('Ext.data.Store',{
+		    	    model: "UserBrand",
+		    	    data: getBrandByDomain_Abbreviation(domain_abbreviation)
+			});
+			
+		    var brand_code=brandStore2.findRecord('name',brand_name).get('code');
+		    
+		    var brandCombox2 = Ext.create("Ext.form.ComboBox",{
+					margin:'10 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('PromotionBrand'),
+					allowBlank: false,
+					id:'brandModifyField',
+					value: brand_code,
+					emptyText:i18n._('Please Select'),
+	                editable : false,
+	                mode: 'local',
+	                queryMode : 'local',
+					triggerAction : 'all',
+					store : brandStore2,
+					displayField: 'name',
+					valueField: 'code',
+					//multiSelect: true,
+					//forceSelection: true,
+    	    });
+    	    brandCombox2.setRawValue(brand_name);
+    	    
+			var modifyMarketingPromotionWin=Ext.create('Ext.window.Window', {
+			    title:i18n._('modifyPromotion'),
+				layout:'fit',
+			    height: 350,
+				modal:true,
+				constrain:true,
+			    width: 400,
+				closable:false,
+				tools:[{
+				  type:'close',
+				  handler:function(){
+					  modifyMarketingPromotionWin.destroy();
+				  }
+				}],
+			    items: {  
+			        xtype: 'form',
+					height:'100%',
+					width:'100%',
+					id:'restForm',
+			        border: false,
+			        dockedItems: [{
+			            xtype: 'toolbar',
+			            dock: 'bottom',
+			            ui: 'footer',
+			            layout: {
+			                pack: 'left'
+			            },
+			            items: [{
+							margin:'0 0 0 140',
+			                minWidth: 80,
+						    text: i18n._('OK'),
+			                handler:function(){
+                                if(Ext.getCmp("nameModifyField").isValid() && Ext.getCmp("codeModifyField").isValid()
+		                			&& Ext.getCmp("addressModifyField").isValid() && Ext.getCmp("domainModifyField").isValid() 
+		                			&& Ext.getCmp("brandModifyField").isValid() && Ext.getCmp("descriptionModifyField").isValid()){		
+			                		
+			                		Ext.Ajax.request({
+										url: path+'/../marketing/marketingpromotion!modifyMarketingPromotion.action',
+										method: 'POST',
+									params:{
+										'marketingPromotionId':marketingPromotionId,
+										'name':Ext.getCmp('nameModifyField').getValue(),
+										'address':Ext.getCmp('addressModifyField').getValue(),
+										'domain_id':Ext.getCmp('domainModifyField').getValue(),
+										'brand_code':Ext.getCmp('brandModifyField').getValue(),
+										'description':Ext.getCmp('descriptionModifyField').getValue(),
+									},
+									success: function (response) {
+										var obj = Ext.decode(response.responseText);
+			                	    	if(obj.success){　　　
+											store.load();
+										}else{
+											showMsg(obj.resultMsg);   
+										}
+									}
+							    }); 
+				    	    		modifyMarketingPromotionWin.destroy();
+			                	}
+			                }
+							
+			           }
+			           ]
+			        }],
+			        items:[
+					{
+						xtype:'textfield',
+						margin:'20 0 0 30',
+						width:300,
+						labelWidth:70,
+						fieldLabel: i18n._('PromotionName'),
+						allowBlank: false,
+						id:'nameModifyField',
+						value: name,
+						maxLength:50,
+						regex:/\S+/,
+						regexText:'请输入推广名称',
+						validateOnBlur:true,
+					    textValid: true,
+					    validator: function(){
+					        return this.textValid;
+					    }
+					},{
+						xtype:'displayfield',
+						margin:'8 0 0 30',
+						width:300,
+						labelWidth:70,
+						fieldLabel: i18n._('PromotionCode'),
+						allowBlank: false,
+						id:'codeModifyField',
+						value: code,
+						readOnly: true
+					},{
+						xtype:'textfield',
+						margin:'10 0 0 30',
+						width:300,
+						labelWidth:70,
+						fieldLabel: i18n._('PromotionAddress'),
+						allowBlank: false,
+						id:'addressModifyField',
+						value: address,
+						maxLength:50,
+						regex:/\S+/,
+						regexText:'请输入推广地址',
+						validateOnBlur:true,
+					    textValid: true,
+					    validator: function(){
+					        return this.textValid;
+					    }
+					},{
+						xtype:'combobox',
+						margin:'10 0 0 30',
+						width:300,
+						labelWidth:70,
+						fieldLabel: i18n._('PromotionDomain'),
+						allowBlank: false,
+						id:'domainModifyField',
+						value: domain_id,
+	                    editable : false,
+	                  	mode : 'local',
+						triggerAction : 'all',
+						store : domainStore,
+						displayField: 'name',
+						valueField: 'id',
+				        listeners:{     
+				            select : function(){   
+				                Ext.getCmp('brandModifyField').setRawValue('');
+				            	getBrandByDomain2(Ext.getCmp('domainModifyField').getValue());
+				            	brandStore2.loadData(brandArr);
+				            	if(brandArr.length==0){
+				            		Ext.getCmp('brandModifyField').setRawValue('');
+				            	}   
+				            }   
+				        } 						
+					},
+					brandCombox2,
+					{
+						xtype:'textarea',
+						margin:'10 0 0 30',
+						width:300,
+						labelWidth:70,
+						fieldLabel: i18n._('PromotionDesc'),
+						id:'descriptionModifyField',
+						value: description,
+						enforceMaxLength:true,
+						maxLength:200
+					}
+					]
+			    }
+			});
+			modifyMarketingPromotionWin.show();
+		}else{
+				Ext.MessageBox.show({
+					    title: i18n._('notice'),
+					    msg:i18n._('please choose one column'),
+                       icon:Ext.MessageBox.WARNING,
+                       buttons: Ext.MessageBox.OK
+				}); 
+				return;
+	    	}
+    }
+
+Ext.create('Ext.Viewport',{
+	 layout:'fit',
+	 items: grid
+	});
+            }
+        };
+    })();
+
+    MultiLang.init();
+    
+});
+
+function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

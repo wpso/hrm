@@ -1,0 +1,2403 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>ttcloud</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel='stylesheet' type="text/css" href="../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+  <script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../js/head.js"></script>
+  <script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+  <script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+  <script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+  <script type="text/javascript" charset="utf-8" src="../js/jquery.md5.js"></script>
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+			padding:0 0 0 0;
+        }
+        
+        .addUserArrow {
+           background: url("../images/search_icon.png") no-repeat scroll right center transparent;
+        }
+
+    </style>
+  <script type="text/javascript">
+ Ext.Loader.setConfig({
+    enabled: true
+});
+
+     Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+]);
+
+     function vd(text){
+         if(text.indexOf(' ')>=0)       
+               //return 'can not use the blank space'; 
+        	 return i18n._('blank');
+            else        
+              return true;    
+         
+     };
+
+ function checkEmail(text){
+	var reg = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+         if(!reg.test(text))       
+        	 return i18n._('emailError');
+         else        
+             return true;
+ };
+     
+ function getPasswdTip(){
+	 return true;
+ }
+ 
+ Ext.onReady(function(){
+	   var params;
+       MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {
+            	//定义Industry
+            	Ext.define('Industry',{
+            		extend: 'Ext.data.Model',
+            		fields:[
+            		        {name:'id',type:'long'},
+            		        {name:'name',type:'string'},
+            		        {name:'nameCode',type:'string'}
+            		        ]
+            	});
+            	//定义Country
+            	Ext.define('Country',{
+            		extend: 'Ext.data.Model',
+            		fields:[
+            		        {name:'id',type:'long'},
+            		        {name:'name',type:'string'},
+            		        {name:'nameCode',type:'string'}
+            		        ]
+            	});
+            	//定义Region
+            	Ext.define('Region',{
+            		extend: 'Ext.data.Model',
+            		fields:[
+            		        {name:'id',type:'long'},
+            		        {name:'name',type:'string'},
+            		        {name:'nameCode',type:'string'}
+            		        //{model:'Country',name:'country'}
+            		        ]
+            	});
+
+				//定义Brand
+				Ext.define('UserBrand',{
+							 extend: 'Ext.data.Model',
+							 fields:[
+							 {name:'brandId',type:'long'},
+							 {name:'brandCode',type:'string'},
+							 {name:'brandName',type:'string'}
+							 ]
+				});
+
+				//定义平台
+				Ext.define('Domain',{
+							 extend: 'Ext.data.Model',
+							 fields:[
+							 {name:'id',type:'long'},
+							 {name:'name',type:'string'},
+							 {name:'abbreviation',type:'string'}
+							 ],
+							 belongTo: 'User'
+				});
+				
+
+				
+            	/*----------------------初始化国家地区行业的国际化信息begin---------------------*/
+            	var countryArr=[];
+            	var regionArr=[];
+            	var industryArr=[];
+            	var brandArr=[];
+            	var domainArr=[];
+            	
+           	    var countryStore=Ext.create("Ext.data.Store",{
+           	    	model:"Country",
+           	    	data:countryArr
+           	    })
+           	    
+           	    var regionStore=Ext.create("Ext.data.Store",{
+           	    	model:"Region",
+           	    	data:regionArr
+           	    })
+           	    
+           	     var industryStore=Ext.create("Ext.data.Store",{
+           	    	model:"Industry",
+           	    	data:industryArr
+           	    })
+           	    
+           	    var brandStore = Ext.create("Ext.data.Store",{
+           	    	model:"UserBrand",
+           	    	data:brandArr
+           	    })
+           	    
+            	var domainStore = Ext.create("Ext.data.Store",{
+            	    model:"Domain",
+            	    data:domainArr
+            	})
+            	
+          
+            	
+            	/*---------------------- 初始化国家地区行业的国际化信息end -------------------*/
+            	
+				//定义profile
+				Ext.define('UserProfile',{
+					 extend: 'Ext.data.Model',
+					 fields:[
+					         {name:'id',type:'long'},
+					         {name:'sex',type:'string'},
+					         {name:'idCard',type:'string'},
+							 {name:'company',type:'string'},
+					         {name:'telephone',type:'string'},
+					         {name:'address',type:'string'},
+					         {name:'createDate',mapping: 'createDate',type:'date', dateFormat:'time'},
+					         {name:'updateDate',mapping: 'updateDate',type:'date', dateFormat:'time'},
+					         {model:'Industry',name:'industry'},
+					         {model:'Country',name:'country'},
+					         {model:'Region',name:'region'}
+					         ],
+					         belongTo: 'User'
+				});
+	
+	
+				//定义user
+				Ext.define('User',{
+							 extend: 'Ext.data.Model',
+							 fields:[
+							 {name:'id',type:'long'},
+							 {name:'name',type:'string'},
+							 
+							  ]
+				});
+				
+				//电话号码验证
+				 Ext.apply( 
+							  Ext.form.VTypes, 
+							  { 
+							    phonecheck : function(val, field) { 
+							    var str=val;
+							    var reg=/(^[0-9]+$)/;
+							    //var reg=/(^[0-9]{3,4}\-[0-9]{7,8}$)|(^[0-9]{7,8}$)|(^0{0,1}1[0-9]{10}$)/; 
+							    	return reg.test(str); 
+							    },
+							    phonecheckText : i18n._("phoneNumberTip")  
+							   }
+							    
+				); 
+				
+				 Ext.apply( 
+						  Ext.form.VTypes, 
+						  { 
+						    idCardCheck : function(val, field) { 
+						    	return /^(\d{15}$|^\d{18}$|^\d{17}(\d|X|x))$/.test(val);
+						    },
+						    idCardCheckText :"身份证号码格式不正确，请重新输入"  
+						   }
+						    
+			    ); 
+			
+				//加载用户信息列表store
+				var store1=Ext.create('Ext.data.Store', {
+						pageSize: pageSize,
+						autoLoad:true,
+						storeId:'loadUserlist',
+						width:'100%',
+						requires : 'User',
+						model: 'User',
+						sorters: [{
+						            property : 'createDate',
+						            direction: 'DESC'
+						           }],
+						remoteSort:true,
+							proxy: {
+						        type: 'ajax',
+						      	url : '../json/user_list2.json',
+						        //url : './../admin/getAllUserByPage',
+								reader: {
+						            type: 'json',    
+						            root: 'resultObject.result',
+						            totalProperty: 'resultObject.totalCount'
+						        }
+						    }
+						});								
+				var itemValue='userName';
+				var pluginExpanded=true;
+				//添加窗口
+				var add=Ext.create('Ext.window.Window', {
+							title: i18n._('Add'),
+							height: 420,
+							layout:'fit',
+							width: 480,
+							border: false,
+							closable:false,
+							constrain : true,
+							modal:true,
+							tools:[{
+								  type:'close',
+								  handler:function(){
+                                            add.hide();
+								  }}],
+							items: [
+							{
+							xtype: 'form',
+							id:'addform',
+							height:'100%',
+							width:470,
+							autoScroll:true,
+							border: false,
+							dockedItems: [{
+									xtype: 'toolbar',
+									dock: 'bottom',
+									ui: 'footer',
+									layout: {
+										pack: 'left'
+									},
+									items: [
+											{
+										margin:'0 0 0 158',
+										minWidth: 80,
+										//text: '确定',
+										text:i18n._('OK'),
+										handler:function(){
+											if(!Ext.getCmp('username').isValid() || !Ext.getCmp('password').isValid()||!Ext.getCmp('confirmpassword').isValid()||
+													!Ext.getCmp('email').isValid()|| !Ext.getCmp('telephone').isValid()|| 
+													!Ext.getCmp('userType').isValid()||!Ext.getCmp('idCard').isValid()||
+													!Ext.getCmp('country').isValid()||!Ext.getCmp('address').isValid()||
+													!Ext.getCmp('industry').isValid()||!Ext.getCmp('userBrand').isValid() ||
+													!Ext.getCmp('platform_combo').isValid()||!Ext.getCmp('company').isValid()
+													){
+												return;
+												
+											}
+											if(Ext.getCmp('password').getValue()!=Ext.getCmp('confirmpassword').getValue()){
+												Ext.MessageBox.show({
+													   //title: '提示',
+													   title:i18n._('notice'),
+													   msg: i18n._('Two inputed passwords do not match'),
+													   icon:Ext.MessageBox.WARNING,
+													   buttons: Ext.MessageBox.OK
+													   
+												   }); 
+													return;
+											}
+											
+											if(Ext.getCmp('userType').getValue()=='EntUser'&&Ext.getCmp('company').getValue()==''){
+												Ext.MessageBox.show({
+													   //title: '提示',
+													   title:i18n._('notice'),
+													   msg: i18n._('EntUser must have a company'),
+													   icon:Ext.MessageBox.WARNING,
+													   buttons: Ext.MessageBox.OK
+													   
+												   }); 
+												return;
+											}
+											
+											if(null == Ext.getCmp('userBrand').getValue()){
+												Ext.MessageBox.show({
+													   //title: '提示',
+													   title:i18n._('notice'),
+													   msg: i18n._('brandnull'),
+													   icon:Ext.MessageBox.WARNING,
+													   buttons: Ext.MessageBox.OK
+													   
+												   }); 
+												return;
+											}
+												var regionCode = null;
+												if(Ext.getCmp('region_combo').getValue() != null )
+												{
+													regionCode={id:Ext.getCmp('region_combo').getValue()}	
+												}
+											    var enCode = $.md5(Ext.getCmp('password').getValue());
+											    
+											    
+											    
+												var myMask1 = new Ext.LoadMask(Ext.getBody(), {
+								                    //msg: '正在保存！',
+													msg:i18n._('saving'),
+								                    removeMask: true //完成后移除
+								                });												
+												Ext.Ajax.request({
+												url: path+'/admin_mgmt/userManagement!addUser.action?userType='+Ext.getCmp('userType').getValue()+'&company='+Ext.getCmp('company').getValue(),
+												jsonData: {
+													name:Ext.getCmp('username').getValue(),
+													email:Ext.getCmp('email').getValue(),
+													password: enCode,
+													userType: Ext.getCmp('userType').getValue(),
+													domain:{"id":Ext.getCmp('platform_combo').getValue()},
+													level:Ext.getCmp('userBrand').getValue(),
+													userProfile:{
+														sex: Ext.getCmp('sex').getValue()["rg"],
+														idCard:Ext.getCmp('idCard').getValue(),
+														company:Ext.getCmp('company').getValue(),
+														telephone:Ext.getCmp('telephone').getValue(),
+														description:Ext.getCmp('description3').getValue(),
+														address:Ext.getCmp('address').getValue(),
+														industry:{
+															id:Ext.getCmp('industry').getValue()
+														},
+														country:{
+															id: Ext.getCmp('country').getValue()
+														},
+														region: regionCode
+													}
+												},
+
+                                               // jsonData:r,								     
+												success: function(response){
+													var obj = Ext.decode(response.responseText);
+													
+													if(obj.success){
+														              myMask1.hide();
+														
+																	Ext.MessageBox.show({
+																	 title:i18n._('notice'),
+																	 msg:i18n._('Add user success'),
+																	 icon:Ext.MessageBox.INFO,
+																	  buttons: Ext.MessageBox.OK
+																 }); 
+																	Ext.getCmp('addform').getForm().reset();
+																	 add.hide();
+																	 store1.load();
+													
+														
+													}else{
+														myMask1.hide();
+														Ext.MessageBox.show({
+														   title:i18n._('notice'),
+														   msg: obj.resultMsg,
+														   icon:Ext.MessageBox.WARNING,
+														   buttons: Ext.MessageBox.OK
+													    }); 
+														return;
+													}
+												}
+											})
+											myMask1.show();
+										}
+									}
+									 		,{
+										margin:'0 0 0 5',
+										minWidth: 80,
+										text:i18n._('reset'),
+										handler:function(){
+											this.up('form').getForm().reset();
+								   }
+										
+								   } 
+									]
+								}],
+							  items: [
+				 				{
+								xtype: 'fieldset',
+								title: i18n._("Basic information"),
+								width:'95%',
+								//修改 张建伟 修改日期  20130910
+								height:510,
+								items:[{
+									xtype:'textfield',
+									fieldLabel:'用户名id',
+									style:'margin-left:30px',
+									width: 240,
+									id:'user_id',
+									hidden: true,
+									hideLabel: true
+									},
+								       {
+// 									xtype:'container',
+// 									layout:'hbox',
+// 									items:[{
+										xtype: 'textfield',
+										id:'email',
+										vtype: 'email',
+										fieldLabel: i18n._("email"),
+										name: i18n._("email"),
+										allowBlank: false,
+										maxLength: 80,
+										enforceMaxLength:true,
+										style:'margin-left:30px;',
+										width: 360,
+										listeners: {
+										    'blur': function(e){
+											    var email = e.getValue(); 
+											    if(!Ext.getCmp('email').isValid()){
+												    return ;
+												}
+											    if(""!=email ){
+											        Ext.Ajax.request({
+														url: path+'/admin_mgmt/userManagement!duplicateEmail.action',
+														jsonData: {
+															"email":email
+														},
+														success: function(response){
+															var obj = Ext.decode(response.responseText);
+															if(!obj.success){
+																			Ext.MessageBox.show({
+																			 title:i18n._('notice'),
+																			 msg:obj.resultMsg,
+																			 icon:Ext.MessageBox.INFO,
+																			 buttons: Ext.MessageBox.OK
+																		 }); 
+																 return ;
+															}
+														}
+													});
+											    }
+										    }
+										}
+
+								},
+										
+										{
+										xtype:'textfield',
+										fieldLabel:i18n._("username"),
+										style:'margin-left:30px',
+										width: 360,
+										name:i18n._("username"),
+										maxLength: 20,
+										enforceMaxLength:true,
+										allowBlank: false,
+										validator : vd,
+										id:'username'
+										},
+										{
+										xtype:'textfield',
+										fieldLabel:i18n._("password"),
+										style:'margin-left:30px',
+										width: 360,
+										name:i18n._("password"),
+										emptyText :  getPasswdTip(),
+										maxLength : 50,
+										enforceMaxLength:true,
+										inputType: 'password',
+										id:'password'
+										},
+										{
+										xtype:'textfield',
+										fieldLabel:i18n._("comfirm password"),
+										style:'margin-left:30px',
+										width: 360,
+										name:i18n._("comfirm password"),
+										inputType: 'password',
+										emptyText :  getPasswdTip(),
+										maxLength : 50,
+										enforceMaxLength:true,
+										value: '',
+										id:'confirmpassword'
+										},
+										{
+										xtype:'radiogroup',
+										fieldLabel:i18n._("sex"),
+										id:'sex',
+										style:'margin-left:30px',
+										width: 360,
+										columns: 2,
+										width:350,
+										vertical: true,
+										items: [
+										{ boxLabel: i18n._("male"), name: 'rg', inputValue: 'true',checked:true},
+										{ boxLabel: i18n._("female"), name: 'rg', inputValue: 'false'}
+										]
+										},
+										{
+										style:'margin-left:30px;',
+										width: 360,
+										fieldLabel: i18n._('User Type'),
+										name: i18n._('User Type'),
+										xtype:'combo',
+										allowBlank: false,
+										id:'userType',
+										mode: 'local',
+										triggerAction:  'all',
+										forceSelection: true,
+										editable: false,
+										emptyText: i18n._('Please Select'),
+										displayField: 'name',
+										valueField: 'value',
+										queryMode: 'local',
+										store:Ext.create('Ext.data.Store', {
+													fields : ['name', 'value'],
+													data: [
+													{name : i18n._("NorUser"),  value: 'NorUser',checked:true},
+													{name : i18n._("EntUser"),  value: 'EntUser'}
+													]
+										})	
+										},
+										{
+											xtype:'combo',
+											allowBlank: false,
+											style:'margin-left:30px;',
+											width: 360,
+											fieldLabel: i18n._('platform'),
+											name: i18n._('platform'),
+											id:'platform_combo',
+											triggerAction:  'all',
+											forceSelection: true,
+											editable: false,
+											emptyText: i18n._('Please Select'),
+											displayField: 'name',
+											valueField: 'id',
+											queryMode: 'local',
+											triggerAction:  'all',
+											valueNotFoundText:'Not found',
+											store: domainStore,
+											'select': function (){
+									            	getBrandByDomain(Ext.getCmp('platform_combo').getValue());
+									            	if(brandArr.length==0){
+									            		Ext.getCmp('userBrand').setRawValue('');
+									            	}
+									               }
+									    },
+										{
+											style:'margin-left:30px;',
+											width: 360,
+											fieldLabel: i18n._('brand'),
+											name: i18n._('brand'),
+											xtype:'combo',
+											id:'userBrand',
+											mode: 'local',
+											triggerAction:  'all',
+											forceSelection: true,
+											listConfig:{maxHeight:155},
+											editable: false,
+											emptyText: i18n._('Please Select'),
+											displayField: 'brandName',
+											valueField: 'brandCode',
+											queryMode: 'local',
+											value:'defaultBrand',
+											store:brandStore
+										},
+										{
+										xtype:'textfield',
+										fieldLabel:i18n._('Id number'),
+										name:i18n._('Id number'),
+										vtype: 'idCardCheck',
+										maxLength: 18,
+										allowBlank: false,
+										enforceMaxLength:true,
+										style:'margin-left:30px;',
+										width: 360,
+										value: '',
+										id:'idCard'
+										},
+										{
+											xtype: 'textfield',
+											style:'margin-left:30px;',
+											width: 360,
+											allowBlank: false,
+											fieldLabel:i18n._('Contact'),
+											name:i18n._('Contact'),
+											//regex:/^[1-9]+$/,
+											//regexText : i18n._('InvalidNumber'),
+											vtype: 'phonecheck',
+											maxLength:15,
+											enforceMaxLength:true,
+											id:'telephone'
+											},
+										{
+											style:'margin-left:30px;',
+											width: 360,
+											fieldLabel: i18n._('Country'),
+											name: i18n._('Country'),
+											xtype:'combo',
+											allowBlank: false,
+											id:'country',
+											triggerAction:  'all',
+											forceSelection: true,
+											editable: false,
+											emptyText: i18n._('Please Select'),
+											displayField: 'name',
+											valueField: 'id',
+											queryMode: 'local',
+											store:countryStore,
+											listeners:{
+									               'select': function (){
+									            	getRegionInfo(Ext.getCmp('country').getValue());
+									            	if(regionArr.length==0){
+									            		Ext.getCmp('region_combo').setRawValue('');
+									            	}
+									            	//Ext.Msg.alert(Ext.encode(regionArr));
+									               }
+									               }
+											},
+											{
+													xtype:'combo',
+													//width:150,
+													style:'margin-left:30px;',
+													width: 360,
+													fieldLabel: i18n._('Region'),
+													name: i18n._('Region'),
+													id:'region_combo',
+													triggerAction:  'all',
+													forceSelection: true,
+													editable: false,
+													emptyText: i18n._('Please Select'),
+													displayField: 'name',
+													valueField: 'id',
+													queryMode: 'local',
+													store: regionStore
+													
+											},
+											{
+												xtype:'textfield',
+												fieldLabel:i18n._('detailed address'),
+												name:i18n._('detailed address'),
+												allowBlank: false,
+												maxLength: 30,
+												enforceMaxLength:true,
+												style:'margin-left:30px;',
+												width: 360,
+												id:'address'
+											},
+											{
+												style:'margin-left:30px;',
+												width: 360,
+												fieldLabel: i18n._('Industry'),
+												name: i18n._('Industry'),
+												xtype:'combo',
+												allowBlank: false,
+												id:'industry',
+												mode: 'local',
+												triggerAction:  'all',
+												forceSelection: true,
+												editable: false,
+												displayField: 'name',
+												valueField: 'id',
+												queryMode: 'local',
+												emptyText: i18n._('Please Select'),
+												store: industryStore
+												},									
+												{
+												xtype:'textfield',
+												style:'margin-left:30px;',
+												width: 360,
+												fieldLabel:i18n._('cpName'),
+												name:i18n._('cpName'),
+												queryMode: 'local',
+												maxLength: 25,
+												enforceMaxLength:true,
+												allowBlank: false,
+												validator : vd,
+												id:'company'
+												},
+												//增加 张建伟 日期 20130910
+												{
+													xtype:'textarea',
+													style:'margin-left:30px;',
+													width: 360,
+													fieldLabel:i18n._('userDescription'),
+													name:i18n._('userDescription'),
+													queryMode: 'local',
+													maxLength: 25,
+													enforceMaxLength:true,
+													allowBlank: true,
+													id:'description3'
+												}
+											
+								]
+							}
+						             ]
+						}
+						]
+				
+				});
+				//添加窗口结束
+				
+				var sm = Ext.create('Ext.selection.RowModel');
+var userState="0,1,2,3";
+//user_list
+Ext.create('Ext.Viewport',{
+    layout:'fit',
+    width:'100%',
+    items: Ext.create('Ext.grid.Panel', {
+	id:'userList',
+	height:900,
+	//layout:'fit',
+	width:'100%',
+	sortableColumns:true,
+    //title: '用户管理&nbsp; &nbsp;>>&nbsp;&nbsp;用户列表',
+	title: i18n._('userManagement')+'&nbsp; &nbsp;>&nbsp;&nbsp;'+i18n._('userlist'),
+
+    store: store1,
+	selModel: sm,
+	listeners:{
+		'itemdblclick':{
+			fn:function(){
+				viewDetail();
+			}
+		}
+	},
+    columns: [
+	    {xtype: 'rownumberer',dataIndex:'item',align:'left',flex:0.1},
+        {header: i18n._('username'),  dataIndex: 'name', editor: 'textfield',sortable:true,flex:0.3},
+        
+		],
+		
+    selType: 'cellmodel',
+	bbar: Ext.create('Ext.PagingToolbar', {
+            store:  store1,
+            pageSize:0,
+            displayInfo: true
+        }),
+	 dockedItems:[{
+	        xtype:'toolbar',
+			dock: 'top',
+			cls: 'toolbarCSS',
+			//style:'background-color:#4c4c4c; background-image:url();',
+			items:[
+				 {
+				   // text:'添加用户',
+					
+					text:'<font id="addUser" color="white" >' + i18n._("add User") + '</font>',
+					icon: '../images/add_new.png',
+					listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("addUser").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("addUser").style.color = "black";
+						 }
+							
+					 },
+					handler:function(){
+						add.show();
+						
+					}
+				},
+		{
+		icon: '../images/edit_new.png', 
+		text:'<font id="editUser" color="white" >' + i18n._("modify") + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("editUser").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("editUser").style.color = "black";
+			 }
+				
+		 },
+		handler:function(){
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				var record = store1.getById(id);
+				if(!isEnableCheck(record)){
+					return;
+				}
+				//getBrandByDomain(record.get('domain').id);
+				//var sex_record ={rg:record.get('userProfile').sex};
+				var usertype_record={ut:record.get('userType')};
+				//修改窗口开始
+				var update=Ext.create('Ext.window.Window', {
+					//title: '用户修改',
+					 title: i18n._('user modify'),
+					height: 450,
+					//autoHeight:true,
+					layout:'fit',
+					width: 450,
+					border: false,
+					closable:false,
+					constrain : true,
+					modal:true,
+					tools:[{
+					  type:'close',
+					  handler:function(){
+					  update.destroy();
+					  }
+					}],
+					items: [
+					{
+					xtype: 'form',
+					height:'100%',
+					width:450,
+					autoScroll:true,
+					border: false,
+					  items: [
+				{
+				xtype: 'fieldset',
+				title: i18n._("Basic information"),
+				width:350,
+				style:'margin-left:50px;',
+				items:[
+						{
+						xtype:'textfield',
+						fieldLabel:'用户名id',
+						style:'margin-left:30px',
+						id:'user_id1',
+						hidden: true,
+						hideLabel: true
+						},
+						{
+						xtype:'displayfield',
+						fieldLabel: i18n._("email"),
+						name: i18n._("email"),
+						value: record.get('email'),
+						style:'margin-left:30px;',
+						
+						
+						/* xtype: 'textfield',
+						id:'email1',
+						fieldLabel: i18n._("email"),
+						name: i18n._("email"),
+						maxLength: 80,
+						value: record.get('email'),
+						style:'margin-left:30px;',
+						allowBlank: false,
+						validator: checkEmail, */
+						listeners: {
+							'blur': function(e){
+							 var email = e.getValue(); 
+							 if(!Ext.getCmp('email1').isValid()){
+								 return ;
+							 }
+									if(""!=email ){
+										Ext.Ajax.request({
+											url: path+'/admin_mgmt/userManagement!duplicateEmail.action',
+											jsonData: {
+												"email":email
+											},
+											success: function(response){
+												var obj = Ext.decode(response.responseText);
+												if(!obj.success){
+														Ext.MessageBox.show({
+																			 title:i18n._('notice'),
+																			 msg:obj.resultMsg,
+																			 icon:Ext.MessageBox.INFO,
+																			 buttons: Ext.MessageBox.OK
+														}); 
+														return ;
+												}
+											}
+										});
+									}
+								}
+							 }
+						},
+						{
+						xtype:'textfield',
+						fieldLabel:i18n._("username"),
+						style:'margin-left:30px',
+						name:i18n._("username"),
+						value: record.get('name'),
+						maxLength: 20,
+						id:'username1',
+						validator : vd,
+						allowBlank: false,
+						},
+						{
+						xtype:'radiogroup',
+						fieldLabel:i18n._("sex"),
+						id:'sex_update',
+						style:'margin-left:30px',
+						columns: 2,
+						vertical: true,
+						items: [
+						{ boxLabel: i18n._("male"), name: 'rg', inputValue: 'true',checked:true},
+						{ boxLabel: i18n._("female"), name: 'rg', inputValue: 'false'}
+						]
+						},
+						{
+							xtype:'radiogroup',
+							fieldLabel:i18n._("User Type"),
+							style:'margin-left:30px',
+							columns: 2,
+							id:'m_userType',
+							vertical: true,
+							hidden:record.get('userType')== 'NorUser'?false:true,
+							items: [
+							{ boxLabel: i18n._('NorUser'), name: 'ut', inputValue: 'NorUser',checked:true},
+							{ boxLabel: i18n._('EntUser'), name: 'ut', inputValue: 'EntUser'}
+							]
+						},
+						{
+						xtype:'displayfield',
+						fieldLabel:i18n._('User Type'),
+						name:i18n._('User Type'),
+						style:'margin-left:30px;',
+						hidden:record.get('userType')== 'NorUser'?true:false,
+						value: record.get('userType')== 'NorUser'?i18n._('NorUser'):i18n._('EntUser')
+						},{
+							xtype:'combo',
+							allowBlank: false,
+							style:'margin-left:30px;',
+							fieldLabel: i18n._('platform'),
+							name: i18n._('platform'),
+							id:'platform1_combo',
+							triggerAction:  'all',
+							forceSelection: true,
+							editable: false,
+							emptyText: i18n._('Please Select'),
+							displayField: 'name',
+							valueField: 'id',
+							value:record.get('domain').id,//选中已选的域
+							queryMode: 'local',
+							store: domainStore,
+							'select': function (){
+									getBrandByDomain(Ext.getCmp('platform1_combo').getValue());
+									if(brandArr.length==0){
+									        Ext.getCmp('uBrand').setRawValue('');
+									}
+							}
+						},
+						{
+							style:'margin-left:30px;',
+							fieldLabel: i18n._('brand'),
+							name: i18n._('brand'),
+							xtype:'combo',
+							id:'uBrand',
+							mode: 'local',
+							triggerAction:  'all',
+							listConfig:{maxHeight:155},
+							forceSelection: true,
+							editable: false,
+							displayField:'brandName',
+							valueField: 'brandCode',
+							queryMode: 'local',
+							value: record.get('level'),
+							store: brandStore
+						},
+							{
+							xtype:'textfield',
+							style:'margin-left:30px;',
+							fieldLabel:i18n._('cpName'),
+							name:i18n._('cpName'),
+							value: record.get('userProfile').company,
+							allowBlank: false,
+							validator : vd,
+							id:'company1'
+							},
+						{
+						xtype:'textfield',
+						fieldLabel:i18n._('Id number'),
+						name:i18n._('Id number'),
+						vtype: 'idCardCheck',
+						maxLength: 18,
+						allowBlank:false,
+						enforceMaxLength:true,
+						style:'margin-left:30px;',
+						value: record.get('userProfile').idCard,
+						id:'idCard1'
+						},
+						{
+						xtype: 'textfield',
+						style:'margin-left:30px;',
+						allowBlank:false,
+						fieldLabel:i18n._('Contact'),
+						name:i18n._('Contact'),
+						//regex:/^[1-9]+$/,
+						vtype: 'phonecheck',
+						maxLength:25,
+						enforceMaxLength:true,
+						//regexText : i18n._('InvalidNumber'),
+						value: record.get('userProfile').telephone,
+						id:'telephone1'
+						},
+						{
+							style:'margin-left:30px;',
+							fieldLabel: i18n._('Country'),
+							name: i18n._('Country'),
+							xtype:'combo',
+							allowBlank: false,
+							id:'country1',
+							triggerAction:  'all',
+							forceSelection: true,
+							editable: false,
+							displayField: 'name',
+							valueField: 'id',
+							queryMode: 'local',
+							store:countryStore,
+							listeners:{
+					               'select': function (){
+					            	   getRegionInfo(Ext.getCmp('country1').getValue());
+					            	   if(regionArr.length==0){
+						            		Ext.getCmp('province1').setRawValue('');
+						            		Ext.getCmp('province1').setValue('');
+						            	}
+					               }
+					               }
+							},
+							{
+									style:'margin-left:30px;',
+									fieldLabel: i18n._('Region'),
+									name: i18n._('Region'),
+									xtype:'combo',
+									id:'province1',
+									mode: 'local',
+									value:record.get('userProfile').provice,
+									triggerAction:  'all',
+									forceSelection: true,
+									editable: false,
+									displayField: 'name',
+									emptyText: i18n._('Please Select'),
+									valueField: 'id',
+									queryMode: 'local',
+									store : regionStore
+							},
+							{
+							    style:'margin-left:30px;',
+								fieldLabel:i18n._('detailed address'),
+								name:i18n._('detailed address'),
+								xtype:'textfield',
+								allowBlank: false,
+								maxLength: 100,
+								value: record.get('userProfile').address,
+								enforceMaxLength:true,
+								validator : vd,
+								id:'address1'
+							},							
+							{
+								style:'margin-left:30px;',
+								fieldLabel: i18n._('Industry'),
+								name: i18n._('Industry'),
+								xtype:'combo',
+								allowBlank: false,
+								id:'industry1',
+								mode: 'local',
+								triggerAction:  'all',
+								forceSelection: true,
+								editable: false,
+								displayField: 'name',
+								valueField: 'id',
+								queryMode: 'local',
+								store: industryStore
+								},
+								{
+								xtype:'textfield',
+								style:'margin-left:30px;',
+								fieldLabel:i18n._('cpName'),
+								name:i18n._('cpName'),
+								value: record.get('userProfile').company,
+								id:'company1',
+								maxLength: 25,
+								enforceMaxLength:true,
+								allowBlank: false,
+								validator : vd
+								},
+								//修改人 张建伟 修改时间 20130908
+								{
+									xtype:'textarea',
+									style:'margin-left:30px;',
+									fieldLabel:i18n._('userDescription'),
+									name:i18n._('userDescription'),
+									value: record.get('userProfile').description,
+									id:'description2',
+									maxLength: 250,
+									enforceMaxLength:true,
+									allowBlank: true
+									}
+				]
+			}
+				],
+				dockedItems: [{
+					xtype: 'toolbar',
+					dock: 'bottom',
+					ui: 'footer',
+					layout: {
+						pack: 'left'
+					},
+					items: [{
+						margin:'0 0 0 120',
+						minWidth: 80,
+					   // text: '确定',
+						text: i18n._('OK'),
+						handler:function(){
+							//alert(Ext.getCmp('description2').getValue());
+						    if(null == Ext.getCmp('uBrand').getValue()){
+								 Ext.MessageBox.show({
+								  title:i18n._('notice'),
+								  msg: i18n._('brandnull'),
+								  icon:Ext.MessageBox.WARNING,
+							      buttons: Ext.MessageBox.OK												   
+								 }); 
+								 return;
+						    }
+							if(!Ext.getCmp('telephone1').isValid()||
+									!Ext.getCmp('telephone1').isValid()||!Ext.getCmp('country1').isValid()
+							    ||!Ext.getCmp('idCard1').isValid()||!Ext.getCmp('province1').isValid()
+							    ||!Ext.getCmp('industry1').isValid()||!Ext.getCmp("uBrand").isValid()
+							    ||!Ext.getCmp('company1').isValid()||!Ext.getCmp('address1').isValid()
+							    || !Ext.getCmp('username1').isValid()){
+								return;
+							}
+								
+							   Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether modify?'), function(btn) {  
+									if (btn == 'yes') {
+										
+										//alert(sex_record);
+										//修改用户信息
+										var p = Ext.getCmp('province1').getValue();
+                                        var userType = Ext.getCmp('m_userType').getValue()["ut"];
+                                    	//修改人：张建伟  修改时间：20130906
+										var r = "{\"id\":"+record.get('userProfile').id+",\"userId\":"+record.get('id')+(null==userType || "NorUser"==userType?"":",\"userType\":\"EntUser\"")+",\"idCard\":\""+Ext.getCmp('idCard1').getValue()
+										+"\",\"telephone\":\""+Ext.getCmp('telephone1').getValue()
+								//		+"\",\"email\":\""+Ext.getCmp('email1').getValue()
+										+"\",\"name\":\""+Ext.getCmp('username1').getValue()
+										+"\",\"level\":\""+Ext.getCmp('uBrand').getValue()
+										+"\",\"address\":\""+Ext.getCmp('address1').getValue()
+										+"\",\"domainId\":"+Ext.getCmp('platform1_combo').getValue()+",\"country\":{\"id\":"+ Ext.getCmp('country1').getValue()+"}"
+										+((null== p || 'null' == p || ''==p)?"":",\"region\":{\"id\":"+Ext.getCmp('province1').getValue()+"}")
+										+",\"industry\":{\"id\":"+Ext.getCmp('industry1').getValue()+"},\"sex\":"+ Ext.getCmp('sex_update').getValue()["rg"]+",\"company\":\""+Ext.getCmp('company1').getValue()+"\",\"description\":\""+Ext.getCmp('description2').getValue()+"\"}";
+										Ext.Ajax.request({
+											url: path+'/admin_mgmt/userManagement!modifyUserProfile.action',
+											jsonData:r,
+											//jsonData: {
+											//	"id":record.get('userProfile').id,
+											//	"userId":record.get('id'),
+											//	"idCard": Ext.getCmp('idCard1').getValue(),
+											//	"telephone": Ext.getCmp('telephone1').getValue(),
+											//	"level":Ext.getCmp('uBrand').getValue(),
+											//	"createDate": record.get('userProfile').crateDate,
+											//	"domainId":Ext.getCmp('platform1_combo').getValue(),
+											//	"country": {
+											//		"id" : Ext.getCmp('country1').getValue()
+											//	},
+											//	"region":{
+											//		"id" : Ext.getCmp('province1').getValue()
+											//	},
+											//	"industry":{
+											//		"id" : Ext.getCmp('industry1').getValue()
+											//	},
+											//"address": Ext.getCmp('address1').getValue(),
+											//	"sex": Ext.getCmp('sex_update').getValue()["rg"],
+											//	"company":Ext.getCmp('company1').getValue()
+											//},
+											success: function(response){
+												
+												var obj = Ext.decode(response.responseText);
+												if(obj.success){
+												Ext.MessageBox.show({
+													   title: i18n._('notice'),
+													   msg: i18n._('Edit Success!'),
+													   icon:Ext.MessageBox.INFO,
+													   buttons: Ext.MessageBox.OK
+													   
+												   }); 
+												update.destroy();
+												store1.load();
+												}else{
+													Ext.MessageBox.show({
+								     	  		          // title: '提示',
+								     	  		          // msg: '网络错误',
+														   title:i18n._('notice'),
+														   msg:obj.resultMsg,
+								     	  		           icon:Ext.MessageBox.INFO,
+								     	  		           buttons: Ext.MessageBox.OK
+								     	  		           
+								     	  		       }); 
+												}
+											}
+										});
+										
+									}});
+						}
+						
+
+					}
+					 ,
+					 {
+						margin:'0 0 0 20',
+						minWidth: 80,
+						//text: '重置',
+						 text:i18n._('reset'),
+						handler:function(){
+							this.up('form').getForm().reset();
+							Ext.getCmp('sex_update').setValue({rg: record.get('userProfile').sex+''});
+							Ext.getCmp('m_userType').setValue({ut: record.get('userType')});						
+							Ext.getCmp('country1').setValue(record.get('userProfile').country.id);
+							getRegionInfo(record.get('userProfile').country.id);
+							if(null != record.get('userProfile').region){
+								Ext.getCmp('province1').setValue(record.get('userProfile').region.id);
+							}
+							//Ext.getCmp('province1').setValue(record.get('userProfile').region.id);
+							Ext.getCmp('industry1').setValue(record.get('userProfile').industry.id);
+				   }
+						
+						
+				   } 
+					]
+				}]
+				}
+				]
+				});
+				Ext.getCmp('sex_update').setValue({rg: record.get('userProfile').sex+''});
+				Ext.getCmp('m_userType').setValue({ut: record.get('userType')});
+				Ext.getCmp('country1').setValue(record.get('userProfile').country.id);
+				getRegionInfo(record.get('userProfile').country.id);
+				if(null != record.get('userProfile').region){
+					Ext.getCmp('province1').setValue(record.get('userProfile').region.id);
+				}
+				//Ext.getCmp('province1').setValue(record.get('userProfile').region.id);
+				Ext.getCmp('industry1').setValue(record.get('userProfile').industry.id);
+				
+				//if(Ext.getCmp('userType1').getValue()=='EntUser'){
+				//	Ext.getCmp('company1').setReadOnly(true);
+				//}
+				update.show();
+	    		//修改窗口结束
+			}else{
+    	    	Ext.MessageBox.show({
+	  		           //title: '提示',
+	  		          // msg: '请选择一个用户',
+					   title:i18n._('notice'),
+					   msg:i18n._('selectOne'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+				return;
+			}
+				
+		}
+		//{rg:record.get('userProfile').sex+''}
+		},{
+
+			icon: '../images/resetPasswd.png',  // Use a URL in the icon config
+			text:'<font id="resetPassword" color="white" >' + i18n._('RetPassword') + '</font>',
+			listeners: {
+				 "mouseout" : function() {
+					 document.getElementById("resetPassword").style.color = "white";
+				 },
+				 "mouseover" : function() {
+					 document.getElementById("resetPassword").style.color = "black";
+				 }
+					
+			 },
+			handler:function(){
+				var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+				if(rows.length > 0){
+					var id = rows[0].get('id');
+					var record = store1.getById(id);
+					if(!isEnableCheck(record)){
+						return;
+					}
+					//密码重置窗口开始
+					var pwd=Ext.create('Ext.window.Window', {
+					   // title: '密码重置',
+					    title:i18n._('RetPassword'),
+						layout:'fit',
+					    height: 130,
+						modal:true,
+					    width: 420,
+					    constrain : true,
+						closable:false,
+						tools:[{
+						  type:'close',
+						  handler:function(){
+						    pwd.destroy();
+						  }
+						}],
+
+						
+					    items: {  
+					        xtype: 'form',
+							height:'100%',
+							width:'100%',
+							id:'restForm',
+							fieldDefaults:{
+								msgTarget:'side',
+								autoFitErrors:false
+							},
+							//style:'margin-top:0px;margin-left:0px;',
+					        border: false,
+					        dockedItems: [{
+					            xtype: 'toolbar',
+					            dock: 'bottom',
+					            ui: 'footer',
+					            layout: {
+					                pack: 'left'
+					            },
+					            items: [{
+									margin:'0 0 0 100',
+					                minWidth: 80,
+					               // text: '确定',
+								    text: i18n._('OK'),
+					                handler:function(){
+
+					                	if(Ext.getCmp('newPass1').isValid() && Ext.getCmp('newPass2').isValid()){
+					                		//by liyunhui 2013-05-20 bugId:0001871
+											//测试人员预期：密码不低于六位，必须包含数字、字母，大小写
+											var newPassword1 = Ext.getCmp('newPass1').getValue();
+					                		if(Ext.getCmp('newPass2').getValue()==Ext.getCmp('newPass1').getValue()){
+					                			var enCode = $.md5(Ext.getCmp('newPass2').getValue());
+						                	Ext.Ajax.request({
+						                		url: path+'/admin_mgmt/userManagement!resetPasswd.action',
+						                	    jsonData: {
+						                	    	"id":record.get('id'),
+						                	    	"password": enCode
+						                	    },
+						                	    success: function(response){
+						                	    	var obj = Ext.decode(response.responseText);
+						                	    	if(obj.success){
+						                	    		if(obj.resultObject=="success"){
+						                	    			Ext.MessageBox.show({
+										         		           //title: '提示',
+										         		          // msg: '修改密码成功！',
+																   title:i18n._('notice'),
+																   msg:i18n._('reset_passwd_tip'),
+										         		           icon:Ext.MessageBox.INFO,
+										         		           buttons: Ext.MessageBox.OK
+										         		           
+										         		    }); 
+							                	        	pwd.destroy();
+						                	    		}else{
+						                	    			Ext.MessageBox.show({
+										         		           //title: '提示',
+										         		          // msg: '修改密码成功！',
+																   title:i18n._('notice'),
+																   msg:obj.resultObject,
+										         		           icon:Ext.MessageBox.INFO,
+										         		           buttons: Ext.MessageBox.OK
+										         		           
+										         		    }); 
+						                	    		}
+						                	        }
+						                	    }
+						                	})
+					                	}else{
+					                		  Ext.MessageBox.show({
+												   title:i18n._('notice'),
+												   msg:i18n._('Two inputed passwords do not match'),
+						         		           icon:Ext.MessageBox.INFO,
+						         		           buttons: Ext.MessageBox.OK
+						         		           
+						         		       }); 
+					                	}
+					                	}
+					                	
+					                }
+									
+					           }
+					            
+					           ]
+					        }],
+					        items:[
+							{
+							xtype:'textfield',
+							name:'password',
+							margin:'10 0 5 17',
+							style:'margin-left:0px',
+							width:360,
+							fieldLabel: i18n._('new password'),
+							inputType: 'password',
+							id:'newPass1',
+							emptyText :  getPasswdTip(),
+							///allowBlank: false,
+							maxLength : 50,
+							enforceMaxLength:true
+							},
+							{
+							xtype:'textfield',
+							name:'password',
+							margin:'0 0 5 17',
+							fieldLabel:i18n._('comfirm password'),
+							inputType: 'password',
+							initiaPassField:'pass',
+							emptyText :  getPasswdTip(),
+							style:'margin-left:0px',
+							width:360,
+							id:'newPass2',
+							maxLength : 50,
+							enforceMaxLength:true
+							//allowBlank: false
+							}
+							
+							]
+					    }
+					});
+				}else{
+	    	        Ext.MessageBox.show({
+	  		          // title: '提示',
+					   title:i18n._('notice'),
+	  		          // msg: '请选择一个用户',
+					   msg:i18n._('selectOne'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+					return;
+				}
+				//密码重置页面结束
+			pwd.show();
+			}
+		},{
+		
+		icon: '../images/detail.png', 
+        text:'<font id="detailUser" color="white" >' + i18n._('details') + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("detailUser").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("detailUser").style.color = "black";
+			 }
+				
+		 },
+		handler:function(){
+			viewDetail();
+		
+		}},'-',
+		{
+		icon: '../images/disableUser.png', 
+		text:'<font id="deleteUser" color="white" >' + i18n._('adminDisable') + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("deleteUser").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("deleteUser").style.color = "black";
+			 }
+				
+		 },
+		handler:function(){
+			//删除用户操作
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');		
+				var record = store1.getById(id);
+				if(!freezed(record)){
+					return;
+				}
+		           Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether disable?'), function(btn) {  
+		                if (btn == 'yes') {  
+		                  Ext.Ajax.request({  
+		                        url : path+'/admin_mgmt/userManagement!freezedUser.action',
+		                        jsonData:{
+		                        	id: record.get('id')
+		                        },		
+		                        success : function(response) {
+		                        	var obj = Ext.decode(response.responseText);
+		                        	if(obj.success){
+		              	    	Ext.MessageBox.show({
+		     	  		           //title: '提示',
+		     	  		           //msg: '删除成功',
+								   title:i18n._('notice'),
+								   msg:i18n._('Disable Success!'),
+		     	  		           icon:Ext.MessageBox.INFO,
+		     	  		           buttons: Ext.MessageBox.OK
+		     	  		           
+		     	  		       }); 
+		                          store1.load();
+		                        	}
+		                        },  
+		                        failure : function(res) {  
+			              	    	Ext.MessageBox.show({
+				     	  		          // title: '提示',
+				     	  		          // msg: '网络错误',
+										   title:i18n._('notice'),
+										   msg:i18n._('internet error'),
+				     	  		           icon:Ext.MessageBox.INFO,
+				     	  		           buttons: Ext.MessageBox.OK
+				     	  		           
+				     	  		       }); 
+		                        },  
+		                        scope : this  
+		                      });  
+		                }  
+		              }, this);  
+			}else{
+      	    	Ext.MessageBox.show({
+	  		           //title: '提示',
+	  		          // msg: '请选择一个用户',
+					  title:i18n._('notice'),
+			           msg:i18n._('selectOne'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+				return;
+			}	
+		//Ext.MessageBox.confirm('请确认','是否删除？');
+		}
+		},
+		{
+			icon: '../images/enableUser.png', 
+			text:'<font id="enableUser" color="white" >' + i18n._('enableUser') + '</font>',
+			listeners: {
+				 "mouseout" : function() {
+					 document.getElementById("enableUser").style.color = "white";
+				 },
+				 "mouseover" : function() {
+					 document.getElementById("enableUser").style.color = "black";
+				 }
+					
+			 },
+			handler:function(){
+				//删除用户操作
+				var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+				if(rows.length > 0){
+					var id = rows[0].get('id');		
+					var record = store1.getById(id);
+					if(!unfreezed(record)){
+						return;
+					}
+			           Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether enableUser?'), function(btn) {  
+			                if (btn == 'yes') {  
+			                  Ext.Ajax.request({  
+			                        url : path+'/admin_mgmt/userManagement!enableUser.action',
+			                        jsonData:{
+			                        	id: record.get('id')
+			                        },		
+			                        success : function(response) {
+			                        	var obj = Ext.decode(response.responseText);
+			                        	if(obj.success){
+			              	    	Ext.MessageBox.show({
+			     	  		           //title: '提示',
+			     	  		           //msg: '删除成功',
+									   title:i18n._('notice'),
+									   msg:i18n._('enableUser Success!'),
+			     	  		           icon:Ext.MessageBox.INFO,
+			     	  		           buttons: Ext.MessageBox.OK
+			     	  		           
+			     	  		       }); 
+			                          store1.load();
+			                        	}
+			                        },  
+			                        failure : function(res) {  
+				              	    	Ext.MessageBox.show({
+					     	  		          // title: '提示',
+					     	  		          // msg: '网络错误',
+											   title:i18n._('notice'),
+											   msg:i18n._('internet error'),
+					     	  		           icon:Ext.MessageBox.INFO,
+					     	  		           buttons: Ext.MessageBox.OK
+					     	  		           
+					     	  		       }); 
+			                        },  
+			                        scope : this  
+			                      });  
+			                }  
+			              }, this);  
+				}else{
+	      	    	Ext.MessageBox.show({
+		  		           //title: '提示',
+		  		          // msg: '请选择一个用户',
+						  title:i18n._('notice'),
+				           msg:i18n._('selectOne'),
+		  		           icon:Ext.MessageBox.INFO,
+		  		           buttons: Ext.MessageBox.OK
+		  		           
+		  		       }); 
+					return;
+				}	
+			//Ext.MessageBox.confirm('请确认','是否删除？');
+			}
+			},
+			{
+
+					icon: '../images/reActivation.png', 
+					text:'<font id="reActivationId" color="white" >' + i18n._('reActivation') + '</font>',
+			        listeners: {
+				       "mouseout" : function() {
+					         document.getElementById("reActivationId").style.color = "white";
+				        },
+				        "mouseover" : function() {
+					         document.getElementById("reActivationId").style.color = "black";
+				        }
+					
+			        },
+			        handler:function(){
+				       var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			           if(rows.length > 0){
+				           
+			               var status = rows[0].get('enable');
+			               if(0 != status){
+			                   Ext.MessageBox.show({
+			                       title:i18n._('notice'),
+			                       msg:i18n._('reActivationError'),
+			                       icon:Ext.MessageBox.INFO,
+			                       buttons: Ext.MessageBox.OK
+			                   }); 
+			                   return;
+				           }
+						   var id = rows[0].get('id');		
+						   var record = store1.getById(id);
+				           Ext.Msg.confirm(i18n._('confirm'),i18n._('whetherReActivation'), function(btn) {  
+					           if (btn == 'yes') {  
+					                  Ext.Ajax.request({  
+					                        url : path+'/admin_mgmt/userManagement!reActivation.action',
+					                        jsonData:{
+					                        	id: record.get('id')
+					                        },		
+					                        success : function(response) {
+					                        	var obj = Ext.decode(response.responseText);
+					                        	if(obj.success){
+					              	    	Ext.MessageBox.show({
+					     	  		           //title: '提示',
+					     	  		           //msg: '删除成功',
+											   title:i18n._('notice'),
+											   msg:i18n._('reActivationSuccess'),
+					     	  		           icon:Ext.MessageBox.INFO,
+					     	  		           buttons: Ext.MessageBox.OK
+					     	  		           
+					     	  		       }); 
+					                          store1.load();
+					                        	}
+					                        },  
+					                        failure : function(res) {  
+						              	    	Ext.MessageBox.show({
+							     	  		          // title: '提示',
+							     	  		          // msg: '网络错误',
+													   title:i18n._('notice'),
+													   msg:i18n._('internet error'),
+							     	  		           icon:Ext.MessageBox.INFO,
+							     	  		           buttons: Ext.MessageBox.OK
+							     	  		           
+							     	  		       }); 
+					                        },  
+					                        scope : this  
+					                      });  
+					                }  
+				              }, this); 
+			               
+						}else{
+							
+			      	    	Ext.MessageBox.show({
+				      	    	
+								   title:i18n._('notice'),
+						           msg:i18n._('selectOne'),
+				  		           icon:Ext.MessageBox.INFO,
+				  		           buttons: Ext.MessageBox.OK
+				  		           
+				  		    }); 
+							return;
+							
+						}	
+			        }
+				},
+				
+				
+				
+				 {
+
+					icon: '../images/reActivation.png', 
+					text:'<font id="platform_ops" color="white" >' + i18n._('platformOperating') + '</font>',
+			        listeners: {
+				       "mouseout" : function() {
+					         document.getElementById("platform_ops").style.color = "white";
+				        },
+				        "mouseover" : function() {
+					         document.getElementById("platform_ops").style.color = "black";
+				        }
+					
+			        },
+			        handler:function(){
+				       var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			           if(rows.length > 0){
+				           
+			               var status = rows[0].get('enable');
+			               if(3 != status){
+			                   Ext.MessageBox.show({
+			                       title:i18n._('errorNotice'),
+			                       msg:i18n._('只有已经审批的用户才能进行此操作。'),
+			                       icon:Ext.MessageBox.INFO,
+			                       buttons: Ext.MessageBox.OK
+			                   }); 
+			                   return;
+				           }
+						   var id = rows[0].get('id');		
+						   var record = store1.getById(id);
+						   goBusinessPlatform(id)
+			               
+						}else{
+							
+			      	    	Ext.MessageBox.show({
+				      	    	
+								   title:i18n._('notice'),
+						           msg:i18n._('selectOne'),
+				  		           icon:Ext.MessageBox.INFO,
+				  		           buttons: Ext.MessageBox.OK
+				  		           
+				  		    }); 
+							return;
+							
+						}	
+			        }
+				},
+				
+				
+				{xtype:'tbfill'},{
+	                xtype:'splitbutton',
+	                id:'userstatebutton',
+	                text:'<span style="bottom:2px;position:relative;"><font id="userStateSplit" color="white">'+i18n._('userstate')+':'+'</font></span>', 
+	                listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("userStateSplit").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("userStateSplit").style.color = "black";
+						 }
+					},
+	                menu: new Ext.menu.Menu({
+	                    items: [
+							{
+							    text: i18n._('All'),//全部
+							    handler: function(){
+							    	var orderNoFieldValue=Ext.getCmp('orderNoField').value;
+							        //Ext.getCmp('orderNoField').setValue('');
+	                                userState='0,1,2,3';
+							        Ext.getCmp('userstatebutton').setText('<font color="#ffffff" id="userStateSplit">' + i18n._('All') + '</font>');
+							        var new_params={'type':'userState','query':'0,1,2,3','type1':itemValue,'query1':orderNoFieldValue};
+									Ext.apply(store1.proxy.extraParams,new_params);
+									store1.loadPage(1,null);
+							    }
+							},
+	                        {
+	                            text: i18n._('Account has not been actived'),
+	                            handler: function(){
+							    	var orderNoFieldValue=Ext.getCmp('orderNoField').value;
+	                                //Ext.getCmp('orderNoField').setValue('');
+	                                userState='0';
+	                            	Ext.getCmp('userstatebutton').setText('<font color="#ffffff" id="userStateSplit">' + i18n._('Account has not been actived') + '</font>');
+	                            	var new_params={'type':'userState','query':'0','type1':itemValue,'query1':orderNoFieldValue};
+									Ext.apply(store1.proxy.extraParams,new_params);
+	                        		store1.loadPage(1,null);
+	                            }
+	                        },
+	                        
+	                        {
+	                            text: i18n._('Accounts have been approved'),
+	                            handler: function(){
+							    	var orderNoFieldValue=Ext.getCmp('orderNoField').value;
+	                                //Ext.getCmp('orderNoField').setValue('');
+	                                userState='3';
+	                                Ext.getCmp('userstatebutton').setText('<font color="#ffffff" id="userStateSplit">' + i18n._('Accounts have been approved') + '</font>');
+	                                var new_params={'type':'userState','query':'3','type1':itemValue,'query1':orderNoFieldValue};
+									Ext.apply(store1.proxy.extraParams,new_params);
+	                        		store1.loadPage(1,null);
+	                            }
+	                        },	                        {
+	                            text: i18n._('Accounts have been frozen'),
+	                            handler: function(){
+							    	var orderNoFieldValue=Ext.getCmp('orderNoField').value;
+	                                //Ext.getCmp('orderNoField').setValue('');
+	                                userState='2';
+	                                Ext.getCmp('userstatebutton').setText('<font color="#ffffff" id="userStateSplit">' + i18n._('Accounts have been frozen') + '</font>');
+	                                var new_params={'type':'userState','query':'2','type1':itemValue,'query1':orderNoFieldValue};
+									Ext.apply(store1.proxy.extraParams,new_params);
+	                        		store1.loadPage(1,null);
+	                            }
+	                        }
+	                     ]
+	                })
+				},
+		{
+        xtype:'splitbutton',
+        text:'<font id="searchButton" color="white" >' + i18n._('username') + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("searchButton").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("searchButton").style.color = "black";
+			 }
+				
+		 },
+		id:'split',
+		margin:'0 0 0 2',
+		//arrowCls : "addUserArrow",
+		menu: new Ext.menu.Menu({
+        items: [
+        
+		{
+        text:i18n._('username'),
+		handler: function(){
+		Ext.getCmp('split').setText('<font id="searchButton" color="white" >' + i18n._('username') + '</font>'); 
+		itemValue='userName';
+		}
+		},
+		{
+         text:i18n._('email'),
+		handler: function(){
+		Ext.getCmp('split').setText('<font id="searchButton" color="white" >' + i18n._('email') + '</font>'); 
+		itemValue='userEmail';
+		}
+		}
+       ]
+     })
+	 },
+	{	
+    labelWidth: 5,
+    xtype: 'searchfield',
+    store: store1,
+	id:'orderNoField',	
+	hasSearch:true,
+	onFocus:function(){
+	  Ext.getCmp('orderStatebutton').setText('<font color="#ffffff" id="userStateSplit">' + i18n._('userstate') + '</font>');
+	},
+	//emptyText:i18n._('userName or userEmail'),
+	onTrigger1Click : function(){
+		var me = this,
+			store = me.store,
+			proxy = store.getProxy(),
+			val;
+			
+		if (me.hasSearch) {
+			me.setValue('');
+			proxy.extraParams[me.paramName] = '';
+			proxy.extraParams['type'] = '';
+			proxy.extraParams.start = 0;
+			//store.load();
+			store.loadPage(1,null);
+			me.hasSearch = false;
+			me.triggerEl.item(0).setDisplayed('none');
+			me.doComponentLayout();
+		}
+	},  
+	  
+	onTrigger2Click : function(){//点击查询按钮或回车调用该方法  
+		var me = this,
+		store = me.store,
+		proxy = store.getProxy(),
+		value = me.getValue().replace(/(^\s*)|(\s*$)/g, "");
+			
+		if (value.length < 1) {
+			me.onTrigger1Click();
+			return;
+		}
+		var i = itemValue;
+		store = me.store,
+		proxy = store.getProxy(),
+		proxy.extraParams['query'] = userState;
+		proxy.extraParams['type'] = "userState";
+		proxy.extraParams['query1'] = value;
+		proxy.extraParams['type1'] = i;
+		proxy.extraParams.start = 0;
+		//store.load();
+		store.loadPage(1,null);
+		this.hasSearch = true;  
+		me.triggerEl.item(0).setDisplayed('block');
+		me.doComponentLayout();
+	}
+	 
+	 
+	}
+	
+           
+            
+	]}
+	]
+})
+});
+
+function viewDetail(){
+	var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+	if(rows.length > 0){
+		var id = rows[0].get('id');
+		var record = store1.getById(id);
+// 		if(!isEnableCheck(record)){
+// 			return;
+// 		}
+		//用户详情窗口
+		var info =Ext.create('Ext.window.Window', {
+		    //title: '用户详情',
+			title: i18n._('user details'),
+			height: 440,
+			//autoHeight:true,
+			layout:'fit',
+		    width: 480,
+		    border: false,
+			closable:false,
+			resizable : false,
+			constrain : true,
+			modal:true,
+			tools:[{
+			  type:'close',
+			  handler:function(){
+			  info.destroy();
+			  }
+			}],
+		    items: [
+								{
+				xtype: 'form',
+				height:'100%',
+				id:'infoForm',
+				width:470,
+				autoScroll:true,
+				border: false,
+				  items: [
+			{
+			xtype: 'fieldset',
+			title: i18n._("Basic information"),
+			//layout: 'anchor',
+			width:350,
+			style:'margin-left:50px;',
+			//defaults: {anchor: '20%'},
+			items:[
+					{
+					xtype:'textfield',
+					fieldLabel:'用户名id',
+					style:'margin-left:30px',
+					id:'user_id2',
+					hidden: true,
+					hideLabel: true
+					},
+					{
+					xtype: 'displayfield',
+					id:'email2',
+					fieldLabel: i18n._("email"),
+					name: i18n._("email"),
+					value: record.get('email'),
+					style:'margin-left:30px;'
+					
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._("username"),
+					style:'margin-left:30px',
+					name:i18n._("username"),
+					value: record.get('name'),
+					id:'username2'
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._("sex"),
+					style:'margin-left:30px',
+					name:i18n._("username"),
+					value: record.get('userProfile').sex==0?i18n._('female'):i18n._('male'),
+					id:'sex2'
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._('User Type'),
+					name:i18n._('User Type'),
+					maxLength: 18,
+					enforceMaxLength:true,
+					minLength: 15,
+					style:'margin-left:30px;',
+					value: record.get('userType')== 'NorUser'?i18n._('NorUser'):i18n._('EntUser'),
+					id:'userType2'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._('brand'),
+						name:i18n._('brand'),
+						maxLength: 18,
+						enforceMaxLength:true,
+						minLength: 15,
+						style:'margin-left:30px;',
+						value:function(){
+						    getBrandByDomain(record.get('domain').id);
+							if(brandStore.findRecord('brandCode',record.get('level'))){
+								return brandStore.findRecord('brandCode',record.get('level')).get('brandName');
+							}else{
+								return "";
+							}
+							
+						}(),//record.get('level')
+						id:'mBrand'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel: i18n._('platform'),
+						name: i18n._('platform'),
+						style:'margin-left:30px;',
+						value:function(){
+						 return record.get('domain').abbreviation;
+						}()
+					},	
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._('Id number'),
+					name:i18n._('Id number'),
+					//vtype: 'idCardCheck',
+					allowBlank:false,
+					maxLength: 18,
+					enforceMaxLength:true,
+					minLength: 15,
+					style:'margin-left:30px;',
+					value: record.get('userProfile').idCard,
+					id:'idCard2'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._('Contact'),
+						name:i18n._('Contact'),
+						vtype: 'phonecheck',
+						allowBlank:false,
+						style:'margin-left:30px;',
+						value: record.get('userProfile').telephone,
+						id:'telephone2'
+						}
+					,
+					{
+						style:'margin-left:30px;',
+						fieldLabel: i18n._('Country'),
+						name: i18n._('Country'),
+						xtype:'displayfield',
+						id:'country2',
+						mode: 'local',
+						value:i18n._('c'+record.get('userProfile').country.nameCode)
+						},
+						{
+					    
+								xtype: 'displayfield',
+								style:'margin-left:30px;',
+								fieldLabel: i18n._('Region'),
+								name: i18n._('Region'),
+								id:'province2',
+								mode: 'local',
+								value:getRegionDetail(record.get('userProfile').region)
+						},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._('detailed address'),
+						name:i18n._('detailed address'),
+						vtype: 'phonecheck',
+						allowBlank:false,
+						style:'margin-left:30px;',
+						value: record.get('userProfile').address,
+						id:'address2'
+					}
+					,
+					{
+						style:'margin-left:30px;',
+						fieldLabel: i18n._('Industry'),
+						name: i18n._('Industry'),
+						xtype:'displayfield',
+						id:'industry2',
+						mode: 'local',
+						value:i18n._('i'+record.get('userProfile').industry.nameCode)
+						},
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('cpName'),
+						name:i18n._('cpName'),
+						value: record.get('userProfile').company,
+						id:'company2'
+						},	
+						//修改人 张建伟  修改时间 20130908
+						{
+							xtype:'displayfield',
+							style:'margin-left:30px;',
+							fieldLabel:i18n._('userDescription'),
+							name:i18n._('userDescription'),
+							value: record.get('userProfile').description,
+							id:'userDesc'
+							},	
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('createDate'),
+						name:i18n._('createDate'),
+						value: record.get('createDate'),
+						renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+						id:'createDate2'
+						},
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('The last time login time'),
+						name:i18n._('lastLoginDate'),
+						value: record.get('lastLoginDate'),
+						renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+						id:'lastLoginDate2'
+						}
+			]
+		}
+		]
+		}
+		]
+
+		});
+		//用户详细信息页面结束
+		info.show();
+	}else{
+	    	Ext.MessageBox.show({
+	          // title: '提示',
+	           //msg: '请选择一个用户',
+			   title:i18n._('notice'),
+		       msg:i18n._('selectOne'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		return;
+	}
+	
+}
+
+function isEnableCheck(record){
+	var checkResult=true;
+	var isEnable=record.get('enable');
+	if(isEnable!=3){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountDisabledTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		checkResult=false;
+	}
+	
+	return checkResult;
+}
+function isDeletedCheck(record){
+	var checkResult=true;
+	var isEnable=record.get('enable');
+	if(isEnable!=2){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountIsDeletedTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		checkResult=false;
+	}
+	
+	return checkResult;
+}
+ 
+function checkedExamine(status){
+
+	if(3==status){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountIsExamineTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	     }); 
+	     return false;
+	}
+	if(2==status){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('freezeaccountapprove'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	     }); 
+	     return false;
+	}
+
+   if(1 !=status){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountIsActiveTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	     }); 
+	     return false;
+	}
+
+	return  true;
+}
+
+
+function checkedDredge(status){
+	if(3==status){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountIsDredgeTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	    }); 
+	    return false;
+	}
+	if(2==status){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountfreezed'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	    }); 
+	    return false;
+	}
+	if(1 == status){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountDoesnotNeedOpen'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	    }); 
+	    return false;
+	}
+	return  true;
+}
+
+
+function getRegionDetail(region){
+	if(region){
+		return i18n._('r'+region.nameCode);
+	}else{
+		return '';
+	}
+	
+}
+
+function isValidDate(iY, iM, iD) {
+	if (iY > 2200 || iY < 1900 || !isNumber(iY)) {
+		return false;
+	}
+	if (iM > 12 || iM <= 0 || !isNumber(iM)) {
+		return false;
+	}
+	if (iD > 31 || iD <= 0 || !isNumber(iD)) {
+		return false;
+	}
+	return true;
+}
+function isNumber(oNum) {
+	if (!oNum)
+		return false;
+	var strP = /^\d+(\.\d+)?$/;
+	if (!strP.test(oNum))
+		return false;
+	try {
+		if (parseFloat(oNum) != oNum)
+			return false;
+	} catch (ex) {
+		return false;
+	}
+	return true;
+}
+
+	}
+        };
+    })();
+
+    MultiLang.init();
+    
+})
+ 
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+ function freezed(record){
+		var checkResult=true;
+		var isEnable=record.get('enable');
+		if(isEnable==2){
+			Ext.MessageBox.show({
+				   title:i18n._('notice'),
+				   msg:i18n._('freezed'),
+		           icon:Ext.MessageBox.INFO,
+		           buttons: Ext.MessageBox.OK
+		           
+		       }); 
+			return checkResult=false;
+		}
+		if(isEnable!=3){
+			Ext.MessageBox.show({
+				   title:i18n._('notice'),
+				   msg:i18n._('must approved'),
+		           icon:Ext.MessageBox.INFO,
+		           buttons: Ext.MessageBox.OK
+		           
+		       }); 
+			checkResult=false;
+		}
+		
+		return checkResult;
+		
+	}
+
+	function unfreezed(record){
+		var checkResult=true;
+		var isEnable=record.get('enable');
+		if(isEnable!=2){
+			Ext.MessageBox.show({
+				   title:i18n._('notice'),
+				   msg:i18n._('must freezed'),
+		           icon:Ext.MessageBox.INFO,
+		           buttons: Ext.MessageBox.OK
+		           
+		       }); 
+			checkResult=false;
+		}
+		
+		return checkResult;
+		
+	}
+	
+	
+	function goBusinessPlatform(platform_ops){
+		var v_mask = new Ext.LoadMask(document.body, {
+			msg:i18n._('操作正在进行中，请稍候...'),
+		    removeMask: true //完成后移除
+	    });
+		v_mask.show();
+	 	Ext.Ajax.request({
+	 		url:path+'/systemmanagement/getPlatMaintenanceUrl!getBusinessPlatformLoginUrl.action',
+	 		params:{
+	 			userId:platform_ops
+	 		},
+	 		success:function(form,action){
+	 			var result=form.responseText;
+	 			if(result){
+//	  				var win = window.top;
+//	  				while (win.opener) {
+//	  				    win = win.opener.top;
+//	  				}
+	 				window.open(result,'业务平台');
+	 			}else{
+	 				Ext.MessageBox.show({
+	                    title: i18n._('errorNotice'),
+	                    msg: '跳转失败',
+	                    buttons: Ext.MessageBox.OK,
+	                    icon: Ext.MessageBox.ERROR
+	                });
+	 			}
+	 			v_mask.hide();
+	 		}
+	 	});
+}
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

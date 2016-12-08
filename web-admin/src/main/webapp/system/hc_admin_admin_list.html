@@ -1,0 +1,1334 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css"
+	href="../extjs-4.1.0/resources/css/ext-all-gray.css" />
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+<script type="text/javascript" charset="utf-8" src="../js/jquery.md5.js"></script>
+<script type="text/javascript" src="../js/verifyPass.js"></script>
+<style type="text/css">
+body .x-panel {
+	margin: 0 0 20 0;
+	padding: 0 0 0 0;
+}
+</style>
+<script type="text/javascript">
+ Ext.Loader.setConfig({
+    enabled: true
+});
+
+     Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+]);
+     function vd(text){
+         if(text.indexOf(' ')>=0)       
+               //return 'can not use the blank space';   
+                 return i18n._('blank');     
+            else        
+              return true;    
+         
+     };
+
+
+ Ext.onReady(function(){
+	   var params;
+       MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {
+			//定义role
+			Ext.define('Role',{
+					    extend: 'Ext.data.Model',
+					    fields:[
+					         {name:'id',type:'long'},
+					         {name:'name',type:'string'}
+					         ]
+				});
+	
+			//定义admin
+			Ext.define('Admin',{
+					    extend: 'Ext.data.Model',
+					    fields:[
+					         {name:'id',type:'long'},
+					         {name:'name',type:'string'},
+					         {name:'password',type:'string'},
+					         {name:'email',type:'string'},
+					         {name:'enable',type:'int'},
+					         {name:'isSuper',type:'boolean'},
+					         {name:'telephone',type:'string'},
+					         {name:'lastLoginDate', type:'date',dateFormat:'time'},
+					         {name:'createDate',type:'date',dateFormat:'time'},
+					         {name:'roleName',mapping:'roleName'},
+					         {name:'roleId',mapping:'roleId'},
+					         {name:'adminRoleId',mapping:'adminRoleId'},
+					         {name:'type',mapping:'type'}
+					         ]
+				});
+			 Ext.apply( 
+						  Ext.form.VTypes, 
+						  { 
+						    phonecheck : function(val, field) { 
+						    var str=val;
+						    //var reg=/(^[0-9]{3,4}\-[0-9]{7,8}$)|(^[0-9]{7,8}$)|(^0{0,1}1[0-9]{10}$)/;
+						    var reg=/(^[0-9]{1,25}$)/; 
+						    	return reg.test(str); 
+						    },
+						    phonecheckText :i18n._("contactNumberTip")
+						   }
+						    
+			); 
+
+
+		    //添加管理员类型，没有数据库加载
+	        Ext.data.t = [[1,"分平台"],[2,"大客户"]];
+            var type = new Ext.data.SimpleStore({ 
+                fields: ['id', 'name'],
+                data:Ext.data.t 
+            });
+            
+			 //加载后台管理员，超级管理员除外
+			var store1=Ext.create('Ext.data.Store', {
+					pageSize: pageSize,
+					autoLoad:true,
+					storeId:'loadAdminlist',
+					width:'100%',
+					requires:'Admin',
+					model: 'Admin',
+					sorters: [{
+					            property : 'createDate',
+					            direction: 'DESC'
+					           }],
+					remoteSort:true,
+						proxy: {
+					        type: 'ajax',
+					        url : path+'/admin_mgmt/adminManagement!getAllAdminUser.action',
+							reader: {
+					            type: 'json',    
+					            root: 'resultObject.result',
+					            totalProperty: 'resultObject.totalCount'
+					        }
+					    }
+					});
+			 
+				var RoleStore=Ext.create('Ext.data.Store', {
+					storeId:'loadRole',
+					width:'100%',
+					requires:'Role',
+					model: 'Role',
+						proxy: {
+					        type: 'ajax',
+					        url : path+'/admin_mgmt/role!getRoleByPermission.action',
+					        //url : path+'/admin_mgmt/adminManagement!getAllRole.action',
+							reader: {
+					            type: 'json',    
+					            root: 'resultObject',
+					            totalProperty: 'resultObject.totalCount'
+					        }
+					    }
+					});	
+				
+				var itemValue='adminName';
+				var pluginExpanded=true;
+			//添加窗口
+			var add = Ext.create('Ext.window.Window', {
+						title: i18n._('Add a admin'),
+						height: 275,
+						//autoHeight:true,
+						layout:'fit',
+						width: 400,
+						border: false,
+						constrain : true,
+						closable:false,
+						modal:true,
+						tools:[{
+							  type:'close',
+							  handler:function(){
+								  Ext.getCmp('addform').getForm().reset();
+						          add.hide();
+							  }}],
+						items: [
+						{
+						xtype: 'form',
+						id:'addform',
+						height:'100%',
+						width:500,
+						border: false,
+						  items: [
+							{
+							xtype:'textfield',
+							fieldLabel: i18n._('Admin Name'),
+							style:'margin-left:40px;margin-top:20px;',
+							name:i18n._('Admin Name'),
+							id:'adminname',
+							emptyText:i18n._('please input name'),
+							allowBlank: false,
+							validator: vd,
+							enforceMaxLength:true,
+							maxLength:8
+							},
+							{
+								xtype:'textfield',
+								fieldLabel:i18n._('email'),
+								vtype: 'email',
+								style:'margin-left:40px;',
+								name:'登录邮箱',
+								id:'email',
+								allowBlank: false,
+								enforceMaxLength:true,
+								maxLength:80
+							},
+							{
+							xtype: 'textfield',
+							style:'margin-left:40px;',
+							fieldLabel:i18n._('Contact'),
+							vtype: 'phonecheck',
+							name:i18n._('Contact'),
+							id:'telephone',
+							allowBlank: false
+							},
+							{
+								xtype:'textfield',
+								fieldLabel:i18n._('password'),
+								style:'margin-left:40px;',
+								name:'用户密码',
+								id:'password',
+								inputType: 'password',
+								validator:verifyPassword,
+								maxLength : 50,
+								enforceMaxLength:true
+							},
+							{
+								xtype:'textfield',
+								fieldLabel:i18n._('comfirm password'),
+								style:'margin-left:40px;',
+								name:'确认密码',
+								id:'confirm_password',
+								inputType: 'password',
+								maxLength : 50,
+								validator:verifyPassword,
+								enforceMaxLength:true
+							},
+							{
+								style:'margin-left:40px;',
+								fieldLabel: i18n._('Admin Role'),
+								name: i18n._('Admin Role'),
+								xtype:'combo',
+								//allowBlank: false,
+								id:'admin_role',
+								mode: 'local',
+								triggerAction:  'all',
+								//forceSelection: true,
+								//editable: false,
+								displayField: 'name',
+								valueNotFoundText:'Not found',
+								listConfig:{maxHeight:100},
+								valueField: 'id',
+								editable: false,
+								emptyText: i18n._('Please Select'),
+								queryMode: 'remote',
+								store: RoleStore
+							},{
+								style:'margin-left:40px;',
+								fieldLabel: i18n._('admin Type'),
+								name: i18n._('admin Type'),
+								xtype:'combo',
+								id:'admin_type',
+								mode: 'local',
+								displayField: 'name',
+								valueField: 'id',
+								triggerAction:  'all',
+								valueNotFoundText:'Not found',
+								forceSelection:true,
+								allowBlank:false,
+								editable: false,
+								emptyText: i18n._('Please Select'),
+								store:type
+							}
+					],
+						dockedItems: [{
+								xtype: 'toolbar',
+								dock: 'bottom',
+								ui: 'footer',
+								layout: {
+									pack: 'left'
+								},
+								items: [
+										{
+									style:'margin-left:200px;',
+									minWidth: 80,
+									text:i18n._('OK'),
+									handler:function(){
+										if(Ext.getCmp('password').getValue()!=Ext.getCmp('confirm_password').getValue()){
+											Ext.MessageBox.show({
+												 title:i18n._('notice'),
+												 msg:i18n._('两次输入密码不一致!'),
+												 icon:Ext.MessageBox.INFO,
+												  buttons: Ext.MessageBox.OK
+										   
+											 }); 
+											return;
+										}
+										
+										if(Ext.getCmp('adminname').isValid() &&Ext.getCmp('password').isValid()//&&Ext.getCmp('admin_role').isValid()
+												&& Ext.getCmp('email').isValid()&& Ext.getCmp('telephone').isValid()
+												&& Ext.getCmp('admin_type').isValid()){
+										var enCode = $.md5(Ext.getCmp('password').getValue());
+										Ext.Ajax.request({
+											url: path+'/admin_mgmt/adminManagement!addAdmin.action',
+											method:'POST',
+											params: {
+												"name":Ext.getCmp('adminname').getValue(),
+												"email":Ext.getCmp('email').getValue(),
+												"password": enCode,
+												"telephone":Ext.getCmp('telephone').getValue(),
+												"roleId":Ext.getCmp('admin_role').getValue(),
+												"adminType":Ext.getCmp('admin_type').getValue()
+											},
+											success: function(response){
+												
+												var obj = Ext.decode(response.responseText);
+												if(obj.success){
+													Ext.MessageBox.show({
+														 title:i18n._('notice'),
+														 msg:i18n._('add admin success'),
+														 icon:Ext.MessageBox.INFO,
+														  buttons: Ext.MessageBox.OK
+												   
+													 }); 
+														Ext.getCmp('addform').getForm().reset();
+														 add.hide();
+														 store1.load();
+												}
+												else{
+													Ext.MessageBox.show({
+													   title:i18n._('notice'),
+													   msg: obj.resultMsg,
+													   icon:Ext.MessageBox.WARNING,
+													   buttons: Ext.MessageBox.OK
+													   
+												   }); 
+													return;
+												}
+											}
+										})
+									}
+									}
+								},{
+									minWidth: 80,
+									text:i18n._('reset'),
+									handler:function(){
+										this.up('form').getForm().reset();
+							   }
+									
+							   }
+								]
+							}]
+			
+					}
+					]
+			
+			});
+var sm = Ext.create('Ext.selection.RowModel');
+
+//管理员列表
+Ext.create('Ext.Viewport',{
+    layout:'fit',
+    width:'100%',
+    items: Ext.create('Ext.grid.Panel', {
+	id:'userList',
+	height:900,
+	sortableColumns:false,
+	//layout:'fit',
+	width:'100%',
+	title: i18n._('userManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('Admin Management') +'&nbsp; &nbsp;>&nbsp;&nbsp;' + i18n._('Admin List'),
+// 	tools:[{
+// 		    type:'pin',
+// 			handler:function(){
+// 			  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_welcome.html';
+// 			}
+// 		  },{
+// 		    type:'refresh',
+// 			handler:function(){
+// 			  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_admin_list.html';
+// 			}
+// 		  },{
+// 		    type:'left',
+// 			handler:function(){
+// 			  history.go(-1);
+// 			}
+// 		  }],
+    store: store1,
+	selModel: sm,
+    columns: [
+	    {xtype: 'rownumberer',dataIndex:'item',align:'left',flex:.5},
+        {header: i18n._('Admin Name'),  dataIndex: 'name', flex:1,sortable:true},
+		{header: i18n._('Admin Role'),  dataIndex: 'roleName', flex:1,sortable:true},
+        {header: i18n._('email'), dataIndex: 'email',sortable:true,flex:1},
+		{header: i18n._('Contact'), dataIndex: 'telephone',sortable:true,flex:1},
+		{header: i18n._('userstate'), dataIndex: 'enable',sortable:true,flex:1,
+			renderer: function(value){
+				if(value==2){
+	                	return i18n._('Accounts have been frozen');
+	                }else if(value==3){
+	                    return i18n._('Accounts have been approved');
+	                }
+				 } 
+		},
+		{
+			text: i18n._("The last time login time"),
+		    dataIndex: 'lastLoginDate',
+		    xtype: 'datecolumn',
+		    format: 'Y-m-d H:i:s',
+		    flex: 1,
+		    sortable: true
+		},
+		{
+			text: i18n._("createDate"),
+   			dataIndex: 'createDate',
+   		    xtype: 'datecolumn',
+   		    format: 'Y-m-d H:i:s',
+    		flex: 1,
+    		sortable: true
+		}
+		
+		],
+		listeners:{
+			'itemdblclick':{
+				fn:function(){
+					viewDetail();
+				}
+			}
+		},
+    selType: 'cellmodel',
+	bbar: Ext.create('Ext.PagingToolbar', {
+            store:  store1,
+            pageSize:0,
+            displayInfo: true
+        }),
+// 	viewConfig: {
+// 			plugins: {
+// 			   ptype: 'gridviewdragdrop',
+// 				dragText: 'Drag and drop to reorganize'
+// 			}
+// 		},
+	 dockedItems:[{
+	        xtype:'toolbar',
+			dock: 'top',
+			cls: 'toolbarCSS',
+			//style:'background-color:#4c4c4c; background-image:url();',
+			items:[
+				 {
+					 text:'<font id="addAdmin" color="white" >' + i18n._("add Admin") + '</font>',
+					 icon: '../images/add_new.png',
+					 listeners: {
+							 "mouseout" : function() {
+								 document.getElementById("addAdmin").style.color = "white";
+							 },
+							 "mouseover" : function() {
+								 document.getElementById("addAdmin").style.color = "black";
+							 }
+								
+					 },
+					handler:function(){
+						RoleStore.load();
+						add.show();
+					}
+				},
+		{
+		icon: '../images/edit_new.png', 
+		text:'<font id="editAdmin" color="white" >' + i18n._("modify") + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("editAdmin").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("editAdmin").style.color = "black";
+			 }
+				
+		 },
+		handler:function(){
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			RoleStore.load();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				var record = store1.getById(id);
+				
+				if(!isEnableCheck(record)){
+					return;
+				}
+				//修改窗口开始
+				var update=Ext.create('Ext.window.Window', {
+					title: i18n._('modify'),
+					height: 218,
+					//autoHeight:true,
+					layout:'fit',
+					width: 400,
+					border: false,
+					closable:false,
+					constrain : true,
+					modal:true,
+					tools:[{
+					  type:'close',
+					  handler:function(){
+					     update.destroy();
+					  }
+					}],
+					items: [
+					{
+					xtype: 'form',
+					height:'100%',
+					width:500,
+					border: false,
+					items: [
+						{
+						xtype:'textfield',
+						fieldLabel:'管理员id',
+						style:'margin-left:40px',
+						id:'admin_id',
+						value:record.get('id'),
+						hidden: true,
+						hideLabel: true
+						},						
+						{
+						xtype:'displayfield',
+						fieldLabel: i18n._('Admin Name'),
+						style:'margin-left:40px;margin-top:20px;',
+						name:i18n._('Admin Name'),
+						id:'adminname2',
+						value:record.get('name'),
+						allowBlank: false,
+						enforceMaxLength:true,
+						maxLength:8
+						},
+						{
+						xtype:'displayfield',
+						fieldLabel:i18n._('email'),
+						vtype: 'email',
+						style:'margin-left:40px;',
+						name:i18n._('email'),
+						id:'email2',
+						value:record.get('email'),
+						allowBlank: false,
+						enforceMaxLength:true,
+						maxLength:80
+						},
+						{
+						xtype: 'textfield',
+						style:'margin-left:40px;',
+						fieldLabel:i18n._('Contact'),
+						vtype: 'phonecheck',
+						name:i18n._('Contact'),
+						value:record.get('telephone'),
+						id:'telephone2',
+						allowBlank: false
+						},
+						{
+						style:'margin-left:40px;',
+						fieldLabel: i18n._('Admin Role'),
+						name: i18n._('Admin Role'),
+						xtype:'combo',
+						//allowBlank: false,
+						id:'admin_role2',
+						mode: 'local',
+						value:record.get('roleId'),
+						triggerAction:  'all',
+						//forceSelection: true,
+						emptyText: i18n._('Please Select'),
+						//editable: false,
+						displayField: 'name',
+						valueNotFoundText:'Not found',
+						listConfig:{maxHeight:100},
+						valueField: 'id',
+						editable: false,
+						queryMode: 'remote',
+						store: RoleStore
+						},{//添加管理员类型
+						style:'margin-left:40px;',
+						fieldLabel: i18n._('admin Type'),
+						name: i18n._('admin Type'),
+						xtype:'combo',
+						id:'admin_type2',
+						mode: 'local',
+						value:record.get('type'),
+						emptyText: i18n._('Please Select'),
+						editable: false,					
+						valueNotFoundText:'Not found',
+						listConfig:{maxHeight:100},
+						valueField: 'id',
+						displayField: 'name',
+						store: type
+						}
+				],
+				dockedItems: [{
+					xtype: 'toolbar',
+					dock: 'bottom',
+					ui: 'footer',
+					layout: {
+						pack: 'left'
+					},
+					items: [{
+						style:'margin-left:200px;',
+						minWidth: 80,
+						text: i18n._('OK'),
+						handler:function(){
+							if(Ext.getCmp('telephone2').isValid()&& Ext.getCmp('adminname2').isValid()
+									&&Ext.getCmp('email2').isValid()){
+								
+							   Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether modify?'), function(btn) {  
+									if (btn == 'yes') {
+										//修改管理员信息
+										Ext.Ajax.request({
+											url: path+'/admin_mgmt/adminManagement!modifyAdmin.action',
+											method:'POST',
+											params: {
+												"adminId":record.get('id'),
+												"telephone": Ext.getCmp('telephone2').getValue(),
+												"roleId": Ext.getCmp('admin_role2').getValue(),
+												"adminRoleId":record.get('adminRoleId'),
+												"adminType":Ext.getCmp('admin_type2').getValue()//添加类型
+												
+											},
+											success: function(response){
+												
+												var obj = Ext.decode(response.responseText);
+												if(obj.success){
+												Ext.MessageBox.show({
+													   title: i18n._('notice'),
+													   msg: i18n._('Edit Success!'),
+													   icon:Ext.MessageBox.INFO,
+													   buttons: Ext.MessageBox.OK
+													   
+												   }); 
+												update.destroy();
+												store1.load();
+												}
+											}
+										});
+										
+									}});
+							}
+						}
+						
+
+					}]
+				}]
+				}
+				]
+				});
+			
+				//Ext.getCmp('admin_role2').setValue(record.get('roleId'));
+				//Ext.getCmp('admin_type2').setValue(record.get('type'));
+				update.show();
+	    		//修改窗口结束
+			}else{
+    	    	Ext.MessageBox.show({
+					   title:i18n._('notice'),
+					   msg:i18n._('selectOne'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+				return;
+			}
+				
+		}
+		},
+		{
+			icon: '../images/disableUser.png', 
+			text:'<font id="deleteAdmin" color="white" >' + i18n._('adminDisable') + '</font>',
+			listeners: {
+				 "mouseout" : function() {
+					 document.getElementById("deleteAdmin").style.color = "white";
+				 },
+				 "mouseover" : function() {
+					 document.getElementById("deleteAdmin").style.color = "black";
+				 }
+					
+			 },
+		handler:function(){
+			//删除用户操作
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				
+				var record = store1.getById(id);
+				
+				if(!freezed(record)){ 
+					return;
+				}
+		           Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether disable?'), function(btn) {  
+		                if (btn == 'yes') {  
+		                  Ext.Ajax.request({  
+		                        url : path+'/admin_mgmt/adminManagement!freezedAdmin.action',
+		                        method:'POST',
+		                        params:{
+		                        	adminId: record.get('id')
+		                        },		
+		                        success : function(response) {
+		                        	var obj = Ext.decode(response.responseText);
+		                        	if(obj.success){
+		              	    	Ext.MessageBox.show({
+								   title:i18n._('notice'),
+								   msg:i18n._('Disable Success!'),
+		     	  		           icon:Ext.MessageBox.INFO,
+		     	  		           buttons: Ext.MessageBox.OK
+		     	  		           
+		     	  		       }); 
+		                          store1.load();
+		                        	}
+		                        },  
+		                        failure : function(res) {  
+			              	    	Ext.MessageBox.show({
+										   title:i18n._('notice'),
+										   msg:i18n._('internet error'),
+				     	  		           icon:Ext.MessageBox.INFO,
+				     	  		           buttons: Ext.MessageBox.OK
+				     	  		           
+				     	  		       }); 
+		                        },  
+		                        scope : this  
+		                      });  
+		                }  
+		              }, this);  
+			}else{
+      	    	Ext.MessageBox.show({
+					  title:i18n._('notice'),
+			           msg:i18n._('selectOne'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+				return;
+			}	
+		}
+		},
+		
+		{
+			icon: '../images/enableUser.png', 
+			text:'<font id="enableAdmin" color="white" >' + i18n._('enableUser') + '</font>',
+			listeners: {
+				 "mouseout" : function() {
+					 document.getElementById("enableAdmin").style.color = "white";
+				 },
+				 "mouseover" : function() {
+					 document.getElementById("enableAdmin").style.color = "black";
+				 }
+					
+			 },
+		handler:function(){
+			//删除用户操作
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				
+				var record = store1.getById(id);
+				
+				if(!unfreezed(record)){ 
+					return;
+				}
+		           Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether enableUser?'), function(btn) {  
+		                if (btn == 'yes') {  
+		                  Ext.Ajax.request({  
+		                        url : path+'/admin_mgmt/adminManagement!enableAdmin.action',
+		                        method:'POST',
+		                        params:{
+		                        	adminId: record.get('id')
+		                        },		
+		                        success : function(response) {
+		                        	var obj = Ext.decode(response.responseText);
+		                        	if(obj.success){
+		              	    	Ext.MessageBox.show({
+								   title:i18n._('notice'),
+								   msg:i18n._('enableUser Success!'),
+		     	  		           icon:Ext.MessageBox.INFO,
+		     	  		           buttons: Ext.MessageBox.OK
+		     	  		           
+		     	  		       }); 
+		                          store1.load();
+		                        	}
+		                        },  
+		                        failure : function(res) {  
+			              	    	Ext.MessageBox.show({
+										   title:i18n._('notice'),
+										   msg:i18n._('internet error'),
+				     	  		           icon:Ext.MessageBox.INFO,
+				     	  		           buttons: Ext.MessageBox.OK
+				     	  		           
+				     	  		       }); 
+		                        },  
+		                        scope : this  
+		                      });  
+		                }  
+		              }, this);  
+			}else{
+      	    	Ext.MessageBox.show({
+					  title:i18n._('notice'),
+			           msg:i18n._('selectOne'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+				return;
+			}	
+		}
+		},
+		
+		{
+			icon: '../images/detail.png', 
+	        text:'<font id="detailAdmin" color="white" >' + i18n._('details') + '</font>',
+			listeners: {
+				 "mouseout" : function() {
+					 document.getElementById("detailAdmin").style.color = "white";
+				 },
+				 "mouseover" : function() {
+					 document.getElementById("detailAdmin").style.color = "black";
+				 }
+					
+			 },
+			handler:function(){
+				viewDetail();
+			
+			}},
+		{
+		icon: '../images/resetPasswd.png',  // Use a URL in the icon config
+		text:'<font id="resetPasswordAdmin" color="white" >' + i18n._('RetPassword') + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("resetPasswordAdmin").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("resetPasswordAdmin").style.color = "black";
+			 }
+				
+		 },
+		handler:function(){
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				var record = store1.getById(id);
+				if(!isEnableCheck(record)){
+					return;
+				}
+				//密码重置窗口开始
+				var pwd=Ext.create('Ext.window.Window', {
+				    title:i18n._('RetPassword'),
+					layout:'fit',
+				    height: 130,
+					modal:true,
+				    width: 310,
+					closable:false,
+					resizable : false,
+					constrain : true,
+					tools:[{
+					  type:'close',
+					  handler:function(){
+					    pwd.destroy();
+					  }
+					}],
+
+					
+				    items: {  
+				        xtype: 'form',
+				        id:'pwdForm',
+						height:'100%',
+						width:'100%',
+						fieldDefaults:{
+							msgTarget:'side',
+							autoFitErrors:false
+						},
+						//style:'margin-top:0px;margin-left:0px;',
+				        border: false,
+				        dockedItems: [{
+				            xtype: 'toolbar',
+				            dock: 'bottom',
+				            ui: 'footer',
+				            layout: {
+				                pack: 'left'
+				            },
+				            items: [{
+								margin:'0 0 0 53',
+				                minWidth: 80,
+							    text: i18n._('OK'),
+				                handler:function(){
+
+				                	if(Ext.getCmp('newPass1').isValid() && Ext.getCmp('newPass2').isValid()){
+				                		if(Ext.getCmp('newPass2').getValue()==Ext.getCmp('newPass1').getValue()){
+				                		var enCode = $.md5(Ext.getCmp('newPass2').getValue());
+					                	Ext.Ajax.request({
+					                		url: path+'/admin_mgmt/adminManagement!resetPassword.action',
+					                		method:'POST',
+					                	    params: {
+					                	    	"adminId":record.get('id'),
+					                	    	"password": enCode
+					                	    },
+					                	    success: function(response){
+					                	    	var obj = Ext.decode(response.responseText);
+					                	    	if(obj.resultObject=="success"){
+				                	    			Ext.MessageBox.show({
+								         		           //title: '提示',
+								         		          // msg: '修改密码成功！',
+														   title:i18n._('notice'),
+														   msg:i18n._('Edit Success!'),
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		    }); 
+					                	        	pwd.destroy();
+				                	    		}else{
+				                	    			Ext.MessageBox.show({
+								         		           //title: '提示',
+								         		          // msg: '修改密码成功！',
+														   title:i18n._('notice'),
+														   msg:obj.resultObject,
+								         		           icon:Ext.MessageBox.INFO,
+								         		           buttons: Ext.MessageBox.OK
+								         		           
+								         		    }); 
+				                	    		}
+					                	    }
+					                	})
+				                	}else{
+				                		   Ext.MessageBox.show({
+											   title:i18n._('notice'),
+											   msg:i18n._('Two inputed passwords do not match'),
+					         		           icon:Ext.MessageBox.WARNING,
+					         		           buttons: Ext.MessageBox.OK
+					         		           
+					         		       });
+				                	}
+				                	}
+				                	
+				                }
+								
+				           },{
+								margin:'0 0 0 5',
+				                minWidth: 80,
+								text:i18n._('reset'),
+				                handler:function(){
+				            	this.up('form').getForm().reset();
+				           }
+				                
+								
+						
+				            }]
+				        }],
+				        items:[
+						{
+						xtype:'textfield',
+						name:'password',
+						margin:'10 0 5 17',
+						//labelAlign:'right',
+						style:'margin-left:0px',
+						fieldLabel: i18n._('new password'),
+						inputType: 'password',
+						id:'newPass1',
+						maxLength : 50,
+						enforceMaxLength:true,
+						validator:verifyPassword
+						},
+						{
+						xtype:'textfield',
+						name:'password',
+						//labelAlign:'right',
+						margin:'0 0 5 17',
+						fieldLabel:i18n._('comfirm password'),
+						inputType: 'password',
+						initiaPassField:'pass',
+						style:'margin-left:0px',
+						id:'newPass2',
+						maxLength : 50,
+						enforceMaxLength:true,
+						validator:verifyPassword
+						}
+						
+						]
+				    }
+				});
+			}else{
+    	        Ext.MessageBox.show({
+				   title:i18n._('notice'),
+				   msg:i18n._('selectOne'),
+  		           icon:Ext.MessageBox.INFO,
+  		           buttons: Ext.MessageBox.OK
+  		           
+  		       }); 
+				return;
+			}
+			//密码重置页面结束
+		pwd.show();
+		}
+		},{xtype:'tbfill'},
+		{
+        xtype:'splitbutton',
+        text:'<font id="searchButton" color="white" >' + i18n._('userAdmin') + '</font>',
+		listeners: {
+			 "mouseout" : function() {
+				 document.getElementById("searchButton").style.color = "white";
+			 },
+			 "mouseover" : function() {
+				 document.getElementById("searchButton").style.color = "black";
+			 }
+				
+		 },
+			//   pressed:true,
+		id:'split',
+		margin:'0 0 0 2',
+		menu: new Ext.menu.Menu({
+        items: [
+        
+		{
+        text:i18n._('userAdmin'),
+		handler: function(){
+		Ext.getCmp('split').setText('<font id="searchButton" color="white" >' + i18n._('userAdmin') + '</font>'); 
+		itemValue='adminName';
+		}
+		},
+		{
+         text:i18n._('email'),
+		handler: function(){
+		Ext.getCmp('split').setText('<font id="searchButton" color="white" >' + i18n._('email') + '</font>'); 
+		itemValue='adminEmail';
+		}
+		}
+       ]
+     })
+	 },
+	{	
+    labelWidth: 5,
+    xtype: 'searchfield',
+    store: store1,
+	id:'orderNoField',	
+	hasSearch:true,
+	emptyText:i18n._('adminName or userEmail'),
+	onTrigger1Click : function(){
+		var me = this,
+			store = me.store,
+			proxy = store.getProxy(),
+			val;
+			
+		if (me.hasSearch) {
+			me.setValue('');
+			proxy.extraParams[me.paramName] = '';
+			proxy.extraParams['type'] = '';
+			proxy.extraParams.start = 0;
+			//store.load();
+			store.loadPage(1,null);
+			me.hasSearch = false;
+			me.triggerEl.item(0).setDisplayed('none');
+			me.doComponentLayout();
+		}
+	},  
+	  
+	onTrigger2Click : function(){//点击查询按钮或回车调用该方法  
+		var me = this,
+		store = me.store,
+		proxy = store.getProxy(),
+		value = me.getValue().replace(/(^\s*)|(\s*$)/g, "");
+			
+		if (value.length < 1) {
+			me.onTrigger1Click();
+			return;
+		}
+		var i = itemValue;
+		store = me.store,
+		proxy = store.getProxy(),
+		proxy.extraParams['query'] = value;
+		proxy.extraParams['type'] = i;
+		proxy.extraParams.start = 0;
+		//store.load();
+		store.loadPage(1,null);
+		this.hasSearch = true;  
+		me.triggerEl.item(0).setDisplayed('block');
+		me.doComponentLayout();
+	}
+	 
+	 
+	}
+	
+           
+            
+	]}
+	]
+})
+});
+
+
+function isEnableCheck(record){
+	var checkResult=true;
+	var isEnable=record.get('enable');
+	if(isEnable!=3){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountDisabledTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		checkResult=false;
+	}
+	
+	return checkResult;
+}
+
+function freezed(record){
+	var checkResult=true;
+	var isEnable=record.get('enable');
+	if(isEnable==2){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('freezed'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		return checkResult=false;
+	}
+	if(isEnable!=3){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('must approved'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		checkResult=false;
+	}
+	
+	return checkResult;
+	
+}
+
+function unfreezed(record){
+	var checkResult=true;
+	var isEnable=record.get('enable');
+	if(isEnable!=2){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('must freezed'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		checkResult=false;
+	}
+	
+	return checkResult;
+	
+}
+
+function isDeletedCheck(record){
+	var checkResult=true;
+	var isEnable=record.get('enable');
+	if(isEnable!=0){
+		Ext.MessageBox.show({
+			   title:i18n._('notice'),
+			   msg:i18n._('accountIsDeletedTip'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		checkResult=false;
+	}
+	
+	return checkResult;
+}
+
+function viewDetail(){
+	var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+	if(rows.length > 0){
+		var id = rows[0].get('id');
+		var record = store1.getById(id);
+// 		if(!isEnableCheck(record)){
+// 			return;
+// 		}
+		//用户详情窗口
+		var info =Ext.create('Ext.window.Window', {
+		    //title: '用户详情',
+			title: i18n._('admin details'),
+			height: 260,
+			//autoHeight:true,
+			layout:'fit',
+		    width: 450,
+		    border: false,
+			closable:false,
+			resizable : false,
+			constrain : true,
+			modal:true,
+			tools:[{
+			  type:'close',
+			  handler:function(){
+			  info.destroy();
+			  }
+			}],
+		    items: [
+								{
+				xtype: 'form',
+				height:'100%',
+				id:'infoForm',
+				width:350,
+				autoScroll:true,
+				border: false,
+				  items: [
+			{
+			xtype: 'fieldset',
+			title: i18n._("Basic information"),
+			width:400,
+			style:'margin-left:10px;',
+			items:[
+					{
+					xtype:'textfield',
+					fieldLabel:'用户名id',
+					style:'margin-left:30px',
+					id:'user_id2',
+					hidden: true,
+					hideLabel: true
+					},
+					{
+					xtype: 'displayfield',
+					id:'email2',
+					fieldLabel: i18n._("email"),
+					name: i18n._("email"),
+					value: record.get('email'),
+					style:'margin-left:30px;'
+					
+					},
+					{
+					xtype:'displayfield',
+					fieldLabel:i18n._("username"),
+					style:'margin-left:30px',
+					name:i18n._("username"),
+					value: record.get('name'),
+					id:'username2'
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._("Admin Role"),
+						style:'margin-left:30px',
+						name:i18n._("Admin Role"),
+						value: record.get('roleName')
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._("admin Type"),
+						style:'margin-left:30px',
+						name:i18n._("Admin Role"),
+						value:record.get('type')== 1?i18n._('dividedplatform'):i18n._('majorbussiness')
+					},
+					{
+						xtype:'displayfield',
+						fieldLabel:i18n._('Contact'),
+						name:i18n._('Contact'),
+						vtype: 'phonecheck',
+						style:'margin-left:30px;',
+						value: record.get('telephone'),
+						id:'telephone2'
+						}
+					,
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('createDate'),
+						name:i18n._('createDate'),
+						value: record.get('createDate'),
+						renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+						id:'createDate2'
+						},
+						{
+						xtype:'displayfield',
+						style:'margin-left:30px;',
+						fieldLabel:i18n._('The last time login time'),
+						name:i18n._('lastLoginDate'),
+						value: record.get('lastLoginDate'),
+						renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+						id:'lastLoginDate2'
+						}
+			]
+		}
+		]
+		}
+		]
+
+		});
+		//用户详细信息页面结束
+		info.show();
+	}else{
+	    	Ext.MessageBox.show({
+	          // title: '提示',
+	           //msg: '请选择一个用户',
+			   title:i18n._('notice'),
+		       msg:i18n._('selectOne'),
+	           icon:Ext.MessageBox.INFO,
+	           buttons: Ext.MessageBox.OK
+	           
+	       }); 
+		return;
+	}
+	
+}
+
+    }
+        };
+    })();
+
+    MultiLang.init();
+    
+})
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+</script>
+</head>
+
+<body>
+
+</body>
+</html>

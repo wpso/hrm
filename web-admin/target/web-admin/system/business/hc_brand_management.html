@@ -1,0 +1,1108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>品牌管理</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/ProgressBarPager.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../business/common.js"></script>
+<script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+Ext.QuickTips.init(true,{dismissDelay:600000});
+Ext.require([
+    'Ext.data.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.ux.form.SearchField',
+	'Ext.ux.RowExpander',
+    'Ext.selection.CheckboxModel',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.ProgressBarPager'
+]);
+
+
+Ext.onReady(function() {
+	var vmid=0;
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+            },
+            setup: function() {	
+  Ext.define('UserBrand', {
+      extend: 'Ext.data.Model',
+      fields: ['id', 'name', 'description','status','rebateRate','giftsDiscountRate',
+          {name:'approvalOrNot',type:'boolean'},    
+    	  {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'}],
+      idProperty: 'id'
+  });
+  
+  Ext.define('ServiceCatalog', {
+      extend: 'Ext.data.Model',
+      fields: ['id', 'scName'],
+      idProperty: 'id'
+  });
+
+  // create the Data Store
+  var store = Ext.create('Ext.data.Store', {
+      pageSize: pageSize,
+      model: 'UserBrand',
+      proxy: new Ext.data.proxy.Ajax({
+      	url: path+'/../brand/userBrand!getBrandByPage.action',
+		reader: {
+              type: 'json',
+              root: 'resultObject.result',
+              totalProperty: 'resultObject.totalCount'
+        },
+        listeners:{
+			exception:function(reader, response, error, eOpts){
+				ajaxException(reader, response, error, eOpts );
+			}
+		}
+      })
+  });
+  
+  store.load();
+    var sm = Ext.create('Ext.selection.RowModel');
+    var pluginExpanded = true;
+    var grid = Ext.create('Ext.grid.Panel', {
+        id:'button-grid',
+        store: store,
+        title:i18n._('BusinessManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('BrandManagement'),
+		layout:'fit',
+		sortableColumns:false,
+		margin:'0 0 0 0',
+	    width:'100%',
+		height:'100%',
+        frame: true,
+		border:false,
+		simpleSelect :true,
+     	selModel:sm,
+        iconCls: 'icon-grid',
+        viewConfig: {
+            stripeRows: true,
+			forceFit: true
+        },
+        columns:[
+		{xtype: 'rownumberer',flex:0.1},
+        {
+            text: i18n._('brandName'),
+            dataIndex: 'name',
+            flex: 0.4
+        },{
+        	 text: i18n._('RebateRate')+"("+ i18n._('PercentSign')+")",
+             flex: 0.2,
+             dataIndex:'rebateRate'
+        },{
+        	 text: i18n._('giftsRebateRate')+"("+ i18n._('PercentSign')+")",
+             flex: 0.2,
+             dataIndex:'giftsDiscountRate'
+        },{
+        	text: i18n._('status'),
+        	flex:0.2,
+        	dataIndex:'status',
+        	renderer:function(value){
+        		if(value==0){
+        			return i18n._('Disable_ServiceCatalog');
+        		}else if(value=1){
+        			return i18n._('Enable');
+        		}
+        	}
+        },{
+            text: i18n._('createDate'),
+            dataIndex: 'createDate',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+			flex: 0.35
+        },{
+            text: i18n._('brandDesc'),
+            flex: 0.8,
+            dataIndex:'description',
+            renderer:function(value,metaData){
+            	if(value!=null){
+            		metaData.tdAttr = 'data-qtip="' + value + '"';
+            		return value;
+            	}
+            }
+        }],
+        columnLines: true,
+		 bbar: Ext.create('Ext.PagingToolbar', {
+            store: store,
+			pageSize: 16,
+			displayInfo: true
+        }),
+        listeners:{
+        	"itemdblclick":{
+        		fn:function(){
+        			viewDetail();
+        		}
+        	}
+        },
+        dockedItems: [ {
+            xtype: 'toolbar',
+            cls: 'toolbarCSS',
+            items: [
+			{
+				xtype:'button',
+  				margin:'0 0 0 0',
+  				icon:'images/add_new.png',
+  				text:'<font id="AddBrand" color="white" >' +i18n._("Add") + '</font>',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("AddBrand").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("AddBrand").style.color = "black";
+					 }
+						
+				},
+			    handler: function(e) {
+			    	getSessionUser();
+			    	addBrand();
+            }},{
+            	xtype:'button',
+                text:'<font id="modifyBrand" color="white">'+i18n._('modify')+'</font>',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("modifyBrand").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("modifyBrand").style.color = "black";
+					 }
+						
+				},
+                icon: 'images/edit_new.png',
+                handler:function(){
+                	getSessionUser();
+                	modifyBrand();
+            	}
+				},
+				{
+					xtype:'button',
+	                text:'<font id="enableBrand" color="white">'+i18n._('Enable')+'</font>',
+	                listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("enableBrand").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("enableBrand").style.color = "black";
+						 }
+							
+					},
+	                icon: 'images/enable.png',
+	                handler:function(){
+	                	getSessionUser();
+	                	var rows=grid.getSelectionModel().getSelection();
+	      				 if(rows.length > 0){
+	      				 var brandId=rows[0].get('id');
+	      				 if(rows[0].get('status')!=0){
+	      					Ext.MessageBox.show({
+								  title: i18n._('notice'),
+								 msg:i18n._('enableBrandTip'),
+                                  icon:Ext.MessageBox.INFO,
+                                  buttons: Ext.MessageBox.OK
+   
+								});
+	      					return;
+	      				 }
+	      				 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      								msg:i18n._('confirmEnableSC'),
+	      			                   buttons: Ext.MessageBox.YESNO,
+	      			                   icon: Ext.MessageBox.QUESTION,
+	      			                   fn:function(e){
+	      			                	   if(e=="no"){
+	      			                		   return;
+	      			                	   }else if(e=='yes'){
+	      			                		   Ext.Ajax.request({
+	      											url: path+'/../brand/userBrand!enableBrand.action',
+	      											method: 'POST',
+	      											params:{
+	      											'brandId':brandId
+	      											},
+	      											success:function(response){
+	      					           					var result=Ext.JSON.decode(response.responseText);
+	      					           					if(result.success==false){
+	      					           						Ext.MessageBox.show({
+	      				                                        title:i18n._('notice'),
+	      					 	                               msg: result.resultMsg,
+	      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+	      					 	                               buttons: Ext.MessageBox.OK	 	                      
+	      					 	           				});
+	      					           					}else{
+	      					           						Ext.MessageBox.show({
+	      														  title: i18n._('notice'),
+	      														 msg:i18n._('enableSCSuccess'),
+	      				                                          icon:Ext.MessageBox.INFO,
+	      				                                          buttons: Ext.MessageBox.OK
+	      				           
+	      														});
+	      												store.load();
+	      												}
+	      											}
+	      												});
+	      			                	   }
+	      			                	 
+	      			                	}
+	      			    		});	 	
+	      					}else{
+	      						 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      							    msg:i18n._('please choose one column'),
+	                                      icon:Ext.MessageBox.WARNING,
+	                                      buttons: Ext.MessageBox.OK
+	      						}); 
+	      						return;
+	      			    	}
+	            	}
+            	},
+				{
+					xtype:'button',
+	                text:'<font id="deleteBrand" color="white">'+i18n._('Disable_ServiceCatalog')+'</font>',
+	                listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("deleteBrand").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("deleteBrand").style.color = "black";
+						 }
+							
+					},
+	                icon: 'images/disable.png',
+	                handler:function(){
+	                	getSessionUser();
+	                	var rows=grid.getSelectionModel().getSelection();
+	      				 if(rows.length > 0){
+	      				 var brandId=rows[0].get('id');
+	      				if(rows[0].get('status')!=1){
+	      					Ext.MessageBox.show({
+								  title: i18n._('notice'),
+								 msg:i18n._('disableBrandTip'),
+                                  icon:Ext.MessageBox.INFO,
+                                  buttons: Ext.MessageBox.OK
+   
+								});
+	      					return;
+	      				 }
+	      				 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      								msg:i18n._('confirmDisableSC'),
+	      			                   buttons: Ext.MessageBox.YESNO,
+	      			                   icon: Ext.MessageBox.QUESTION,
+	      			                   fn:function(e){
+	      			                	   if(e=="no"){
+	      			                		   return;
+	      			                	   }else if(e=='yes'){
+	      			                		   Ext.Ajax.request({
+	      											url: path+'/../brand/userBrand!deleteBrand.action',
+	      											method: 'POST',
+	      											params:{
+	      											'brandId':brandId
+	      											},
+	      											success:function(response){
+	      					           					var result=Ext.JSON.decode(response.responseText);
+	      					           					if(result.success==false){
+	      					           						Ext.MessageBox.show({
+	      				                                        title:i18n._('notice'),
+	      					 	                               msg: result.resultMsg,
+	      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+	      					 	                               buttons: Ext.MessageBox.OK	 	                      
+	      					 	           				});
+	      					           					}else{
+	      					           						Ext.MessageBox.show({
+	      														  title: i18n._('notice'),
+	      														 msg:i18n._('disableSCSuccess'),
+	      				                                          icon:Ext.MessageBox.INFO,
+	      				                                          buttons: Ext.MessageBox.OK
+	      				           
+	      														});
+	      												store.load();
+	      												}
+	      											}
+	      												});
+	      			                	   }
+	      			                	 
+	      			                	}
+	      			    		});	 	
+	      					}else{
+	      						 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      							    msg:i18n._('please choose one column'),
+	                                      icon:Ext.MessageBox.WARNING,
+	                                      buttons: Ext.MessageBox.OK
+	      						}); 
+	      						return;
+	      			    	}
+	            	}
+            	},{
+					xtype:'button',
+	                text:'<font id="relatedSc" color="white">'+i18n._('relatedSc')+'</font>',
+	                listeners: {
+						 "mouseout" : function() {
+							 document.getElementById("relatedSc").style.color = "white";
+						 },
+						 "mouseover" : function() {
+							 document.getElementById("relatedSc").style.color = "black";
+						 }
+							
+					},
+	                icon: 'images/relatedSC.png',
+	                handler:function(){
+	                	getSessionUser();
+	                	var rows=grid.getSelectionModel().getSelection();
+	      				 if(rows.length > 0){
+		      				if(rows[0].get('status')==1){
+		      					 var brandId=rows[0].get('id');
+			      				 var brandName=rows[0].get('name');
+		      					 showRelatedScWin(brandId,brandName);
+		      				 }else{
+		      					Ext.MessageBox.show({
+									  title: i18n._('notice'),
+									 msg:i18n._('disableRelatedSc'),
+	                                  icon:Ext.MessageBox.INFO,
+	                                  buttons: Ext.MessageBox.OK
+	   
+									}); 
+		      					return;
+		      				 }
+		      			    
+                         }else{
+	      						 Ext.MessageBox.show({
+	      							    title: i18n._('notice'),
+	      							    msg:i18n._('please choose one column'),
+	                                      icon:Ext.MessageBox.WARNING,
+	                                      buttons: Ext.MessageBox.OK
+	      						}); 
+	      						return;
+	      			      }
+	            	}
+            	},
+            {xtype:'tbfill'},
+            {
+				xtype:'displayfield',
+				hideLabel:true,
+				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+			},
+	        {
+                xtype: 'searchfield',
+                hideLabel:true,
+				hasSearch:true,
+				emptyText:i18n._('brandNameDesc'),
+                store: store
+				
+			 }
+            ]
+        }]
+    });
+    function showRelatedScWin(brandId,brandName){
+    	var unRelatedScStore=Ext.create('Ext.data.Store',{
+    		  pageSize: pageSize,
+    	      model: 'ServiceCatalog',
+    	      proxy: new Ext.data.proxy.Ajax({
+    	      	url: path+'/../sc/sc!getUnRelatedScByBrandId.action',
+    			reader: {
+    	              type: 'json',
+    	              root: 'resultObject.result',
+    	              totalProperty: 'resultObject.totalCount'
+    	        }
+    	      }),
+    	      listeners:{
+    	    	  'load':function(){
+    	    		  unRelatedScGrid.reconfigure(unRelatedScStore);
+    	    	  }
+    	      }
+    	});
+    	var new_params={'brandId':brandId};
+		Ext.apply(unRelatedScStore.proxy.extraParams,new_params);
+    	unRelatedScStore.loadPage(1,null);
+    	
+    	var relatedScStore=Ext.create('Ext.data.Store',{
+    		  pageSize: pageSize,
+    	      model: 'ServiceCatalog',
+    	      proxy: new Ext.data.proxy.Ajax({
+    	      	url: path+'/../sc/sc!getRelatedScByBrandId.action',
+    			reader: {
+    	              type: 'json',
+    	              root: 'resultObject.result',
+    	              totalProperty: 'resultObject.totalCount'
+    	        }
+    	      }),
+    	      listeners:{
+    	    	  'load':function(){
+    	    		  relatedScGrid.reconfigure(relatedScStore);
+    	    	  }
+    	      }
+    	});
+    	var new_params={'brandId':brandId};
+		Ext.apply(relatedScStore.proxy.extraParams,new_params);
+    	relatedScStore.loadPage(1,null);
+    	
+    	var unRelatedScGridSm = Ext.create('Ext.selection.CheckboxModel');
+    	var unRelatedScGrid=Ext.create('Ext.grid.Panel', {
+    		layout:'fit',
+            store: unRelatedScStore,
+            title:i18n._('unRelatedScTitle'),
+    		sortableColumns:false,
+    		margin:'0 0 0 0',
+    	    width:'100',
+    		height:'100%',
+            frame: true,
+    		border:false,
+    		simpleSelect :true,
+         	selModel:unRelatedScGridSm,
+            columns:[
+    		{xtype: 'rownumberer',width:30},
+            {
+                text: i18n._('ServiceCatalog_name'),
+                dataIndex: 'scName',
+                flex: 1
+            }],
+            columnLines: true,
+    		bbar: Ext.create('Ext.PagingToolbar', {
+                store: unRelatedScStore,
+    			pageSize: 16,
+    			displayInfo: true
+            }),
+            dockedItems: [ {
+                xtype: 'toolbar',
+                items: [
+                {xtype:'tbfill'},
+                {
+    				xtype:'displayfield',
+    				hideLabel:true,
+    				value:'<span style="bottom:3px;position:relative;">'+i18n._('QuickSearch')+':'+'</span>'
+    			},
+    	        {
+                    xtype: 'searchfield',
+                    hideLabel:true,
+    				hasSearch:true,
+    				emptyText:i18n._('ServiceCatalog_name'),
+                    store: unRelatedScStore
+    				
+    			 }
+               ]
+            }]
+        });
+    	var relatedScGridSm = Ext.create('Ext.selection.CheckboxModel');
+        var relatedScGrid=Ext.create('Ext.grid.Panel',{
+            store: relatedScStore,
+            title:i18n._('relatedScTitle'),
+     		layout:'fit',
+     		sortableColumns:false,
+     		margin:'0 0 0 0',
+     	    width:'100',
+     		height:'100%',
+            frame: true,
+     		border:false,
+     		simpleSelect :true,
+          	selModel:relatedScGridSm,
+            columns:[
+     		{xtype: 'rownumberer',width:30},
+             {
+                 text: i18n._('ServiceCatalog_name'),
+                 dataIndex: 'scName',
+                 flex: 1
+             }],
+            columnLines: true,
+     		bbar: Ext.create('Ext.PagingToolbar', {
+                 store: relatedScStore,
+     			pageSize: 16,
+     			displayInfo: true
+            }),
+            dockedItems: [ {
+                 xtype: 'toolbar',
+                 items: [
+                 {xtype:'tbfill'},
+                 {
+     				xtype:'displayfield',
+     				hideLabel:true,
+     				value:'<span style="bottom:3px;position:relative;">'+i18n._('QuickSearch')+':'+'</span>'
+     			},
+     	        {
+                     xtype: 'searchfield',
+                     hideLabel:true,
+     				hasSearch:true,
+     				emptyText:i18n._('ServiceCatalog_name'),
+                     store: relatedScStore
+     				
+     			 }
+                ]
+             }]
+    	});
+        
+        var buttonLeft=Ext.create("Ext.button.Button",{
+           text:'<span style="bottom:3px;position:relative;font-size:18px;font-weight:bold;"> << </span>',
+           width:50,
+           margin:'100 15',
+           height:50,
+           handler:function(){
+        	   var rows=relatedScGrid.getSelectionModel().getSelection();
+               if(rows.length>0){
+            	   var idArr=[];
+            	   for(var i=0;i<rows.length;i++){
+            		   idArr.push(rows[i].get("id"));
+            	   }
+            	   Ext.Ajax.request({
+					  url: path+'/../sc/sc!brandUnRelateSCOperation.action',
+					  method: 'POST',
+					  params:{
+					    'brandId':brandId,
+					    'scIds':idArr
+					  },
+					  success: function (response) {
+							var obj = Ext.decode(response.responseText);
+		           	    	if(obj.success){　　　
+		           	    		unRelatedScStore.loadPage(1,null);
+		           	    		relatedScStore.loadPage(1,null);
+		           	    		relatedScGridSm.deselectAll(true);
+		           	    		unRelatedScGridSm.deselectAll(true);
+							}else{
+								showMsg(obj.resultMsg);   
+					  		}
+					  }
+			      }); 
+               }else{
+            	   Ext.MessageBox.show({
+						    title: i18n._('notice'),
+						    msg:i18n._('relatedScTip'),
+                         icon:Ext.MessageBox.WARNING,
+                         buttons: Ext.MessageBox.OK
+					}); 
+					return;
+               }
+           }
+        });
+        var buttonRight=Ext.create("Ext.button.Button",{
+        	text:'<span style="bottom:3px;position:relative;font-size:18px;font-weight:bold;"> >> </span>',
+        	margin:'50 15',
+            width:50,
+            height:50,
+            handler:function(){
+               var rows=unRelatedScGrid.getSelectionModel().getSelection();
+               if(rows.length>0){
+            	   var idArr=[];
+            	   for(var i=0;i<rows.length;i++){
+            		   idArr.push(rows[i].get("id"));
+            	   }
+            	   Ext.Ajax.request({
+ 					  url: path+'/../sc/sc!brandRelateSCOperation.action',
+ 					  method: 'POST',
+ 					  params:{
+ 					    'brandId':brandId,
+ 					     'scIds':idArr
+ 					  },
+ 					  success: function (response) {
+ 							var obj = Ext.decode(response.responseText);
+ 		           	    	if(obj.success){　　　
+ 		           	    		unRelatedScStore.loadPage(1,null);
+ 		           	    		relatedScStore.loadPage(1,null);
+	 		           	    	relatedScGridSm.deselectAll(true);
+		           	    		unRelatedScGridSm.deselectAll(true);
+ 							}else{
+ 								showMsg(obj.resultMsg);   
+ 					  		}
+ 					  }
+ 			      }); 
+               }else{
+            	   Ext.MessageBox.show({
+						    title: i18n._('notice'),
+						    msg:i18n._('unRelatedScTip'),
+                         icon:Ext.MessageBox.WARNING,
+                         buttons: Ext.MessageBox.OK
+					}); 
+					return;
+               }
+            }
+        })
+        
+		var relatedScWin=Ext.create('Ext.window.Window', {
+		    title:i18n._('Related SC')+'-'+brandName,
+		    layout:'border',
+		    height: 370,
+			modal:true,
+			constrain:true,
+		    width: 600,
+			closable:false,
+			tools:[{
+			  type:'close',
+			  handler:function(){
+				  relatedScWin.destroy();
+			  }
+			}],
+		    items:[{
+		    	region:'west',
+		    	width:250,
+		    	layout:'fit',
+		    	items:[unRelatedScGrid]
+		    },{
+		    	region:'center',
+		    	frame:true,
+		    	width:70,
+		    	items:[buttonRight,buttonLeft]
+		    },{
+		    	region:'east',
+		    	width:250,
+		    	layout:'fit',
+		    	items:[relatedScGrid]
+		    }]
+		});
+		
+		relatedScWin.show();
+    }
+    
+    function modifyBrand(){
+    	var rows=grid.getSelectionModel().getSelection();
+		var brandId;
+		var userApproveOrNot_M = new Ext.form.RadioGroup(
+				/* {
+    	    xtype:'radiogroup',
+    	    margin:'10 0 0 30',
+    	    columns:2,
+    	    fieldLabel:i18n._('theuserfreetrial'),
+    	    labelWidth:69,
+    	    width:300,//328
+    	    items:[
+    	        {name:"userApproveFlag",inputValue:true,boxLabel:i18n._('Yes')},
+    	        {name:"userApproveFlag",inputValue:false,boxLabel:i18n._('No')}
+    	    ]} */
+				);
+		 if(rows.length > 0){
+			 brandId=rows[0].get('id');
+			 var brandName=rows[0].get('name');
+			 var status=rows[0].get('status');
+			 var brandDesc=rows[0].get("description");
+			 var rebate=rows[0].get("rebateRate");// 返点率
+			 var giftsDiscountRate=rows[0].get("giftsDiscountRate");// 折扣率
+//			 var approveOrNot=rows[0].get("approvalOrNot");
+//			 userApproveOrNot_M.setValue({userApproveFlag:approveOrNot})
+// 			 if(!rebte){
+// 				rebate=0 
+// 			 }
+				var modifyBrandWin=Ext.create('Ext.window.Window', {
+				    title:i18n._('modifyBrand'),
+					layout:'fit',
+				    height: 290,
+					modal:true,
+					constrain:true,
+				    width: 400,
+					closable:false,
+					tools:[{
+					  type:'close',
+					  handler:function(){
+						  modifyBrandWin.destroy();
+					  }
+					}],
+				    items: {  
+				        xtype: 'form',
+						height:'100%',
+						width:'100%',
+						id:'restForm',
+				        border: false,
+				        dockedItems: [{
+				            xtype: 'toolbar',
+				            dock: 'bottom',
+				            ui: 'footer',
+				            layout: {
+				                pack: 'left'
+				            },
+				            items: [{
+								margin:'0 0 0 140',
+				                minWidth: 80,
+							    text: i18n._('OK'),
+				                handler:function(){
+				                	if(Ext.getCmp("brandNameModifyField").isValid() && Ext.getCmp("brandRebateRateMField").isValid()
+				                			&& Ext.getCmp("brandGiftsRebateRateModifyField").isValid() && Ext.getCmp("brandDescModifyField").isValid()){
+				                		Ext.Ajax.request({
+											url: path+'/../brand/userBrand!modifyBrand.action',
+											method: 'POST',
+										params:{
+										'rebateRate':Ext.getCmp("brandRebateRateMField").getValue(),
+										'giftsDiscountRate':Ext.getCmp("brandGiftsRebateRateModifyField").getValue(),
+										'brandId':brandId,
+										'status':status,
+										//'approveOrNot':userApproveOrNot_M.getValue()['userApproveFlag'],
+										'name':Ext.getCmp('brandNameModifyField').getValue(),
+										'description':Ext.getCmp('brandDescModifyField').getValue()
+										},
+										success: function (response) {
+											var obj = Ext.decode(response.responseText);
+				                	    	if(obj.success){　　　
+												store.load();
+											}else{
+												showMsg(obj.resultMsg);   
+											}
+										}
+								    }); 
+					    	    		modifyBrandWin.destroy();
+				                	}
+				                }
+								
+				           }
+				           ]
+				        }],
+				        items:[
+						{
+						xtype:'textfield',
+						margin:'20 0 0 30',
+						width:300,
+						labelWidth:70,
+						fieldLabel: i18n._('brandName'),
+						allowBlank: false,
+						id:'brandNameModifyField',
+						maxLength:50,
+						regex:/\S+/,
+						value:brandName,
+						regexText:'对不起，名称不能出现空白字符。',
+						validateOnBlur:true,
+					    textValid: true,
+					    validator: function(){
+					        return this.textValid;
+					    },
+						listeners : {
+					        'change': function(textfield,newValue,oldValue) {
+					        	if(brandName!=newValue){
+					        		Ext.Ajax.request({
+							        	   url: path+'/../brand/userBrand!checkBrandNameDup.action',
+								    	    params: {
+								    	        'name': newValue
+								    	    },
+								    	    scope: textfield,
+								    	    success: function(response){
+								    	    	var rs=Ext.JSON.decode(response.responseText);
+								    	    	if(rs.resultObject==true){
+						   	                  		this.textValid = true;
+								    	    		this.clearInvalid();
+								    	    	}else{
+													this.textValid=i18n._('BrandNameExist');
+						                            this.markInvalid(i18n._('BrandNameExist'));
+								    	    	}
+								    	    	}
+							           });
+					        	}
+					           
+					         }       
+					      }
+						},{
+							xtype:'numberfield',
+							margin:'20 0 0 23',
+							width:307,
+							labelWidth:77,
+							fieldLabel: i18n._('RebateRate')+"("+ i18n._('PercentSign')+")",
+							id:'brandRebateRateMField',
+							minValue:0,
+							value:rebate,
+							allowDecimals:false,
+							maxValue:99,
+							allowBlank:false,
+							editable:false,
+							listeners :{
+					    			spinup :function(){
+				    					var c = Ext.getCmp("brandRebateRateMField");
+							    		var g = Ext.getCmp("brandGiftsRebateRateModifyField");
+							    		var cvalue = c.getValue();
+							    		var gvalue = g.getValue()+1;
+							    		var value = cvalue+gvalue;
+							    		if(value>100){
+							    			c.setValue(100-gvalue);
+							    		}
+							    		
+					    			}
+							}
+						},{
+							xtype:'numberfield',
+							margin:'20 0 0 23',
+							width:307,
+							labelWidth:77,
+							fieldLabel: i18n._('giftsRebateRate')+"("+ i18n._('PercentSign')+")",
+							id:'brandGiftsRebateRateModifyField',
+							minValue:0,
+							value:giftsDiscountRate,
+							allowDecimals:false,
+							maxValue:99,
+							allowBlank:false,
+							editable:false,
+							listeners :{
+					    		spinup :function(){
+				    				var c = Ext.getCmp("brandRebateRateMField");
+						    		var g = Ext.getCmp("brandGiftsRebateRateModifyField");
+						    		var cvalue = c.getValue();
+						    		var gvalue = g.getValue()+1;
+						    		var value = cvalue+gvalue;
+						    		if(value>100){
+						    			c.setValue(100-gvalue);
+						    		}
+						    		
+					  		    }
+							}
+						},userApproveOrNot_M,{
+							xtype:'textarea',
+							margin:'10 0 0 30',
+							width:300,
+							value:brandDesc,
+							labelWidth:70,
+							enforceMaxLength:true,
+							fieldLabel: i18n._('brandDesc'),
+							id:'brandDescModifyField',
+							maxLength:200
+						}
+						]
+				    }
+				});
+				modifyBrandWin.show();
+		}else{
+				Ext.MessageBox.show({
+					    title: i18n._('notice'),
+					    msg:i18n._('please choose one column'),
+                       icon:Ext.MessageBox.WARNING,
+                       buttons: Ext.MessageBox.OK
+				}); 
+				return;
+	    	}
+    }
+    
+    function addBrand(){
+    	var userApproveOrNot = new Ext.form.RadioGroup(
+    		//	用户免审
+    			/* {
+    	    xtype:'radiogroup',
+    	    margin:'10 0 0 30',
+    	    columns:2,
+    	    labelWidth:69,
+    	    fieldLabel:'用户免审',
+    	    width:300,//328
+    	    items:[
+    	        {name:"userApproveFlag",inputValue:true,boxLabel:i18n._('Yes'),checked:true},
+    	        {name:"userApproveFlag",inputValue:false,boxLabel:i18n._('No')}
+    	    ]} */
+    			);
+		var addBrandWin=Ext.create('Ext.window.Window', {
+		    title:i18n._('addBrand'),
+			layout:'fit',
+		    height: 290,
+			modal:true,
+		    width: 400,
+		    constrain:true,
+			closable:false,
+			tools:[{
+			  type:'close',
+			  handler:function(){
+				  addBrandWin.destroy();
+			  }
+			}],
+		    items: {  
+		        xtype: 'form',
+				height:'100%',
+				width:'100%',
+				id:'restForm',
+				fieldDefaults:{
+					msgTarget:'side',
+					autoFitErrors:false
+				},
+		        border: false,
+		        dockedItems: [{
+		            xtype: 'toolbar',
+		            dock: 'bottom',
+		            ui: 'footer',
+		            layout: {
+		                pack: 'left'
+		            },
+		            items: [{
+						margin:'0 0 0 140',
+		                minWidth: 80,
+					    text: i18n._('OK'),
+		                handler:function(){
+		                	if(Ext.getCmp("brandNameAddField").isValid()&&Ext.getCmp("brandRebateRateField").isValid()
+		                			&&Ext.getCmp("brandDescAddField").isValid()){
+		                		Ext.Ajax.request({
+									url: path+'/../brand/userBrand!addBrand.action',
+									method: 'POST',
+								params:{
+								'rebateRate':Ext.getCmp('brandRebateRateField').getValue(),
+								'name':Ext.getCmp('brandNameAddField').getValue(),
+								'giftsDiscountRate':Ext.getCmp('brandGiftsDiscountRateAddField').getValue(),
+								'description':Ext.getCmp('brandDescAddField').getValue()
+								},
+								success: function (response) {
+									var obj = Ext.decode(response.responseText);
+		                	    	if(obj.success){　　　
+										store.load();
+									}else{
+										showMsg(obj.resultMsg);   
+									}
+								}
+						    }); 
+		                		addBrandWin.destroy();
+		                	}
+		                }
+						
+		           }
+		           ]
+		        }],
+		        items:[
+				
+				{
+				xtype:'textfield',
+				margin:'20 0 0 30',
+				width:300,
+				labelWidth:70,
+				fieldLabel: i18n._('brandName'),
+				allowBlank: false,
+				id:'brandNameAddField',
+				maxLength:50,
+				regex:/\S+/,
+				regexText:'对不起，名称不能出现空白字符。',
+				validateOnBlur:true,
+			    textValid: true,
+			    validator: function(){
+			        return this.textValid;
+			    },
+				listeners : {
+			        'change': function(textfield,newValue,oldValue) {
+			        		Ext.Ajax.request({
+					        	   url: path+'/../brand/userBrand!checkBrandNameDup.action',
+						    	    params: {
+						    	        'name': newValue
+						    	    },
+						    	    scope: textfield,
+						    	    success: function(response){
+						    	    	var rs=Ext.JSON.decode(response.responseText);
+						    	    	if(rs.resultObject==true){
+				   	                  		this.textValid = true;
+						    	    		this.clearInvalid();
+						    	    	}else{
+											this.textValid=i18n._('BrandNameExist');
+				                            this.markInvalid(i18n._('BrandNameExist'));
+						    	    	}
+						    	    	}
+					           });
+			           
+			         }       
+			      }
+				},{
+					xtype:'numberfield',
+					margin:'20 0 0 23',
+					width:307,
+					labelWidth:77,
+					fieldLabel: i18n._('RebateRate')+"("+ i18n._('PercentSign')+")",
+					id:'brandRebateRateField',
+					minValue:0,
+					allowDecimals:false,
+					maxValue:99,
+					allowBlank:false,
+					editable:false,
+					listeners :{
+					    spinup :function(){
+					       	var c = Ext.getCmp("brandRebateRateField");
+				    		var g = Ext.getCmp("brandGiftsDiscountRateAddField");
+				    		var cvalue = c.getValue();
+				    		var gvalue = g.getValue()+1;
+				    		var value = cvalue+gvalue;
+				    		if(value>100){
+				    			c.setValue(100-gvalue);
+				    		}
+					    }
+					}
+				},{
+					xtype:'numberfield',
+					margin:'20 0 0 23',
+					width:307,
+					labelWidth:77,
+					fieldLabel: i18n._('giftsRebateRate')+"("+ i18n._('PercentSign')+")",
+					id:'brandGiftsDiscountRateAddField',
+					minValue:0,
+					allowDecimals:false,
+					maxValue:99,
+					allowBlank:false,
+					editable:false,
+					listeners :{
+					    spinup :function(){
+					        var c = Ext.getCmp("brandRebateRateField");
+				    		var g = Ext.getCmp("brandGiftsDiscountRateAddField");
+				    		var cvalue = c.getValue();
+				    		var gvalue = g.getValue()+1;
+				    		var value = cvalue+gvalue;
+				    		if(value>100){
+				    			c.setValue(100-gvalue);
+				    		}
+					    }
+					}
+				},userApproveOrNot,{
+					xtype:'textarea',
+					margin:'10 0 0 30',
+					width:300,
+					labelWidth:70,
+					fieldLabel: i18n._('brandDesc'),
+					id:'brandDescAddField',
+					enforceMaxLength:true,
+					maxLength:200
+				}
+				]
+		    }
+		});
+		addBrandWin.show();
+    }
+
+Ext.create('Ext.Viewport',{
+	 layout:'fit',
+	 items: grid
+	});
+            }
+        };
+    })();
+
+    MultiLang.init();
+    
+});
+
+function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

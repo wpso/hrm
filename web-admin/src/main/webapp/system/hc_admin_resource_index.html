@@ -1,0 +1,186 @@
+<html>
+<head>
+<title>
+hc_admin_resource_index
+</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+	href='../extjs-4.1.0/resources/css/ext-all-gray.css' />
+
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+<style type="text/css">
+a:link {
+	text-decoration: none;
+	color: black;
+}
+
+a:hover {
+	text-decoration: none;
+	color: black;
+}
+
+a:visited {
+	text-decoration: none;
+	color: black;
+}
+</style>
+<script type="text/javascript">
+
+var store_vm ;
+
+function setUrl(rightUrl, url) {
+	if(rightUrl == '') {
+		rightUrl = url;
+	}
+	return rightUrl;
+}
+
+  Ext.onReady(function(){
+		var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+    				  lang: params, 
+    				  path: '../resources'
+    			});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {	
+				 Ext.Ajax.request(  {
+			         url: './../admin/getAdminMenu?parm='+parent.indexId,
+			         success:function(response){
+			             var menuList = new Ext.JSON.decode(response.responseText);
+			             var rightUrl = '';
+			             var node = new Array();
+			             for(var i = 0; i< menuList.length; i++) {
+			           	 	node[i] = { text: i18n._(menuList[i].name),qtip:i18n._(menuList[i].name), leaf: false,href:decodeURIComponent(menuList[i].url),hrefTarget:'myframe',icon:menuList[i].icon, expanded: true};
+			           	 	rightUrl = setUrl(rightUrl, decodeURIComponent(menuList[i].url));
+			           	 	if(menuList[i].childrenList != null) {
+			           	 		node[i].children = new Array();
+			           	 		for(var j = 0; j < menuList[i].childrenList.length; j++) {
+			           	 		    //alert(menuList[i].childrenList[j].url) ;
+			           	 			//alert(decodeURIComponent(menuList[i].childrenList[j].url)) ;
+			           	 			node[i].children[j] = { text: i18n._(menuList[i].childrenList[j].name),qtip:i18n._(menuList[i].childrenList[j].name), leaf: true,href:decodeURIComponent(menuList[i].childrenList[j].url),hrefTarget:'myframe',icon:menuList[i].childrenList[j].icon};
+			           	 			rightUrl = setUrl(rightUrl, decodeURIComponent(menuList[i].childrenList[j].url));
+			           	 		}
+			           	 	}
+			             } 
+			            
+			             var result = {root: {
+			          	           		expanded: true,
+			          	           		children: node
+			          	       			}
+			          	   			};
+			             
+			             store_vm = Ext.create('Ext.data.TreeStore', result);
+			             
+			             Ext.create('Ext.Viewport',{
+			         		layout:{
+			         			     type:'border',
+			         				 padding: 5
+			         			  },
+			         	    defaults:{
+			         			     split:true
+			         			  },
+			         		items:[
+			         		{
+			                    id:'aitem10tree',
+			         	       	xtype:'treepanel',
+			         	       	region:'west',
+			         	       	title:"<center ><span id='m1' style='width:100%;color:#04468C;font-size:10;font-weight:bold'>"+i18n._(parent.indexName)+"</span></center>",
+			         	       	width:160,
+			         			minWidth:160,
+			         			maxWidth:200,
+			         	       	border:false,
+			         		   	useArrows:true,
+			                     store: store_vm,
+			                     rootVisible: false,
+			         		   	listeners:{
+			         			    itemclick:{
+			         				    fn:function(view,record,item,index, e, eOpts ){
+			         					   if(index == 0){
+			         					      document.getElementsByTagName('iframe')[0].src=menuList[0].url;
+			         					   }
+			         					}
+			         				}
+			         		    }
+			         		},
+			         		{
+			         		id:'main',
+			         		region:'center',
+			         		border:false,
+			         		xtype:'panel',
+			         		layout:'fit',
+			         		items:[{
+			         		   xtype:'component',
+			         		   width:'100%',
+			         		   height:'100%',
+			         		   autoEl:{
+			         		   tag:'iframe',
+			         		   name:'myframe',
+			         		   src:rightUrl,//vmcentermanagement/
+			         		   frameborder:'0px',
+			         		   style:{
+			         		    border:'0px'
+			         		   }
+			         		   }
+			         		}]
+			          	   }
+			         	  ]
+			         	});//页面布局
+
+             
+			      }}
+			  );
+	 
+     
+	    
+
+}
+        };
+    })();
+
+    MultiLang.init();
+    
+});
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+</script>
+</head>
+<body>
+</body>
+</html>

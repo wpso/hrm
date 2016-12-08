@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation=" 
+        http://www.springframework.org/schema/beans   
+        http://www.springframework.org/schema/beans/spring-beans-3.0.xsd   
+        http://www.springframework.org/schema/context   
+        http://www.springframework.org/schema/context/spring-context-3.0.xsd   
+        http://www.springframework.org/schema/mvc   
+        http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd">
+
+
+ 	<mvc:default-servlet-handler /> 
+	
+<!-- 	<mvc:resources location="/js/" mapping="/js/**" /> -->
+<!-- 	<mvc:resources location="/css/" mapping="/css/**" /> -->
+<!-- 	<mvc:resources location="/image/" mapping="/image/**" /> -->
+<!-- 	<mvc:resources location="classpath:/WEB-INF/views/" -->
+<!-- 		mapping="/views/**" /> -->
+	    <mvc:resources location="/login.html" mapping="/login.html"/>
+	<!-- <mvc:resources location="/register.html" mapping="/register.html"/> -->
+
+
+
+	    <!-- 使用annotation 自动注册bean,并保证@Service,@Autowired的属性被注入 -->
+<!-- 	<context:component-scan base-package="com.sqyh.service" />   -->
+
+<!-- 乱码处理 -->
+	<bean
+		class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+		<property name="messageConverters">
+			<list>
+<!-- 				<bean -->
+<!-- 					class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter" /> -->
+				<bean
+					class="org.springframework.http.converter.StringHttpMessageConverter">
+					<property name="supportedMediaTypes">
+						<list>
+							<value>text/plain;charset=UTF-8</value>
+						</list>
+					</property>
+				</bean>
+			</list>
+		</property>
+	</bean>
+		<!-- 开启注解 -->
+	<mvc:annotation-driven />
+		<!-- 注解扫描包 -->
+	<context:component-scan base-package="com" />
+	<!-- <mvc:interceptors> -->
+	<!-- <mvc:interceptor> -->
+	<!-- <mvc:mapping path="/**" /> -->
+	<!-- <bean id="globalInterceptor" class="com.alexgaoyh.MutiModule.web.intercepter.GlobalIntercepter" 
+		/> -->
+	<!-- </mvc:interceptor> -->
+	<!-- <mvc:interceptor> -->
+	<!-- <mvc:mapping path="/demo/**" /> -->
+	<!-- <bean id="tokenInterceptor" class="com.alexgaoyh.MutiModule.web.intercepter.AvoidDuplicateSubmissionInterceptor" 
+		/> -->
+	<!-- </mvc:interceptor> -->
+	<!-- </mvc:interceptors> -->
+
+<!-- 	<bean -->
+<!-- 		class="org.springframework.web.servlet.view.InternalResourceViewResolver"> -->
+<!-- 		<property name="prefix" value="/WEB-INF/" /> -->
+<!-- 		<property name="suffix" value=".html" /> -->
+<!-- 	</bean> -->
+
+</beans>  

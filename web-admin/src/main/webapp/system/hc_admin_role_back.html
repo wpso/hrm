@@ -1,0 +1,263 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css"
+	href="../extjs-4.1.0/resources/css/ext-all-gray.css" />
+<link rel="stylesheet" type="text/css" href="../css/example.css" />
+<link rel='stylesheet' type='text/css'
+	href='../js/ux/css/CheckHeader.css' />
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+<script type="text/javascript" src="../js/ux/CheckColumn.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+<style type="text/css">
+body .x-panel {
+	margin: 0 0 20 0;
+	padding: 0 0 0 0;
+}
+
+.x-tree-checked .x-grid-cell-inner {
+	font-style: italic;
+	color: #777;
+}
+
+.x-grid-row-selected .x-grid-cell {
+	background-color: #efefef !important;
+}
+
+.fontWhite {
+	color: #ffffff;
+}
+</style>
+<script type="text/javascript">
+	Ext.Loader.setConfig({
+		enabled : true
+	});
+
+	Ext.require([ 'Ext.grid.*', 'Ext.form.*', 'Ext.data.*',
+			'Ext.ux.RowExpander', 'Ext.ux.form.SearchField',
+			'Ext.ux.CheckColumn' ]);
+
+	function vd(text) {
+		if (text.indexOf(' ') >= 0)
+			return i18n._('blank'); //return 'can not use the blank space';      
+		else
+			return true;
+
+	};
+
+	var roleId = '';
+
+	Ext.onReady(function() {
+		var params;
+		MultiLang = (function() {
+			return {
+				init : function() { // load ExtJS locale
+					params = getCookie("lang");
+					i18n.set({
+						lang : params,
+						path : '../resources'
+					});
+					if (params) {
+						var url = Ext.util.Format
+								.format(
+										'../extjs-4.1.0/locale/ext-lang-{0}.js',
+										params);
+						Ext.Ajax.request({
+							url : url,
+							success : this.onLoadExtLocaleSuccess,
+							failure : this.onLoadExtLocaleFailure,
+							scope : this
+						});
+					} else {
+						// no language found, locale of ExtJS will be english as default
+						this.setup();
+					}
+				},
+				onLoadExtLocaleSuccess : function(response) {
+					try {
+						eval(response.responseText);
+					} catch (e) {
+						//Ext.Msg.alert('Failure', e.toString());
+					}
+					this.setup();
+				},
+				onLoadExtLocaleFailure : function() {
+					//Ext.Msg.alert('Failure', 'Failed to load locale file.');
+					this.setup();
+				},
+				setup : function() {
+
+					//Role
+					Ext.define('Role', {
+						extend : 'Ext.data.Model',
+						fields : [ {name : 'id',type : 'long'}, 
+						           {name : 'name',type : 'string'},
+						           {name : 'createDate',mapping : 'createDate',type : 'date',dateFormat : 'time'}, 
+						           {name : 'updateDate',mapping : 'updateDate',type : 'date',dateFormat : 'time'} ]
+					});
+					var fields = ["id", "name", "create_date", "code", "status"];
+					//加載角色列表
+					var store1 = Ext.create('Ext.data.Store',
+					{
+						pageSize : pageSize,
+						autoLoad : true,
+						storeId : 'loadRolelist',
+						width : '100%',
+						model : 'Role',
+						remoteSort : true,
+						proxy : {
+							actionMethods:{read:'POST'},
+							type : 'ajax',
+					      	//url : '../json/role_list.json',
+							url : './../admin/getAllRole',
+							//url : path
+								//	+ '/admin_mgmt/role!page.action',
+							reader: new Ext.data.JsonReader(
+					        {
+					            fields: fields,
+					            root: "RoleList",
+					            id: "id",
+					            totalProperty: "totalProperty"
+					        })
+						},
+						autoLoad:true
+					});
+					//store1.load({params: {start:0,limit:10}}); //加载数据
+					var sm = Ext.create('Ext.selection.RowModel');
+			
+					//角色列表
+					Ext.create('Ext.Viewport',{
+						layout : 'fit',
+						width : '100%',
+						items : Ext.create('Ext.grid.Panel',{
+								id : 'roleList',
+								height : 900,
+								//layout:'fit',
+								width : '100%',
+								title : i18n._('userManagement')+ '&nbsp; &nbsp;>&nbsp;&nbsp;'
+										+ i18n._('Admin Management')+ '&nbsp; &nbsp;>&nbsp;&nbsp;'
+										+ i18n._('Role Management'),
+								store : store1,
+								selModel : sm,
+								columns : [
+										{header : '',xtype : 'rownumberer',dataIndex : 'item',align : 'left',flex : .3},
+										{header : i18n._('Role Name'),dataIndex : 'name',flex : 1,sortable : false},
+										{text : i18n._("createDate"),dataIndex : 'createDate',
+											renderer : Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+											flex : 1,sortable : false
+										} ],
+								selType : 'cellmodel',
+								bbar : Ext.create('Ext.PagingToolbar',
+								{
+									store : store1,
+									pageSize : 2,
+									displayInfo : true,
+								}),
+								viewConfig : {
+									plugins : {
+										ptype : 'gridviewdragdrop',
+										dragText : 'Drag and drop to reorganize'
+									}
+								}
+						})
+					});
+					store1.on('beforeload',function(){
+						this.proxy.extraParams = params;
+					});
+				}
+			};
+		})();
+
+	MultiLang.init();
+
+})
+
+	//****************角色赋权********************************
+	var boxArrayValue = new Array();
+	var noCheckValue = new Array();
+
+	function changeBox(obj) {
+		if (obj.checked == true) {
+			boxArrayValue[boxArrayValue.length] = obj.value;
+			for (var i = 0; i < noCheckValue.length; i++) {
+				if (obj.value == noCheckValue[i]) {
+					noCheckValue.splice(i, 1);
+				}
+			}
+		} else {
+			noCheckValue[noCheckValue.length] = obj.value;
+			for (var i = 0; i < boxArrayValue.length; i++) {
+				if (obj.value == boxArrayValue[i]) {
+					boxArrayValue.splice(i, 1);
+				}
+			}
+		}
+	}
+	//分平台多选框处理
+	function domainBoxValue(value, obj, record) {
+		var id = record.get('id');
+		var param1 = record.get('param1');
+		if (param1 == 'true') {
+			return '<input type="checkbox" name="privilegesBox" value="' + id + '" checked>';
+		} else {
+			return '<input type="checkbox" name="privilegesBox" value="' + id + '">';
+		}
+	}
+
+	//菜单多选框处理
+	function boxValue1(value, obj, record) {
+		var array = value.split(",");
+		var checkFlag = false;
+		for (var i = 0; i < boxArrayValue.length; i++) {
+			if (array[0] == boxArrayValue[i]) {
+				checkFlag = true;
+			}
+		}
+
+		var noCheckFlag = false;
+		for (var i = 0; i < noCheckValue.length; i++) {
+			if (array[0] == noCheckValue[i]) {
+				noCheckFlag = true;
+			}
+		}
+
+		if ((array[1] == 'true' && noCheckFlag == false) || checkFlag == true) {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '" checked>';
+		} else {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '">';
+		}
+	}
+	//虚拟机多选框处理
+	function boxValue(value, obj, record) {
+		var array = value.split(",");
+		if (array[1] == 'true') {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '" checked>';
+		} else {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '">';
+		}
+	}
+
+	function getCookie(name) {
+		var arr = document.cookie.match(new RegExp("(^| )" + name
+				+ "=([^;]*)(;|$)"));
+		if (arr != null)
+			return unescape(arr[2]);
+		return null;
+	}
+</script>
+</head>
+
+<body>
+
+</body>
+</html>

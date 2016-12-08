@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> ttcloud </title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css" />
+  <link rel="stylesheet" type="text/css" href="../../css/example.css" />
+  <link rel='stylesheet' type='text/css'
+    href='../../js/ux/css/CheckHeader.css' />
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/ux/CheckColumn.js"></script>
+  <script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript" src="../business/common.js"></script>
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+            padding:0 0 0 0;
+        }
+        .x-tree-checked .x-grid-cell-inner {
+            font-style: italic;
+            color: #777;
+        }
+        .x-grid-row-selected .x-grid-cell {
+            background-color: #efefef !important;
+        }
+        .fontWhite{  
+            color: #ffffff;  
+        }
+    </style>
+  <script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+
+Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+    'Ext.ux.form.SearchField',
+    'Ext.ux.CheckColumn'
+]); 
+     
+Ext.onReady(function(){
+    var params;
+    MultiLang = (function() {
+    return {
+        init: function() {
+            params = getCookie("lang");
+            i18n.set({
+               lang: params, 
+               path: '../../resources'
+            });
+            if (params) {
+                 var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                 Ext.Ajax.request({
+                     url: url,
+                     success: this.onLoadExtLocaleSuccess,
+                     failure: this.onLoadExtLocaleFailure,
+                     scope: this
+                 });
+            } else {
+                 this.setup();
+            }
+        },
+        onLoadExtLocaleSuccess: function(response) {
+             try {
+                 eval(response.responseText);
+             } catch (e) {
+                 //Ext.Msg.alert('Failure', e.toString());
+             }
+             this.setup();
+        },
+        onLoadExtLocaleFailure: function() {
+             //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+             this.setup();
+        },
+        setup: function() {
+        	
+            Ext.define('BusinessPlatformVO',{
+                extend: 'Ext.data.Model',
+                fields:[              
+                     {name:'userId',type:'int'},
+                     {name:'username',type:'string'},
+                     {name:'email',type:'string'},
+                     {name:'domainName',type:'string'},
+                     {name:'brandName',type:'string'},
+                     {name:'createDate',type:'date',dateFormat:'time'}
+            	]
+            });
+            
+            var businessPlatformStore=Ext.create('Ext.data.Store', {
+                pageSize: pageSize,
+                autoLoad:true,
+                model: 'BusinessPlatformVO',
+                proxy: {
+                    type: 'ajax',
+                    url : path+'/../systemmanagement/businessPlatformMaintenance!getBusinessPlatformByPage.action',
+                    reader: {
+                        type: 'json',    
+                        root: 'resultObject.result',
+                        totalProperty: 'resultObject.totalCount'
+                    },
+                    listeners:{
+            			exception:function(reader, response, error, eOpts){
+            				ajaxException(reader, response, error, eOpts );
+            			}
+            		}
+                }
+            });
+            
+            var businessPlatformGrid = Ext.create('Ext.grid.Panel', {
+                height:900,
+                width:'100%',
+                title: i18n._('systemManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('platformMaintenance')+'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('businessplatform'),
+                store: businessPlatformStore,
+                dockedItems:[{
+                    xtype:'toolbar',
+                    cls: 'toolbarCSS',
+                    dock: 'top',
+                    items:[
+                        {xtype:'tbfill'},
+                        {
+                            xtype:'label',
+                            text:i18n._('quickQuery') + "：",
+                            cls: 'fontWhite'
+                        },
+                        {
+                            labelWidth : 50,
+                            width:150,
+                            xtype : 'searchfield',
+                            store : businessPlatformStore,
+                            emptyText: i18n._('username') + '/' + i18n._('email')
+                         }
+                     ]
+                }],
+                columns: [
+                    {header: i18n._('username'),  dataIndex: 'username',flex:1, sortable: false},
+                    {header: i18n._('email'),  dataIndex: 'email', flex:1,sortable: false},
+                    {header: i18n._('domainName'),  dataIndex: 'domainName', flex:1, sortable: false},
+                    {header: i18n._('brandName'),  dataIndex: 'brandName',flex:1, sortable: false},
+                    {header: i18n._('createDate'),  dataIndex: 'createDate',
+                    	flex:1,sortable: false,renderer:Ext.util.Format.dateRenderer('Y-m-d H:i:s')},
+                    {header: i18n._('Operating'),dataIndex:'email',
+                    		flex:1,sortable:false,renderer:operationRenderer}
+                ],
+                bbar: Ext.create('Ext.toolbar.Paging', {
+                    store: businessPlatformStore,
+                    displayInfo: true                   
+                })
+            });
+            
+            function operationRenderer(value,metaData,record){
+            	var userId=record.get('userId');
+            	var returnValue='<a href="javascript:void(0)" onclick=goBusinessPlatform("'+userId+'") >'+i18n._('platformOperating')+'</a>'
+            	return returnValue;
+            }
+            
+            Ext.create('Ext.Viewport',{
+                layout:'fit',
+                width:'100%',
+                items: businessPlatformGrid
+            });
+            
+        }
+    }})(); //MultiLang end
+    
+    MultiLang.init();
+    
+}); //Ext.onReady
+
+function getCookie(name){
+    var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+    if(arr != null) return unescape(arr[2]);
+    return null;
+}
+
+function goBusinessPlatform(userId){
+	var v_mask = new Ext.LoadMask(document.body, {
+		msg:i18n._('操作正在进行中，请稍候...'),
+	    removeMask: true //完成后移除
+    });
+	v_mask.show();
+ 	Ext.Ajax.request({
+ 		url:path+'/../systemmanagement/getPlatMaintenanceUrl!getBusinessPlatformLoginUrl.action',
+ 		params:{
+ 			userId:userId
+ 		},
+ 		success:function(form,action){
+ 			var result=form.responseText;
+ 			if(result){
+//  				var win = window.top;
+//  				while (win.opener) {
+//  				    win = win.opener.top;
+//  				}
+ 				window.open(result,'业务平台');
+ 			}else{
+ 				Ext.MessageBox.show({
+                    title: i18n._('errorNotice'),
+                    msg: '跳转失败',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR
+                });
+ 			}
+ 			v_mask.hide();
+ 		}
+ 	});
+}
+
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

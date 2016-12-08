@@ -1,0 +1,1123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> ttcloud</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/jquery-1.7.2.min.js" ></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript" src="../systemmanagement/common.js"></script>
+  <script type="text/javascript">
+
+     Ext.onReady(function(){
+    	 Ext.QuickTips.init(true,{dismissDelay:600000});
+    		Ext.apply(Ext.QuickTips.getQuickTip(), {
+    		    maxWidth: 1000,
+    		    trackMouse: true,
+    		    dismissDelay: 0
+    		});
+    	 var params;
+    	 MultiLang =(function(){
+            return {
+                init: function() {
+                    // load ExtJS locale
+                    params = getCookie("lang");
+                    i18n.set({
+      				  lang: params, 
+      				  path: '../../resources'
+      				});
+                    if (params) {
+                        var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                        Ext.Ajax.request({
+                            url: url,
+                            success: this.onLoadExtLocaleSuccess,
+                            failure: this.onLoadExtLocaleFailure,
+                            scope: this
+                        });
+                    } else {
+                    	this.setup();
+                    }
+                },
+                onLoadExtLocaleSuccess: function(response) {
+                    try {
+                        eval(response.responseText);
+                    } catch (e) {
+                        //Ext.Msg.alert('Failure', e.toString());
+                    }
+                    this.setup();
+                },
+                onLoadExtLocaleFailure: function() {
+                    //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                    this.setup();
+                },
+                setup: function() {
+	        		   var count = 0;
+                	Ext.define('ResourceLog',{
+                		extend: 'Ext.data.Model',
+                		fields:[
+                		        {name:'id',type:'long'},
+                		        {name:'event_time',type:'date', dateFormat:'time'},
+                		        {name:'update_time',type:'date', dateFormat:'time'},
+                		        {name:'finish_time',type:'date', dateFormat:'time'},
+                		        {name:'res_type',type:'short'},
+                		        {name:'type',type:'short'},
+                		        {name:'biz_type',type:'short'},
+                		        {name:'obj_name',type:'string'},
+                		        {name:'operator_type',type:'short'},
+                		        {name:'operator',type:'string'},
+                		        {name:'message',type:'string'},
+                		        {name:'remark',type:'string'},
+                		        {name:'result',type:'short'},
+                		        {name:'job_server',type:'string'},
+                		        {name:'error_info',type:'string'},
+                		        {name:'resend_message_times',type:'int'}
+                		       ]
+                	});
+
+        		     var resourceLogStore=Ext.create('Ext.data.Store', {
+     					pageSize: pageSize,
+     					autoLoad:false,
+     					storeId:'trLoglist',
+     					model: 'ResourceLog',
+     					sorters: [{
+     					            property : 'event_time',
+     					            direction: 'DESC'
+     					           }],
+     					remoteSort:true,
+     				    proxy: new Ext.data.proxy.Ajax({
+     					     actionMethods: { read: 'POST' },//将提交方式改为post
+     					     url : path+'/../systemmanagement/logManagement!pageResourceLog.action',
+     						 reader: {
+     					         type: 'json',    
+     					         root: 'resultObject.result',
+     					         totalProperty: 'resultObject.totalCount'
+     					     },
+     					    listeners:{
+     							exception:function(reader, response, error, eOpts){
+     								ajaxException(reader, response, error, eOpts );
+     							}
+     						}
+     					 }),
+     					 listeners:{
+     						 'load':function(){
+     							var dateStr=Ext.Date.format(new Date(),"H:i:s");
+     	        				Ext.get("lastRefreshTime").update(dateStr);
+     						 }
+     					 }
+     		     }); 
+        		     resourceLogStore.load();
+        			var sm = Ext.create('Ext.selection.RowModel');
+        			//日志列表
+        			Ext.create('Ext.Viewport',{
+        			    layout:'fit',
+        			    width:'100%',
+        				height:'100%',
+        			    items: Ext.create('Ext.grid.Panel', {
+	        				id:'resourceLogList',
+	        				height:900,
+	        				sortableColumns:false,
+	        				width:'100%',
+	        				title: i18n._('systemManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('logManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' + i18n._('resourceLog'),
+	        			    store: resourceLogStore,
+	        				selModel: sm,
+	        				listeners:{
+	        					'itemdblclick':{
+	        						fn:function(){
+	        							viewDetail();
+	        						}
+	        					}
+	        				},
+	        				bbar: Ext.create('Ext.toolbar.Paging', {
+	        					store: resourceLogStore,		
+	        					pageSize:0,			
+	        					displayInfo: true,
+	        					inputItemWidth:pagingBarPageNumWidth,
+	        					items:[{
+	        						margin:'0 10 0 10',
+	        					    xtype:'displayfield',
+	        					    value: '<span style="position:relative;bottom:3px;">'+ i18n._('Last refresh time') +'<span id="lastRefreshTime"></span><span id="refreshSetting" style="color:orange;margin-left:5px;cursor:pointer;">'+i18n._('refreshSettings')+'</span></span>',
+	        					    hideLabel:true
+	        					  }]
+	        				}),
+	        				viewConfig: {
+	        					   stripeRows: true						
+	        				},
+	        				dockedItems : [ {
+	        					xtype : 'toolbar',
+	        					cls: 'toolbarCSS',
+	        					dock : 'top',
+	        					items : [
+										{
+											icon: '../../images/detail.png', 
+									        text:'<font id="detailUser" color="white" >' + i18n._('details') + '</font>',
+											listeners: {
+												 "mouseout" : function() {
+													 document.getElementById("detailUser").style.color = "white";
+												 },
+												 "mouseover" : function() {
+													 document.getElementById("detailUser").style.color = "black";
+												 }
+											 },
+											handler:function(){
+												viewDetail();
+											}},
+										{
+
+ 												xtype:'button',
+ 								                text:'<font id="resendResourceMessage" color="white">'+i18n._('resendResourceMessage')+'</font>',
+ 								                listeners: {
+ 								    				 "mouseout" : function() {
+ 								    					 document.getElementById("resendResourceMessage").style.color = "white";
+ 								    				 },
+ 								    				 "mouseover" : function() {
+ 								    					 document.getElementById("resendResourceMessage").style.color = "black";
+ 								    				 }
+								    					
+ 								    			},
+ 								                tooltip:i18n._('resendResourceMessage'),
+ 								                shadow:false,
+ 								                icon:'../../images/reActivation.png',
+ 								                handler:function(){
+ 								                	var rows = sm.getSelection();
+ 													if (rows.length == 0) {
+ 														Ext.MessageBox.show({
+ 															title : i18n._('notice'),
+ 															msg : i18n._('selectOne'),
+ 															icon : Ext.MessageBox.INFO,
+ 															buttons : Ext.MessageBox.OK
+ 														});
+ 														return;
+ 													}
+ 													var result=rows[0].get('result');
+ 													if(result==1){
+ 														Ext.MessageBox.show({
+ 															title : i18n._('notice'),
+ 															msg : i18n._('jobResultTip'),
+														icon : Ext.MessageBox.INFO,
+ 															buttons : Ext.MessageBox.OK
+ 														});
+ 														return;
+ 													}
+ 													Ext.MessageBox.show({
+ 														    title: i18n._('notice'),
+ 															msg:i18n._('reSendOpenEmailConfirm'),
+ 										                   buttons: Ext.MessageBox.YESNO,
+ 										                   icon: Ext.MessageBox.QUESTION,
+ 										                   fn:function(e){
+										                	   if(e=="no"){
+ 										                		   return;
+ 										                	   }else if(e=='yes'){
+ 										                			var jobId = rows[0].get('id');
+ 										        					Ext.Ajax.request({
+ 										                	    		url : path + '/../systemmanagement/logManagement!resendResourceJobMessage.action',
+ 										                	    		method : 'POST',
+ 										                	    		params : {
+ 										                	    			'jobId' : jobId
+ 										                	    		},				
+ 										                	    		success : function(form, action) {
+ 										                	    			var obj = Ext.decode(form.responseText);
+ 										                	    			if (!obj.success) {
+ 										                	    				Ext.MessageBox.show({
+ 										                	    					title : i18n._('errorNotice'),
+ 										                	    					msg : obj.resultMsg,
+ 										                	    					buttons : Ext.MessageBox.OK,
+ 										                	    					icon : Ext.MessageBox.WARNING
+ 										                	    				});
+ 										                	    				return;
+ 										                	    			}
+ 										                	    			Ext.MessageBox.show({
+ 										                	    				title : i18n._('notice'),
+ 										                	    				msg : i18n._('Operating')+i18n._('Successful'),
+ 										                	    				icon : Ext.MessageBox.INFO,
+ 										                	    				buttons : Ext.MessageBox.OK
+ 										                	    			});					
+ 										                	    		},
+ 										                	    		failure : function(form, action) {
+ 										                	    			Ext.MessageBox.show({
+ 										                	    				title : i18n._('errorNotice'),
+ 										                	    				msg : i18n._('operateFail'),
+ 										                	    				buttons : Ext.MessageBox.OK,
+ 										                	    				icon : Ext.MessageBox.WARNING
+ 										                	    			});
+ 										                	    		}
+ 										                	    	});	
+ 										                	   }
+ 										                	}
+ 										    		});	 	
+ 								            	}
+ 											},
+	     	        					{xtype:'tbfill'},            
+
+{
+	xtype:'button',
+	iconAlign:'right',
+	text:'<font id="Search" color="white">'+i18n._('Search')+'</font>',//搜索
+    listeners: {
+		 "mouseout" : function() {
+			 document.getElementById("Search").style.color = "white";
+		 },
+		 "mouseover" : function() {
+			 document.getElementById("Search").style.color = "black";
+		 }
+			
+	},
+    tooltip:i18n._('Search'),//高级搜索
+	handler:function(){
+		if(count>0){
+			return ;
+	    }
+		var p=this.getPosition(true);
+		var xP=p[0]-309;
+		
+		var resourceTypeStore = Ext.create('Ext.data.Store', {
+		    fields: ['value', 'name'],
+		    data : [
+                {"value":"0","name":i18n._('All')},//全部
+				{"value":"1","name":i18n._('ZONE')},//zone
+		        {"value":"2","name":i18n._('FLAVOR')},//flavor
+		        {"value":"3","name":i18n._('VM')},//vm
+		        {"value":"4","name":i18n._('IP')},//,//ip
+		        {"value":"5","name":i18n._('extDisk')}//,//extend_disk
+		    ]
+		});
+		////1：新增2：修改3：删除4：重置5：迁移
+		var operationTypeStore = Ext.create('Ext.data.Store', {
+		    fields: ['value', 'name'],
+		    data : [
+                {"value":"0","name":i18n._('All')},
+				{"value":"1","name":i18n._('Create')},
+		        {"value":"2","name":i18n._('Update')},
+		        {"value":"3","name":i18n._('delete')},
+		        {"value":"4","name":i18n._('REBUILT')},
+		        {"value":"5","name":i18n._('Migrate')},
+		        {"value":"6","name":i18n._('OtherVm')}
+		    ]
+		});
+		var bizTypeStore = Ext.create('Ext.data.Store', {
+		    fields: ['value', 'name'],
+		    data : [
+                {"value":"0","name":i18n._('All')},
+				{"value":"1","name":i18n._('订单创建')},
+		        {"value":"2","name":i18n._('试用创建')},
+		        {"value":"3","name":i18n._('退款删除')},
+		        {"value":"4","name":i18n._('到期删除')},
+		        {"value":"5","name":i18n._('管理员创建')},
+		        {"value":"6","name":i18n._('管理员删除')},
+		        {"value":"7","name":i18n._('外网IP调整')},
+		        {"value":"8","name":i18n._('虚机Flavor调整')},
+		        {"value":"9","name":i18n._('手动迁移')},
+		        {"value":"10","name":i18n._('自动迁移')},
+		        {"value":"11","name":i18n._('新增扩展盘')},
+		        {"value":"12","name":i18n._('删除扩展盘')},
+		        {"value":"13","name":i18n._('调整扩展盘')},
+		        {"value":"14","name":i18n._('发布创建')},
+		        {"value":"15","name":i18n._('主机恢复')},
+		        {"value":"16","name":i18n._('主机清除')},
+		        {"value":"18","name":i18n._('绑定磁盘')},
+		        {"value":"19","name":i18n._('解绑磁盘')},
+		        {"value":"17","name":i18n._('添加外网IP')}
+		    ]
+		}
+		);
+	//	alert(bizTypeStore);
+		var resultTypeStore = Ext.create('Ext.data.Store', {
+		    fields: ['value', 'name'],
+		    data : [
+                {"value":"0","name":i18n._('All')},//全部
+				{"value":"1","name":i18n._('logSuccess')},
+		        {"value":"2","name":i18n._('failure')},
+		        {"value":"3","name":i18n._('Unknown')},
+		        {"value":"4","name":"绑定IP失败"}
+		    ]
+		});
+		
+		var dataSearchWin =Ext.create('Ext.window.Window', {
+    		title : i18n._('Query'),//查询条件
+    		width : 350,
+    		height : 270,
+    		border : false,
+    		frame:false,
+    		//bodyPadding : 10,
+    		resizable : false,
+    		closable : false,
+    		collapsible:true,
+    		items:[
+    		        {
+    		        xtype: 'form',
+					height:'100%',
+					width:'100%',
+					id:'dataSearchForm',
+					fieldDefaults:{
+						msgTarget:'side',
+						autoFitErrors:false
+					},
+					frame:true,
+			        border: false,
+			        items:[
+			    	       {
+		    		    	   xtype:'combobox',
+		    		    	   id:'byResourceType',
+		    		    	   fieldLabel:i18n._('byResourceType'),//按类型
+		    		    	   labelAlign:'right',
+		    		    	   width : 280,
+		    		    	   labelWidth : 70,
+		    		    	   emptyText:i18n._('All'),//全部
+		    		    	   store:resourceTypeStore,
+		    		    	   queryMode: 'local',
+		    		    	   displayField: 'name',
+		    		    	   valueField: 'value'
+		    		       },
+		    		       {
+		    		    	   xtype:'combobox',
+		    		    	   id:'byBizType',
+		    		    	   fieldLabel:i18n._('byBizType'),//按类型
+		    		    	   labelAlign:'right',
+		    		    	   width : 280,
+		    		    	   labelWidth : 70,
+		    		    	   emptyText:i18n._('All'),//全部
+		    		    	   store:bizTypeStore,
+		    		    	   queryMode: 'local',
+		    		    	   displayField: 'name',
+		    		    	   valueField: 'value'
+							},
+			    		       {
+								 xtype:'combobox',
+			    		    	   id:'byOperationType',
+			    		    	   fieldLabel:i18n._('byOperationType'),//按类型
+			    		    	   labelAlign:'right',
+			    		    	   width : 280,
+			    		    	   labelWidth : 70,
+			    		    	   emptyText:i18n._('All'),//全部
+			    		    	   store:operationTypeStore,
+			    		    	   queryMode: 'local',
+			    		    	   displayField: 'name',
+			    		    	   valueField: 'value'
+							},
+							{
+								 xtype:'combobox',
+			    		    	   id:'byResult',
+			    		    	   fieldLabel:i18n._('byResult'),//按类型
+			    		    	   labelAlign:'right',
+			    		    	   width : 280,
+			    		    	   labelWidth : 70,
+			    		    	   emptyText:i18n._('All'),//全部
+			    		    	   store:resultTypeStore,
+			    		    	   queryMode: 'local',
+			    		    	   displayField: 'name',
+			    		    	   valueField: 'value'
+							},
+		    		       {
+		    		    	   xtype:'fieldcontainer',
+		    		    	   layout : 'hbox',
+		    		    	   width : 280,
+		    		    	   items:[
+										{
+										    xtype: 'datefield',
+										    id: 'fromDate',
+										    fieldLabel: i18n._('byOperationTime'),//按时间段
+										    labelAlign:'right',
+										    width : 170,
+										    labelWidth : 70,
+										    name: 'from_date',
+										    emptyText:i18n._('beginDate'),//起始日期
+										    maxValue: new Date(),  // limited to the current date or prior
+										    format:'Y-m-d'
+										}, 
+										{
+											xtype:'label',
+											text:i18n._('To'),//至
+											width:20,
+											padding:'2 0 0 4'
+										},
+										{
+										    xtype: 'datefield',
+										    id: 'toDate',
+										    width : 90,
+										    name: 'to_date',
+										    emptyText:i18n._('endDate'),//结束日期
+										    maxValue: new Date(),
+										    format:'Y-m-d'
+										}
+		    		    	          ]
+		    		       },
+		    		       {
+		    		    	   xtype:'textfield',
+		    		    	   id: 'byOperator',
+		    		    	   fieldLabel : i18n._('byOperator'),//按模糊查询
+		    		    	   labelAlign:'right',
+		    		    	   width : 280,
+		    		    	   labelWidth : 70,
+		    		    	   emptyText:i18n._('operator')//登录邮箱/备注
+		    		       },
+		    		       {
+		    		    	   xtype:'textfield',
+		    		    	   id: 'byMessage',
+		    		    	   fieldLabel : i18n._('fuzzy'),
+		    		    	   labelAlign:'right',
+		    		    	   width : 280,
+		    		    	   labelWidth : 70,
+		    		    	   emptyText:i18n._('messageBody')+"/"+i18n._('vm_name')
+		    		       },
+		    		       {
+		    		    	   xtype:'fieldcontainer',
+		    		    	   layout : 'hbox',
+		    		    	   width : 280,
+		    		    	   items:[
+		    		    	          {
+		    		    	        	  xtype:'button',
+		    		    	        	  name: 'search',
+		    		    	        	  width:80,
+		    		    	        	  margin:'0 44 0 75',
+		    		    	        	  text:i18n._('Search'),//搜索
+		    		    	        	  handler:function(){
+		    		    	        		  var resourceType=Ext.getCmp('byResourceType').getValue();
+		    		    	        		  if(null == resourceType){
+		    		    	        			  resourceType = 0 ;
+		        		    	        	  }
+		    		    	        		  var bizType=Ext.getCmp('byBizType').getValue();
+		    		    	        		  if(null == bizType){
+		    		    	        			  bizType = 0 ;
+		        		    	        	  }
+		    		    	        		  var operationType=Ext.getCmp('byOperationType').getValue();
+		    		    	        		  if(null == operationType){
+		    		    	        			  operationType = 0 ;
+		        		    	        	  }
+		    		    	        		  var resultType=Ext.getCmp('byResult').getValue();
+		    		    	        		  if(null == resultType){
+		    		    	        			  resultType = 0 ;
+		        		    	        	  }
+		    		    	        		  var startTime=Ext.getCmp('fromDate').getValue();
+		    		    	        		  var endTimeTemp = Ext.getCmp('toDate').getValue();
+		        		    	        	  if(null!=startTime&&null!=endTimeTemp){
+		        		    	        		  if(endTimeTemp.getTime()-startTime.getTime()<0){
+		        		    	        			  
+		        		    	        			  Ext.MessageBox.show({
+		        											title : i18n._('notice'),
+		        											msg : i18n._('the expiry date should be later than effective date'),//输入IP无效
+		        											buttons : Ext.MessageBox.OK,
+		        											icon : Ext.MessageBox.ERROR,
+		        											fn:function(){
+		        												Ext.getCmp('fromDate').focus();
+		            										}
+		        										});
+		            		    	        		  return null;
+		            		    	        	  }
+		            		    	          }
+		        		    	        	  var endTime;
+		    		    	        		  if(endTimeTemp!=null){
+		    		    	        			  endTime=Ext.Date.add(endTimeTemp,Ext.Date.DAY, 1);
+		        		    	        	  }
+		    		    	        		  var operator=Ext.getCmp('byOperator').getValue();
+		    		    	        		  var message=Ext.getCmp('byMessage').getValue();
+		    		    	        		 
+											   var proxy = resourceLogStore.getProxy();
+												proxy.setExtraParam('queryVO.biz_type',bizType) ;
+												proxy.setExtraParam('queryVO.startTime',startTime) ;
+												proxy.setExtraParam('queryVO.endTime',endTime) ;
+												proxy.setExtraParam('queryVO.type',operationType) ;
+												proxy.setExtraParam('queryVO.operator',operator) ;
+												proxy.setExtraParam('queryVO.res_type',resourceType) ;
+												proxy.setExtraParam('queryVO.result',resultType) ;
+												proxy.setExtraParam('queryVO.message',message) ;
+												proxy.extraParams.start = 0;
+												count=0;
+												resourceLogStore.loadPage(1,null);
+												Ext.getCmp('dataSearchForm').getForm().reset();
+												dataSearchWin.destroy();
+			    		    	        		
+		    		    	        	  }
+		    		    	          },
+		    		    	          {
+		    		    	        	  xtype:'button',
+		    		    	        	  name: 'cancel',
+		    		    	        	  width:80,
+		    		    	        	  text:i18n._('off'),//取消
+		    		    	        	  handler:function(){
+		    		    	        		 count = 0;
+		    		    	        		 dataSearchWin.destroy();
+		    		    	        		 
+		    		    	        	  }
+		    		    	          }
+		    		    	         ]
+		    		       }
+			        ]
+    		        }
+    		      ],
+    		listeners : {
+    			collapse:function(p,eOpts ){
+    				count = 0;
+    				dataSearchWin.destroy();
+    			}
+    		}     
+    	});
+		dataSearchWin.showAt(xP,50); 
+		count = count +1;
+	}
+}
+	     	        					]
+	        				}]
+        					,
+	        			    columns: [
+                                {xtype: 'rownumberer',flex:0.1},
+	        			        {header: i18n._('operationTime'),dataIndex: 'event_time',align:'left',renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'), flex: 0.35},
+	        			        {header: i18n._('finishTime'),dataIndex: 'finish_time',align:'left',renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'), flex: 0.35},
+	        					{header: i18n._('resource type'),dataIndex: 'res_type',align:'left', flex: 0.2,renderer:resourceTypeRenderer},
+	        					{header: i18n._('operationType'),dataIndex: 'type',align:'left', flex: 0.2,renderer:operationTypeRenderer},
+	        					{header: i18n._('operationResult'), dataIndex: 'result',align:'left', flex: 0.2,renderer:resultTypeRenderer},
+	        					{header: i18n._('businessType'), dataIndex: 'biz_type',align:'left', flex: 0.2,renderer:bizTypeRenderer},
+	        					{header: i18n._('resourceObj'), dataIndex: 'obj_name',align:'left', flex: 0.6},
+	        			        {header: i18n._('operatorType'), dataIndex: 'operator_type',align:'left', flex: 0.2,renderer:operatorTypeRenderer},
+	        					{header: i18n._('operator'), dataIndex: 'operator',align:'left', flex: 0.35}
+// 	        			        ,
+// 	        					{header: i18n._("messageBody"),dataIndex: 'message',flex: 1,
+// 	        						 renderer: function(value,metaData,record,colIndex,store,view) {
+// 	        					        	if(value!=null){
+// 	        						         	metaData.tdAttr = "data-qtip='" + value + "'";
+// 	        						         	return value;
+// 	        					        	}
+// 	        					         }
+// 		        				}
+	        				]
+        			    })
+        			});
+
+        			function viewDetail(){
+        				var rows = Ext.getCmp('resourceLogList').getSelectionModel().getSelection();
+        				if(rows.length > 0){
+
+        					var id = rows[0].get('id');
+        					var record = resourceLogStore.getById(id);
+        					
+        					var info =Ext.create('Ext.window.Window', {
+        						title: i18n._('details'),
+        						height: 430,
+        						layout:'fit',
+        					    width: 500,
+        					    border: false,
+        						closable:false,
+        						resizable : false,
+        						constrain : true,
+        						modal:true,
+        						tools:[{
+        						  type:'close',
+        						  handler:function(){
+        						  info.destroy();
+        						  }
+        						}],
+        					    items: [
+        											{
+        							xtype: 'form',
+        							height:'100%',
+        							id:'infoForm',
+        							width:470,
+        							autoScroll:true,
+        							border: false,
+        							  items: [
+        						{
+        						xtype: 'fieldset',
+        						title: i18n._("Basic information"),
+        						width:450,
+        						style:'margin-left:10px;',
+        						items:[
+        								{
+        								xtype: 'displayfield',
+        								fieldLabel: i18n._("resource type"),
+        								value: record.get('res_type'),
+        								style:'margin-left:30px;',
+        								renderer:resourceTypeRenderer
+        								},
+        								{
+        								xtype:'displayfield',
+        								fieldLabel:i18n._("operationType"),
+        								style:'margin-left:30px',
+        								value: record.get('type'),
+        								renderer:operationTypeRenderer
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("businessType"),
+        									style:'margin-left:30px',
+        									value: record.get('biz_type'),
+        									renderer: bizTypeRenderer
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operator"),
+        									style:'margin-left:30px',
+        									value: record.get('operator')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operatorType"),
+        									style:'margin-left:30px',
+        									value: record.get('operator_type'),
+        									renderer:operatorTypeRenderer
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("resourceObj"),
+        									style:'margin-left:30px',
+        									value: record.get('obj_name')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("job_server"),
+        									style:'margin-left:30px',
+        									value: record.get('job_server')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operationResult"),
+        									style:'margin-left:30px',
+        									value:function(){
+        										var result=record.get('result');
+        										if(result=='3'|| result=='2' || result=='1'){
+        											var resend_times=record.get('resend_message_times');
+        											if(!resend_times){
+        												resend_times=0;
+        											}
+        											var type=record.get('type');
+        											return resultTypeHandle(result,resend_times,type);
+        										}else{
+        											return operationTypeRenderer(record.get('type'))+'ing...'
+        										}
+        									}()
+        									//renderer:resultTypeRenderer
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operationTime"),
+        									style:'margin-left:30px',
+        									value:record.get('event_time'),
+        									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("finishTime"),
+        									style:'margin-left:30px',
+        									value:record.get('finish_time'),
+        									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s')
+        								},{
+            								xtype:'textarea',
+            								fieldLabel:i18n._('messageBody'),
+            								style:'margin-left:30px;',
+            								editable:false,
+            								width:350,
+            								readOnly:true,
+            								value: record.get('message')
+            							},	
+        								{
+            								xtype:'textarea',
+            								fieldLabel:i18n._('errorInfo'),
+            								style:'margin-left:30px;',
+            								editable:false,
+            								width:350,
+            								readOnly:true,
+            								value: record.get('error_info')
+            							}
+//             							,		
+//         								{
+//         								xtype:'textarea',
+//         								fieldLabel:i18n._('messageBody'),
+//         								style:'margin-left:30px;',
+//         								editable:false,
+//         								readOnly:true,
+//         								width:350,
+//         								value: record.get('message')
+//         								}			
+        						]
+        					}
+        					]
+        					}
+        					]
+
+        					});
+        					info.show();
+        				}else{
+        				    	Ext.MessageBox.show({
+        						   title:i18n._('notice'),
+        					       msg:i18n._('selectOne'),
+        				           icon:Ext.MessageBox.INFO,
+        				           buttons: Ext.MessageBox.OK
+        				           
+        				       }); 
+        					return;
+        				}
+        				
+        			}
+        			
+        			
+        			function operationTypeRenderer(value){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        			    switch(value){
+	        			    case 1: return i18n._("Create");break;
+	        			    case 2: return i18n._("Update");break;
+	        			    case 3: return i18n._("delete");break;
+	        			    case 4: return i18n._("REBUILT");break;
+	        			    case 5: return i18n._("Migrate");break;
+	        			    default:return i18n._("OtherVm");break;
+        			    }
+        			}
+        			
+        			//1：订单创建
+        			//2：试用创建
+        			//3：退款删除
+        			//4：到期删除
+        			//5：管理员创建
+        			//6：管理员删除
+        			//7：外网IP调整
+        			//8：虚机Flavour调整
+        			//9：手动迁移
+        			//10：自动迁移
+        			//11：新增扩展盘
+        			//12：删除扩展盘
+        			//13：调整扩展盘（暂不支持）
+        			function bizTypeRenderer(value){
+        				
+        				if (getCookie("lang") == "zh_CN") {
+            				if(typeof value=='string'){
+            					value=parseInt(value);
+            				//	alert(value);
+            				}
+            				switch(value){
+        			case 1: return "订单创建";break;
+     			    case 2: return "试用创建";break;
+     			    case 3: return "退款删除";break;
+     			    case 4: return "到期删除";break;
+     			    case 5: return "管理员创建";break;
+     			    case 6: return "管理员删除";break;
+     			    case 7: return "外网IP调整";break;
+     			    case 8: return "虚机Flavor调整";break;
+     			    case 9: return "手动迁移";break;
+     			    case 10: return "自动迁移";break;
+     			    case 11: return "新增扩展盘";break;
+     			    case 12: return "删除扩展盘";break;
+     			    case 13: return "调整扩展盘";break;
+     			    case 14: return "发布创建";break;
+     			    case 15: return "主机恢复";break;
+     			    case 16: return "主机清除";break;
+     			    case 17: return "添加外网IP";break;
+     			    case 18: return "绑定磁盘";break;
+     			    case 19: return "解绑磁盘";break;
+     			    default:return "Unknown";break;
+            				}       					
+        				}
+        				else {
+            				if(typeof value=='string'){
+            					value=parseInt(value);
+            			//		alert(value);
+            				}
+            				switch(value){
+            				case 1: return "OrderCreation";break;
+             			    case 2: return "TryToCreate";break;
+             			    case 3: return "RefundDelete";break;
+             			    case 4: return "DeleteExpired";break;
+             			    case 5: return "AdministratorCreates";break;
+             			    case 6: return "DeleteAdministrator";break;
+             			    case 7: return "WAN IP Adjustment";break;
+             			    case 8: return "FlavorAdjustVirtualMachine";break;
+             			    case 9: return "ManualMigration";break;
+             			    case 10: return "AutomaticMigration";break;
+             			    case 11: return "AddedExtents";break;
+             			    case 12: return "DeleteExtents";break;
+             			    case 13: return "AdjustmentExtents";break;
+             			    case 14: return "PublishedCreate";break;
+             			    case 15: return "HostRecovery";break;
+             			    case 16: return "Host Clear";break;
+             			    case 17: return "BindingDisk";break;
+             			    case 18: return "UnbundlingDisk";break;
+             			    case 19: return "AddingExternal IP";break;
+             			    default:return "Unknown";break;
+            				}        					
+        				}
+        				
+
+        			}
+        			
+        			function resourceTypeRenderer(value){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        			    switch(value){
+	        			    case 1: return i18n._("ZONE");break;
+	        			    case 2: return i18n._("FLAVOR");break;
+	        			    case 3: return i18n._("VM");break;
+	        			    case 4: return i18n._("IP");break;
+	        			    case 5: return i18n._("extDisk");break;
+	        			    default:return i18n._("Unknown");break;
+        			    }
+        			}
+        			function operatorTypeRenderer(value){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        			    switch(value){
+	        			    case 1: return i18n._("logUser");break;
+	        			    case 2: return i18n._("logAdmin");break;
+	        			    case 3: return i18n._("CPUser");break;
+	        			    case 4: return i18n._("接口服务");break;
+	        			    case 5: return i18n._("logProcess");break;
+	        			    default:return i18n._("Unknown");break;
+        			    }
+        			}
+        			function resultTypeRenderer(value,metadata,record){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        				switch(value){
+	        			    case 1: return i18n._("logSuccess");break;
+	        			    case 2: return i18n._("failure");break;
+	        			    case 3: 
+							    var resend_message_times=0;//record.get('resend_message_times');
+							    switch(resend_message_times) {
+							        case 0:
+							            return operationTypeRenderer(record.get('type'))+'Ing...';break;
+								    case 1:
+								        return "重新发送删除命令1次";break;
+								    case 2:
+								        return "重新发送删除命令2次";break;
+								    case 3:
+								        return "重新发送删除命令3次";break;
+							    }	        			        
+	        			    case 4: return "绑定IP失败";break;
+	        			    default:return i18n._("Unknown");break;
+    			        }
+        			}
+        			
+        			function resultTypeHandle(value,resend_message_times_param,type){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        				switch(value){
+	        			    case 1: return i18n._("logSuccess");break;
+	        			    case 2: return i18n._("failure");break;
+	        			    case 3: 
+							    var resend_message_times=resend_message_times_param;//record.get('resend_message_times');
+							    switch(resend_message_times) {
+							        case 0:
+							            return operationTypeRenderer(type)+'Ing...';break;
+								    case 1:
+								        return "重新发送删除命令1次";break;
+								    case 2:
+								        return "重新发送删除命令2次";break;
+								    case 3:
+								        return "重新发送删除命令3次";break;
+							    }	        			        
+	        			    case 4: return "绑定IP失败";break;
+	        			    default:return i18n._("Unknown");break;
+    			        }
+        			}
+        			
+        			
+        			function refreshData(){
+        				resourceLogStore.loadPage(1,null);
+        			}
+        			var timeTypeStore = Ext.create('Ext.data.Store', {
+        			    fields: ['value', 'name'],
+        			    data : [
+        	                {"value":"1","name":i18n._('秒')},//全部
+        					{"value":"2","name":i18n._('分')}
+        			    ]
+        			});
+        			
+        			var periodGlobal=60;
+        			var timeTypeGlobal='1';
+        			var refreshYesGlobal=true;
+        			var refreshNoGlobal=false;
+        			
+        			var refreshSettingWin =Ext.create('Ext.window.Window', {
+    		    		title : i18n._('Refresh Setting'),//查询条件
+    		    		width : 350,
+    		    		height : 150,
+    		    		border : false,
+    		    		frame:false,
+    		    		modal:true,
+    		    		closable:false,
+    		    		resizable : false,
+    		    		tools:[{
+  						  type:'close',
+  						  handler:function(){
+  							reset();
+  							refreshSettingWin.hide();
+  						  }
+  						}],
+    		    		items:[
+    		    		        {
+    		    		        xtype: 'form',
+    							height:'100%',
+    							width:'100%',
+    							id:'refreshSettingForm',
+    							fieldDefaults:{
+    								msgTarget:'side',
+    								autoFitErrors:false
+    							},
+    							frame:true,
+    					        border: false,
+    					        items:[
+    				    		       {
+    				    		    	   xtype:'fieldcontainer',
+    				    		    	   layout : 'hbox',
+    				    		    	   width : 255,
+    				    		    	   items:[ 
+													{
+														xtype:'radiofield',
+														name:'refreshFlag',
+														margin:'10 10 10 10',
+														id:"refreshYes",
+														boxLabel:i18n._("Refresh rate"),
+														checked:true,
+														listeners:{
+															'change':function(radio,isChecked){
+																if (isChecked) { 
+																	Ext.getCmp("period").enable();
+																	Ext.getCmp("timeType").enable();
+																} 
+															}
+														}
+													},
+    												{
+    												    xtype: 'numberfield',
+    												    id: 'period',
+    												    width:70,
+    												    maxLength:7,
+    												    enforceMaxLength:true,
+    												    allowDecimals:false,
+    												    hideLabel:true,
+    												    margin:'10 10 10 10',
+    												    value:refreshPeriod,
+    												    minValue:1
+    												},
+    												{
+    								    		    	   xtype:'combobox',
+    								    		    	   id:'timeType',
+    								    		    	   width:70,
+    								    		    	   hideLabel:true,
+    								    		    	   store:timeTypeStore,
+    								    		    	   allowBlank:false,
+    								    		    	   value:"1",
+    								    		    	   forceSelection:true,
+    								    		    	   queryMode: 'local',
+    								    		    	   margin:'10 10 10 10',
+    								    		    	   displayField: 'name',
+    								    		    	   valueField: 'value'
+    								    		    }
+    				    		    	          ]
+    				    		       },
+    				    		       {
+    				    		    		xtype:'radiofield',
+    				    					name:'refreshFlag',
+    				    					margin:'10 10 10 10',
+    				    					id:"refreshNo",
+    				    					boxLabel:i18n._("Disable refresh"),
+    				    					listeners:{
+    				    						'change':function(radio,isChecked){
+													if (isChecked) { 
+														Ext.getCmp("period").disable();
+														Ext.getCmp("timeType").disable();
+													} 
+												}
+											}
+    				    		       }
+    					        ]
+    		    		        }
+    		    		      ],
+    		    		buttons:[{
+		    	        	  xtype:'button',
+	    	        	  name: 'search',
+	    	        	  width:80,
+	    	        	  text:i18n._('OK'),//搜索
+	    	        	  handler:function(){
+	    	        		  var refreshYes=Ext.getCmp("refreshYes").getValue();
+	    	        		  var refreshNo=Ext.getCmp("refreshNo").getValue();
+	    	        		  periodGlobal=Ext.getCmp("period").getValue();
+	    	        	      timeTypeGlobal=Ext.getCmp("timeType").getValue();
+	    	        		  refreshYesGlobal=refreshYes;
+	    	        		  refreshNoGlobal=refreshNo;
+	    	        		  if(refreshNo){
+	    	        			  runner.stopAll();
+	    	        			  refreshSettingWin.hide();
+	    	        			  return;
+	    	        		  }
+	    	        		  if(refreshYes){
+	    	        			  if(Ext.getCmp("period").isValid()&&Ext.getCmp("timeType").isValid()){
+	    	        				  var timeType=Ext.getCmp("timeType").getValue();
+	    	        				  var period=Ext.getCmp("period").getValue();
+	    	        				  if(timeType=='1'){
+	    	        					  refreshPeriod=period;
+	    	        				  }else if(timeType=='2'){
+	    	        					  refreshPeriod=period*60;
+	    	        				  }
+	    	        				  var task = {
+	    	              				    run: refreshData,
+	    	              				    interval: 1000*refreshPeriod 
+	    	              		      };
+	    	        				  runner.stopAll();
+	    	        				  runner.start(task);
+	    	        				  refreshSettingWin.hide();
+	    	        			  }else{
+	    	        				  return;
+	    	        			  }
+	    	        		  }
+	    	        	  }
+	    	          },
+	    	          {
+	    	        	  xtype:'button',
+	    	        	  name: 'cancel',
+	    	        	  width:80,
+	    	        	  margin:"0 85 0 10",
+	    	        	  text:i18n._('off'),//取消
+	    	        	  handler:function(){
+	    	        		  //Ext.getCmp("refreshSettingForm").getForm().reset();
+	    	        		  reset();
+	    	        		  refreshSettingWin.hide();
+	    	        	  }
+	    	          }]
+    		    	});
+        			
+        			
+        			function reset(){
+          			  Ext.getCmp("refreshYes").setValue(refreshYesGlobal);
+    	        		  Ext.getCmp("refreshNo").setValue(refreshNoGlobal);
+    	        		  Ext.getCmp("period").setValue(periodGlobal);
+    	        	      Ext.getCmp("timeType").setValue(timeTypeGlobal);
+          			}
+        			
+        			Ext.get("refreshSetting").on('click',function(){
+        				refreshSettingWin.show();
+        			});
+        			
+        			var task = {
+        				    run: refreshData,
+        				    interval: 1000*refreshPeriod 
+        		    };
+        			
+        			var runner = new Ext.util.TaskRunner();
+        			runner.start(task);
+
+                    
+                }
+            };
+         })();
+    	 MultiLang.init();
+     });
+
+
+	 function getCookie(name){
+	         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+	         if(arr != null) return unescape(arr[2]);
+			 return null;
+	 }
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

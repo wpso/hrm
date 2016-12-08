@@ -1,0 +1,1508 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>管理员用户 </title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="../extjs-4.1.0/resources/css/ext-all.css" />
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+			padding:0 0 0 0;
+        }
+        .x-form-unit {  
+            height: 22px;  
+            line-height: 22px;  
+            padding-left: 2px;  
+            display: inline-block;  
+            display: inline;  
+        }  
+    </style>
+
+<script type="text/javascript">
+
+Ext.Loader.setConfig({
+    enabled: true
+});
+
+Ext.require([
+    'Ext.grid.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander'
+	//'Ext.ux.form.ComboxSearchField'
+	// 'Ext.selection.CheckboxModel'
+    
+]);
+
+// var sm = Ext.create('Ext.selection.CheckboxModel');
+Ext.onReady(function() {
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            
+            setup: function() {
+			     Ext.Ajax.timeout = 120000;  	
+// /////////////////////////////////////// 创建数据
+//dataModel
+Ext.define('ServiceType', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'serviceName',  type: 'string'}
+	]
+});
+
+
+Ext.define('ServiceItem', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'serviceType',  type: 'int'},
+	{name: 'createDate',  type: 'date',dateFormat : 'time'},
+	{name: 'updateDate',  type: 'date',dateFormat : 'time'},
+	{name: 'price',  type: 'float'},
+	{name: 'description',  type: 'string'}
+	]
+});
+
+ var cpuModel=Ext.define('Cpu', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'name',  type: 'string'},
+	{name: 'model',  type: 'string'},
+	{name: 'frequency',  type: 'float'},
+	{name: 'coreNum',  type: 'int'},
+	{name: 'arch',  type: 'string'},
+	{name: 'vendor',  type: 'string'}
+	]
+});
+
+  var ramModel=Ext.define('Ram', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'size',  type: 'int'},
+	{name: 'model',  type: 'string'}
+	]
+}); 
+
+ var diskModel=Ext.define('Disk', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'capacity',  type: 'int'},
+	{name: 'model',  type: 'string'}
+	]
+});
+
+ var networkModel=Ext.define('Network', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'type',  type: 'string'},
+	{name: 'bandWidth',  type: 'int'},
+	{name: 'vendor',  type: 'string'}
+	]
+});
+
+  var softwareModel=Ext.define('Software', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'name',  type: 'string'},
+	{name: 'version',  type: 'string'},
+	{name: 'arch',  type: 'string'},
+	{name: 'language',  type: 'string'},
+	{name: 'platform',  type: 'string'},
+	{name: 'vendor',  type: 'string'},
+	{name: 'type',  type: 'string'}
+	]
+});
+
+  var osModel=Ext.define('Os', {
+    extend: 'Software',
+    fields: [
+	{name: 'family',  type: 'string'},
+	{name: 'imageId',  type: 'string'},
+	{name: 'imageSize',  type: 'string'}
+	]
+});
+
+ var commonServiceModel= Ext.define('CommonService', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'name',  type: 'string'},
+	{name: 'type',  type: 'string'},
+	{name: 'vendor',  type: 'string'},
+	{name: 'times',  type: 'int'},
+	{name: 'measureType',  type: 'int'}
+	]
+});
+
+//data Store
+var v_serviceTypes = Ext.create('Ext.data.Store', {
+	id:'v_serviceTypes',
+    model: 'ServiceType',
+    sorters: [
+              {
+                  property : 'id',
+                  direction: 'DESC'
+              }
+          ],
+	remoteSort:true,
+	proxy:{
+        type: 'ajax',
+        url : path+'/sc/serviceItem!getTypes.action',
+		reader: {
+            type: 'json',
+			root:'resultObject'
+        }
+    },
+	autoLoad: true,
+	listeners:{
+	'load':function(){
+	combo_serviceType.setValue(this.getAt(0));
+	}
+	}
+});
+
+var v_proxy=new Ext.create('Ext.data.proxy.Ajax',
+{
+		//model: 'Cpu',
+        type: 'ajax',
+        url : path+'/sc/serviceItem!pageServiceItem.action',
+		//extraParams:{serviceType:1},
+		reader: {
+            type: 'json',
+			root:'resultObject.result',
+			totalProperty: 'resultObject.totalCount'
+        }
+    }
+);
+
+var v_store=Ext.create('Ext.data.Store', {
+    pageSize:10,
+	width:'100%',
+    sorters: [
+              {
+                  property : 'capacity',
+                  direction: 'ASC'
+              }
+          ],
+	remoteSort:true,
+	proxy:v_proxy
+});
+v_proxy.setModel(cpuModel);
+v_proxy.setExtraParam('serviceType',1);
+v_store.load();
+var v_archStore = Ext.create('Ext.data.Store', {
+                                    fields: ['id', 'name'],
+                                    data : [
+                                            {"id":"1", "name":"x86_32"},
+                                            {"id":"2", "name":"x86_64"}
+                                    ]
+                            });
+var v_measureTypeStore = Ext.create('Ext.data.Store', {
+                                    fields: ['id', 'name'],
+                                    data : [
+                                            {"id":"1", "name":i18n._('Hour')},
+                                            {"id":"2", "name":i18n._('times')}
+                                    ]
+                            });
+var trans_arch=function getArch(value){
+return value==1?'x86_32':'x86_64';
+}
+//column define
+var cpu_columns=[{"text":i18n._('row_Num'),"dataIndex":"id","flex":1},
+{"text":i18n._('type'),"dataIndex":"name","flex":1},
+{"text":i18n._('core number'),"dataIndex":"coreNum","flex":1},
+{"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d"},
+{"text":i18n._('Price'),"dataIndex":"price","flex":1}
+];
+
+var ram_columns=[{"text":i18n._('row_Num'),"dataIndex":"id","flex":1},
+{"text":i18n._('capacity(G)'),"dataIndex":"size","flex":1},
+{"text":i18n._('model'),"dataIndex":"model","flex":1},
+{"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d"},
+{"text":i18n._('Price'),"dataIndex":"price","flex":1}
+];
+
+var disk_columns=[{"text":i18n._('row_Num'),"dataIndex":"id","flex":1},
+{"text":i18n._('capacity(G)'),"dataIndex":"capacity","flex":1},
+{"text":i18n._('model'),"dataIndex":"model","flex":1},
+{"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d"},
+{"text":i18n._('Price'),"dataIndex":"price","flex":1}
+];
+
+var os_columns=[{"text":i18n._('row_Num'),"dataIndex":"id","flex":1},
+{"text":i18n._('name'),"dataIndex":"name","flex":1},
+{"text":i18n._('version'),"dataIndex":"version","flex":1},
+{"text":i18n._('arch'),"dataIndex":"arch","flex":1,renderer:trans_arch},
+{"text":i18n._('family'),"dataIndex":"family","flex":1},
+{"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d"},
+{"text":i18n._('Price'),"dataIndex":"price","flex":1}
+];
+
+var network_columns=[{"text":i18n._('row_Num'),"dataIndex":"id","flex":1},
+{"text":i18n._('Bandwidth'),"dataIndex":"bandWidth","flex":1},
+{"text":i18n._('type'),"dataIndex":"type","flex":1},
+{"text":i18n._('vendor'),"dataIndex":"vendor","flex":1},
+{"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d"},
+{"text":i18n._('Price'),"dataIndex":"price","flex":1}
+];
+
+var software_columns=[{"text":i18n._('row_Num'),"dataIndex":"id","flex":1},
+{"text":i18n._('name'),"dataIndex":"name","flex":1},
+{"text":i18n._('version'),"dataIndex":"version","flex":1},
+{"text":i18n._('arch'),"dataIndex":"arch","flex":1,renderer:trans_arch},
+{"text":i18n._('platform'),"dataIndex":"platform","flex":1},
+{"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d"},
+{"text":i18n._('Price'),"dataIndex":"price","flex":1}
+];
+
+var commonService_columns=[{"text":i18n._('row_Num'),"dataIndex":"id","flex":1},
+{"text":i18n._('name'),"dataIndex":"name","flex":1},
+{"text":i18n._('type'),"dataIndex":"type","flex":1},
+{"text":i18n._('vendor'),"dataIndex":"vendor","flex":1},
+{"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d"},
+{"text":i18n._('Price'),"dataIndex":"price","flex":1}
+];
+
+function getModel(value){
+var model;
+if(value=='cpu'){
+model=cpuModel;
+}else if(value=='ram'){
+model=ramModel;
+}else if(value=='disk'){
+model=diskModel;
+}else if(value=='os'){
+model=osModel;
+}else if(value=='network'){
+model=networkModel;
+}else if(value=='software'){
+model=softwareModel;
+}else if(value=='commonService'){
+model=commonServiceModel;
+}
+return model;
+
+};
+
+function getColumn(value){
+var column;
+if(value=='cpu'){
+column=cpu_columns;
+}else if(value=='ram'){
+column=ram_columns;
+}else if(value=='disk'){
+column=disk_columns;
+}else if(value=='os'){
+column=os_columns;
+}else if(value=='network'){
+column=network_columns;
+}else if(value=='software'){
+column=software_columns;
+}else if(value=='commonService'){
+column=commonService_columns;
+}
+return column;
+
+};
+
+var combo_serviceType=Ext.create('Ext.form.ComboBox',{    
+				margin:'0 0 0 65',
+				fieldLabel: i18n._('resource type'),
+                labelWidth: 100,
+				id:'combo',
+				labelAlign:'right',
+				store: v_serviceTypes,
+				displayField: 'serviceName',
+				value:1,
+                valueField: 'id',
+				forceSelection:true,
+				listeners:{
+				  "change":{
+				   fn:function(field,newValue,oldValue,eOpts){
+					var value=field.getRawValue();
+					v_proxy.setModel(getModel(value));
+					v_proxy.setExtraParam('serviceType',newValue);
+					v_store.load();
+					dataGrid.reconfigure(v_store, getColumn(value));
+					dataGrid.update();
+				  }
+				  }
+				}
+			}
+);
+//alert(combo_serviceType.getValue());
+//combo_serviceType.setValue('cpu');
+//define component 
+var v_height = 30;
+var v_width = 290;
+var v_margin = '4px';
+Ext.define('textPanel',{
+	extend:'Ext.panel.Panel',
+	height:v_height,
+	width:v_width,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin
+	},
+	items:[
+		{
+		xtype:'textfield',
+		//allowBlank:false,
+		fieldLabel:''
+		}]
+	
+});
+Ext.define('descPanel',{
+	extend:'Ext.panel.Panel',
+	height:50,
+	width:450,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin
+	},
+	items:[
+		{
+		height:45,
+		width:360,
+		xtype:'textfield',
+		fieldLabel:i18n._('ExpensesDesc')
+		}]
+	
+});
+Ext.define('pricePanel',{
+	extend:'Ext.panel.Panel',
+	height:v_height,
+	width:v_width+30,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin
+	},
+	items:[		
+		{
+	    xtype: 'numberfield',
+		fieldLabel:i18n._('Price'),
+		width:235,
+		minValue: 0,
+		allowBlank: false
+	    },
+		{
+		xtype: 'displayfield',
+		margin:'0 0 0 10',
+		value:i18n._('RMB/hour')
+		}
+		]
+	
+});
+Ext.define('numberPanel',{
+	extend:'Ext.panel.Panel',
+	height:v_height,
+	width:v_width+30,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin
+	},
+	items:[		
+		{
+	    xtype: 'numberfield',
+		fieldLabel:'',
+		width:235,
+		minValue: 0,
+		allowBlank: false
+	    },
+		{
+		xtype: 'displayfield',
+		margin:'0 0 0 10',
+		value:''
+		}
+		],
+	setLabel:function(value){
+		this.getComponent(0).setFieldLabel(value);
+	},
+	setExt:function(value){
+		this.getComponent(1).setValue(value);
+	}
+	
+});
+/*Ext.define('sliderPanel',{
+extend:'Ext.panel.Panel',	
+	height:v_height,
+	width:v_width,
+	border:false,
+	layout:'hbox',
+	items:[
+	Ext.create('Ext.slider.Single', {
+	fieldLabel: '',
+	width:230,
+	increment: 1,
+    minValue: 1,
+    maxValue: 10,
+    value:1,
+	tipText: function(thumb){
+        return Ext.String.format('<b>{0}</b>', thumb.value);
+	},
+	listeners:{
+		'change':{
+			fn:function(){
+	  			Ext.getCmp('displayValue').setValue(this.getValue());
+			}
+	  	}
+	}
+    }),{
+		xtype: 'displayfield',
+		id:'displayValue',
+		margin:'0 0 0 8',
+		value:'1'
+	},{
+	xtype: 'displayfield',
+		value:''
+	}]	
+});*/
+Ext.define('sliderPanel',{
+extend:'Ext.panel.Panel',
+	height:v_height,
+	width:v_width,
+	border:false,
+	layout:'hbox',
+	items:[
+	{
+	xtype:'sliderfield',
+	fieldLabel: '',
+	width:230,
+	increment: 1,
+    minValue: 1,
+    maxValue: 10,
+    value:1,
+	tipText: function(thumb){
+        return Ext.String.format('<b>{0}</b>', thumb.value);
+	},
+	listeners:{
+		'change':{
+			fn:function(){
+				this.getBubbleTarget().getComponent(1).setValue(this.getValue());
+			}
+	  	}
+	}
+    },{
+		xtype: 'displayfield',
+		margin:'0 0 0 8',
+		value: '1'
+	},{
+	xtype: 'displayfield',
+		value:''
+	}],
+	setValue:function(value){
+	this.getComponent(0).setValue(value);
+	this.getComponent(1).setValue(value);
+	},
+	setLabel:function(label){
+	this.getComponent(0).setFieldLabel(label);
+	},
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	}
+});
+
+Ext.define('archPanel',{
+extend:'Ext.form.ComboBox',
+			//	margin:'0 0 0 65',
+				height:v_height,
+				width:235,
+				fieldLabel: i18n._('arch'),
+				//fieldLabel:i18n._('ServiceCatalog_name'),
+               // labelWidth: 100,			
+				//labelAlign:'right',
+				store: v_archStore,
+				displayField: 'name',
+				value:v_archStore.getAt(0),
+                valueField: 'id',
+				forceSelection:true
+});
+
+
+Ext.define('commonForm',{ 
+extend:'Ext.form.Panel',	
+	            	//height:380,
+                    border: false,
+                    items: [{
+					xtype:"fieldset",
+					border:true,
+					anchor:'100% 100%',
+                    style:{
+					 marginLeft:"5px",
+					 marginRight:"5px",
+                     marginTop:"5px"
+					}
+					//title:"cpu信息", //need lang
+					//items:[
+					//cpu_model,cpu_frequency,cpu_coreNum,cpu_arch,cpu_vendor,cpu_price,cpu_desc  
+					//]
+					}]
+
+                   });
+				   
+Ext.define('commonWindow',{ 				   
+			extend:'Ext.window.Window',
+            title: i18n._('add resource'),
+	        modal:'true',
+            width: 550,
+            autoHeight:true,
+            layout: 'anchor',
+            closable:false});
+//cpu form item define
+var cpu_name= Ext.create('textPanel');
+cpu_name.getComponent(0).setFieldLabel(i18n._('name'));
+var cpu_model= Ext.create('textPanel');
+cpu_model.getComponent(0).setFieldLabel(i18n._('model'));
+
+var cpu_frequency= Ext.create('numberPanel');		
+cpu_frequency.setLabel(i18n._('frequency'));	
+cpu_frequency.setExt('G');				 
+				
+var cpu_coreNum=Ext.create('sliderPanel');
+cpu_coreNum.getComponent(0).setFieldLabel(i18n._('core number'));
+//cpu_coreNum.getComponent(2).setValue('核');
+
+var cpu_arch=Ext.create('archPanel');
+var cpu_vendor= Ext.create('textPanel');
+cpu_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));
+
+var cpu_price= Ext.create('pricePanel');
+var cpu_desc= Ext.create('descPanel');
+//cpu_desc.setWidth(500);
+//cpu_desc.setHeight(100);
+//cpu_desc.getComponent(0).setFieldLabel('描述');
+//cpu_desc.getComponent(0).setWidth(430);
+//cpu_desc.getComponent(0).setHeight(80);
+
+/*var cpuForm = Ext.create('Ext.form.Panel', { 
+					id:'cpuForm',
+	            	height:350,
+                    border: false,
+                    items: [{
+					xtype:"fieldset",
+					border:true,
+					anchor:'100% 100%',
+                    style:{
+					 marginLeft:"5px",
+					 marginRight:"5px",
+                     marginTop:"5px"
+					},
+					title:"cpu信息", //need lang
+					items:[
+					cpu_model,cpu_frequency,cpu_coreNum,cpu_arch,cpu_vendor,cpu_price,cpu_desc  
+					]
+					}]
+
+                   });*/
+var cpuForm = Ext.create('commonForm');		
+cpuForm.getComponent(0).setTitle(i18n._('cpu info'));
+cpuForm.getComponent(0).add([cpu_name,cpu_model,cpu_frequency,cpu_coreNum,cpu_arch,cpu_vendor,cpu_price,cpu_desc]);
+
+var addButton=Ext.create('Ext.button.Button',{
+style:'margin-right:5',
+text: i18n._('Add')
+});		   
+var commonWindow=Ext.create('commonWindow', {
+                  //  items: cpuForm,
+	            	tools:[{
+	                type:'close',
+	                handler:function(){					
+					commonWindow.getComponent(0).getForm().reset();
+					commonWindow.hide();
+	                }
+	                }],               
+                    buttons: [
+					addButton,
+					{   
+					    style:'margin-right:5',
+                        text: i18n._('Cancel'),
+						handler:function(){
+						    commonWindow.getComponent(0).getForm().reset();
+						    commonWindow.hide();
+						}
+                    }]
+                    });
+//ram item define
+var ram_model=Ext.create('textPanel');
+ram_model.getComponent(0).setFieldLabel(i18n._('model'));
+var ram_size= Ext.create('numberPanel');		
+ram_size.setLabel(i18n._('capacity'));	
+ram_size.setExt('G');
+
+var ram_price= Ext.create('pricePanel');				
+var ramForm = Ext.create('commonForm');		
+ramForm.getComponent(0).setTitle(i18n._('ram info'));
+ramForm.getComponent(0).add([ram_model,ram_size,ram_price]);
+
+//disk item define
+var disk_model=Ext.create('textPanel');
+disk_model.getComponent(0).setFieldLabel(i18n._('model'));
+var disk_capacity= Ext.create('numberPanel');		
+disk_capacity.setLabel(i18n._('capacity'));	
+disk_capacity.setExt('G');
+var disk_price= Ext.create('pricePanel');				
+var diskForm = Ext.create('commonForm');		
+diskForm.getComponent(0).setTitle(i18n._('disk info'));
+diskForm.getComponent(0).add([disk_model,disk_capacity,disk_price]);
+//os item define
+var os_name=Ext.create('textPanel');
+os_name.getComponent(0).setFieldLabel(i18n._('name'));
+var os_version=Ext.create('textPanel');
+os_version.getComponent(0).setFieldLabel(i18n._('version'));
+var os_arch=Ext.create('archPanel');
+var os_lang=Ext.create('textPanel');
+os_lang.getComponent(0).setFieldLabel(i18n._('language'));
+var os_family=Ext.create('textPanel');
+os_family.getComponent(0).setFieldLabel(i18n._('family'));
+var os_vendor=Ext.create('textPanel');
+os_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));
+var os_price= Ext.create('pricePanel');	
+var os_desc= Ext.create('descPanel');
+
+var osForm = Ext.create('commonForm');		
+osForm.getComponent(0).setTitle(i18n._('os info'));
+osForm.getComponent(0).add([os_name,os_version,os_arch,os_lang,os_family,os_vendor,os_price,os_desc]);
+//network item define
+var network_bandWidth=Ext.create('numberPanel');
+network_bandWidth.setLabel(i18n._('Bandwidth'));
+network_bandWidth.setExt('M');
+var network_type=Ext.create('textPanel');
+network_type.getComponent(0).setFieldLabel(i18n._('type'));		
+
+var network_vendor=Ext.create('textPanel');
+network_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));	
+var network_price= Ext.create('pricePanel');	
+var network_desc= Ext.create('descPanel');			
+var networkForm = Ext.create('commonForm');		
+networkForm.getComponent(0).setTitle(i18n._('network info'));
+networkForm.getComponent(0).add([network_type,network_bandWidth,network_vendor,network_price,network_desc]);
+//software item define
+var software_name=Ext.create('textPanel');
+software_name.getComponent(0).setFieldLabel(i18n._('name'));
+var software_version=Ext.create('textPanel');
+software_version.getComponent(0).setFieldLabel(i18n._('version'));
+var software_arch=Ext.create('archPanel');
+var software_lang=Ext.create('textPanel');
+software_lang.getComponent(0).setFieldLabel(i18n._('language'));
+var software_platform=Ext.create('textPanel');
+software_platform.getComponent(0).setFieldLabel(i18n._('platform'));
+var software_vendor=Ext.create('textPanel');
+software_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));
+var software_type=Ext.create('textPanel');
+software_type.getComponent(0).setFieldLabel(i18n._('type'));
+var software_price= Ext.create('pricePanel');	
+var software_desc= Ext.create('descPanel');
+
+var softwareForm = Ext.create('commonForm');		
+softwareForm.getComponent(0).setTitle(i18n._('software info'));
+softwareForm.getComponent(0).add([software_name,software_version,software_arch,software_lang,software_platform,software_vendor,software_type,software_price,software_desc]);
+
+//commonService item define
+var commonService_name=Ext.create('textPanel');
+commonService_name.getComponent(0).setFieldLabel(i18n._('name'));
+var commonService_vendor=Ext.create('textPanel');
+commonService_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));
+var commonService_type=Ext.create('textPanel');
+commonService_type.getComponent(0).setFieldLabel(i18n._('type'));
+var commonService_times=Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	width:v_width,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:'5px'
+	},
+	items:[
+		{
+		xtype:'numberfield',
+		width:185,
+		minValue: 0,
+		allowBlank: false,
+		fieldLabel:i18n._('times')
+		},{
+		xtype:'combobox',
+		id:'v_measureType',
+		width:50,
+		store: v_measureTypeStore,
+		displayField: 'name',
+		//value:v_measureTypeStore.getAt(0),
+		valueField: 'id',
+		forceSelection:true	
+		}],
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	},
+	getRawValue:function(){
+	return this.getComponent(0).getValue()+this.getComponent(1).getRawValue();
+	}
+	
+})
+
+var commonService_price= Ext.create('pricePanel');
+commonService_price.getComponent(1).setValue(i18n._('cny'));
+var commonService_desc= Ext.create('descPanel');				
+var commonServiceForm = Ext.create('commonForm');		
+commonServiceForm.getComponent(0).setTitle(i18n._('common service info'));
+commonServiceForm.getComponent(0).add([commonService_name,commonService_vendor,commonService_type,commonService_times,commonService_price,commonService_desc]);
+
+
+function ajax_request(v_serviceType,v_json){
+		var v_mask = new Ext.LoadMask(Ext.getBody(), {
+		                        msg: i18n._('saving'),
+								//msg:i18n._('ServiceCatalog is saving,please wait!'),
+		                        removeMask: true //完成后移除
+		                    });
+						v_mask.show();					
+						Ext.Ajax.request({
+							url: path+'/sc/serviceItem!save.action',
+							params:{serviceType:v_serviceType},
+							jsonData:v_json,
+							success:function(response){
+								v_mask.hide();
+								commonWindow.hide();
+								commonWindow.removeAll(false);
+	           					var result=Ext.JSON.decode(response.responseText);
+	           					if(result.success==false){
+	           						Ext.MessageBox.show({
+	 	                              // title: '提示',
+                                        title:i18n._('notice'),
+	 	                               msg: result.resultMsg,
+	 	                               icon:Ext.MessageBox.INFO,	 	           		  
+	 	                               buttons: Ext.MessageBox.OK	 	                      
+	 	           				});
+	           					}else{
+	           						combo_serviceType.setValue(v_serviceType);
+								v_store.load();
+								}
+							}	
+						});	
+						commonWindow.getComponent(0).getForm().reset();
+						};
+
+function setRecord(value,record){
+if(value=='cpu'){
+cpu_name.getComponent(0).setValue(record.get('name'));
+cpu_model.getComponent(0).setValue(record.get('model'));
+cpu_frequency.getComponent(0).setValue(record.get('frequency'));
+cpu_coreNum.setValue(record.get('coreNum'));
+cpu_arch.setValue(record.get('arch'));
+cpu_vendor.getComponent(0).setValue(record.get('vendor'));
+cpu_price.getComponent(0).setValue(record.get('price'));
+cpu_desc.getComponent(0).setValue(record.get('description'));
+}else if(value=='ram'){
+ram_size.getComponent(0).setValue(record.get('size'));
+ram_model.getComponent(0).setValue(record.get('model'));							
+ram_price.getComponent(0).setValue(record.get('price'));
+}else if(value=='disk'){
+disk_capacity.getComponent(0).setValue(record.get('capacity'));
+disk_model.getComponent(0).setValue(record.get('model'));							
+disk_price.getComponent(0).setValue(record.get('price'));
+}else if(value=='os'){
+os_name.getComponent(0).setValue(record.get('name'));
+os_version.getComponent(0).setValue(record.get('version'));	
+os_arch.setValue(record.get('arch'));
+os_lang.getComponent(0).setValue(record.get('language'));
+os_family.getComponent(0).setValue(record.get('family'));
+os_vendor.getComponent(0).setValue(record.get('vendor'));
+os_price.getComponent(0).setValue(record.get('price'));
+os_desc.getComponent(0).setValue(record.get('description'));
+}else if(value=='network'){
+network_bandWidth.getComponent(0).setValue(record.get('bandWidth'));							
+network_type.getComponent(0).setValue(record.get('type'));
+network_vendor.getComponent(0).setValue(record.get('vendor'));
+network_price.getComponent(0).setValue(record.get('price'));
+network_desc.getComponent(0).setValue(record.get('description'));
+}else if(value=='software'){
+software_name.getComponent(0).setValue(record.get('name'));
+software_version.getComponent(0).setValue(record.get('version'));	
+software_arch.setValue(record.get('arch'));
+software_lang.getComponent(0).setValue(record.get('language'));
+software_platform.getComponent(0).setValue(record.get('platform'));
+software_type.getComponent(0).setValue(record.get('type'));
+software_vendor.getComponent(0).setValue(record.get('vendor'));
+software_price.getComponent(0).setValue(record.get('price'));
+software_desc.getComponent(0).setValue(record.get('description'));
+}else if(value=='commonService'){
+commonService_name.getComponent(0).setValue(record.get('name'));								
+commonService_times.getComponent(0).setValue(record.get('times'));
+//alert(record.get('measureType'));
+commonService_times.getComponent(1).setValue(v_measureTypeStore.findRecord('id',record.get('measureType')).get('id'));
+commonService_type.getComponent(0).setValue(record.get('type'));
+commonService_vendor.getComponent(0).setValue(record.get('vendor'));
+commonService_price.getComponent(0).setValue(record.get('price'));
+commonService_desc.getComponent(0).setValue(record.get('description'));
+}
+}
+
+function checkField(obj){
+	var rs=true;
+	if(!obj||obj<=0||obj.length==0) rs=false;
+	return rs;
+}
+function checkFieldLength(obj,length){
+	var rs=true;
+	if(obj.length>length) rs=false;
+	return rs;
+}
+function checkForm(type){
+	var result=true;
+	if(type==''||type=='cpu'){
+		result=checkFieldLength(cpu_name.getComponent(0).getValue(),50)&&checkField(cpu_frequency.getComponent(0).getValue())&&checkField(cpu_price.getComponent(0).getValue())&&checkField(cpu_name.getComponent(0).getValue());
+	}
+	else if(type=='ram'){
+		result=checkFieldLength(ram_model.getComponent(0).getValue(),20)&&checkField(ram_size.getComponent(0).getValue())&&checkField(ram_price.getComponent(0).getValue());
+	}
+	else if(type=='disk'){
+		result=checkFieldLength(disk_model.getComponent(0).getValue(),20)&&checkField(disk_capacity.getComponent(0).getValue())&&checkField(disk_price.getComponent(0).getValue());
+	}
+	else if(type=='os'){
+		result=checkField(os_price.getComponent(0).getValue())&&checkField(os_name.getComponent(0).getValue())&&checkFieldLength(os_name.getComponent(0).getValue(),50);
+	}
+	else if(type=='network'){
+		result=checkField(network_bandWidth.getComponent(0).getValue())&&checkField(network_type.getComponent(0).getValue())&&checkField(network_price.getComponent(0).getValue());
+	}
+	else if(type=='software'){
+		result=checkField(software_name.getComponent(0).getValue())&&checkField(software_platform.getComponent(0).getValue())&&checkField(software_price.getComponent(0).getValue());
+	}
+	else if(type=='commonService'){
+		result=checkField(commonService_name.getComponent(0).getValue())&&checkField(commonService_times.getComponent(0).getValue())&&checkField(commonService_price.getComponent(0).getValue());
+	}
+	return result;
+}
+
+function showMsg(msg){
+	 Ext.MessageBox.show({
+         title: i18n._('Prompt'),
+          msg: msg==null?i18n._('Input error'):msg,
+        icon:Ext.MessageBox.INFO,
+       buttons: Ext.MessageBox.OK
+       });
+}
+
+function showWindow(obj){
+	addButton.setText(i18n._('Add'));
+	var value;
+	var v_serviceType=0;
+	switch(obj){
+	case 'menu_cpu':
+		value='cpu';
+		v_serviceType=1;break;
+	case 'menu_ram':
+		value='ram';
+		v_serviceType=2;break;
+	case 'menu_disk':
+		value='disk';
+		v_serviceType=3;break;
+	case 'menu_os':
+		value='os';
+		v_serviceType=4;break;
+	case 'menu_network':
+		value='network';
+		v_serviceType=5;break;
+	case 'menu_software':
+		value='software';
+		v_serviceType=6;break;
+	case 'menu_commonService':
+		value='commonService';
+		v_serviceType=7;break;
+	}
+	commonWindow.removeAll(false);
+	
+	if(value==''||value=='cpu'){					
+		commonWindow.add(cpuForm);
+		addButton.setHandler(
+		function(){
+			//alert(checkForm(value));
+		if(checkForm(value)==false){showMsg(); return;}
+		var v_json={
+					serviceType:v_serviceType,
+					name:cpu_name.getComponent(0).getValue(),
+					model:cpu_model.getComponent(0).getValue(),
+					frequency:cpu_frequency.getComponent(0).getValue(),
+					coreNum:cpu_coreNum.getComponent(0).getValue(),
+					arch:cpu_arch.getValue(),
+					vendor:cpu_vendor.getComponent(0).getValue(),
+					price:cpu_price.getComponent(0).getValue(),
+					description:cpu_desc.getComponent(0).getValue()
+				};
+		ajax_request(v_serviceType,v_json);		
+		}
+		
+		/*function(){	
+			var v_mask = new Ext.LoadMask(Ext.getBody(), {
+                    msg: '正在保存套餐，请稍候！',
+					//msg:i18n._('ServiceCatalog is saving,please wait!'),
+                    removeMask: true //完成后移除
+                });
+			v_mask.show();					
+			Ext.Ajax.request({
+				url: path+'/sc/serviceItem!save.action',
+				params:{serviceType:combo_serviceType.getValue()},
+				jsonData:{
+					serviceType:combo_serviceType.getValue(),
+					name:cpu_name.getComponent(0).getValue(),
+					model:cpu_model.getComponent(0).getValue(),
+					frequency:cpu_frequency.getComponent(0).getValue(),
+					coreNum:cpu_coreNum.getComponent(0).getValue(),
+					arch:cpu_arch.getValue(),
+					vendor:cpu_vendor.getComponent(0).getValue(),
+					price:cpu_price.getComponent(0).getValue()
+				},
+				success:function(response){
+					v_mask.hide();
+					commonWindow.hide();
+					commonWindow.removeAll(false);
+   					var result=Ext.JSON.decode(response.responseText);
+   					if(result.success==false){
+   						Ext.MessageBox.show({
+                           // title: '提示',
+                            title:i18n._('notice'),
+                            msg: result.resultMsg,
+                            icon:Ext.MessageBox.INFO,	 	           		  
+                            buttons: Ext.MessageBox.OK	 	                      
+        				});
+   					}else{
+					v_store.load();
+					}
+				}	
+			});			
+		}*/
+		);
+		commonWindow.show();
+	}else if(value=='ram'){
+	commonWindow.add(ramForm);	
+	addButton.setHandler(
+	function(){
+		if(checkForm(value)==false){showMsg(); return;}
+	var v_json={
+					serviceType:v_serviceType,
+					size: ram_size.getComponent(0).getValue(),
+					model:ram_model.getComponent(0).getValue(),							
+					price:ram_price.getComponent(0).getValue()
+				};
+	ajax_request(v_serviceType,v_json);
+	}
+	);
+	commonWindow.show();
+	}else if(value=='disk'){
+	commonWindow.add(diskForm);
+	addButton.setHandler(
+	function(){
+		if(checkForm(value)==false){showMsg(); return;}
+	var v_json={
+					serviceType:v_serviceType,
+					capacity:disk_capacity.getComponent(0).getValue(),
+					model:disk_model.getComponent(0).getValue(),							
+					price:disk_price.getComponent(0).getValue()
+				};
+	ajax_request(v_serviceType,v_json);
+	}
+	);
+	commonWindow.show();
+	}else if(value=='os'){
+		
+		 Ext.Ajax.request({
+				url: path+'/sc/serviceItem!getImages.action',
+				method: 'POST',
+				success:function(response){	
+					var rs=Ext.JSON.decode(response.responseText);
+					if(rs.success==true){
+						var images=rs.resultObject;
+						if(images.length>0){
+							var v_imageId=images[0].id;
+							var v_size=images[0].metadata.default_size;
+							//alert(v_size);
+							os_name.getComponent(0).setValue(images[0].metadata.distro);
+							//alert(v_imageId);
+							commonWindow.add(osForm);
+							addButton.setHandler(
+							function(){
+								if(checkForm(value)==false){showMsg(); return;}
+								var v_json={
+											serviceType:v_serviceType,
+											name:os_name.getComponent(0).getValue(),
+											version:os_version.getComponent(0).getValue(),	
+											arch:os_arch.getValue(),
+											language:os_lang.getComponent(0).getValue(),
+											family:os_family.getComponent(0).getValue(),
+											vendor:os_vendor.getComponent(0).getValue(),
+											imageId:v_imageId,
+											imageSize:v_size,
+											price:os_price.getComponent(0).getValue(),
+											description:os_desc.getComponent(0).getValue()
+										};
+							ajax_request(v_serviceType,v_json);
+							});		
+							commonWindow.show();
+						}else{
+							showMsg(i18n._('no new os,could not add'));
+							return;
+						}			
+						
+					
+					}else{
+						showMsg(rs.resultMsg);
+						return;
+					}
+				}});
+	}else if(value=='network'){
+	commonWindow.add(networkForm);
+	addButton.setHandler(
+	function(){
+		if(checkForm(value)==false){showMsg(); return;}
+	var v_json={
+					serviceType:v_serviceType,
+					bandWidth:network_bandWidth.getComponent(0).getValue(),							
+					type:network_type.getComponent(0).getValue(),
+					vendor:network_vendor.getComponent(0).getValue(),
+					price:network_price.getComponent(0).getValue(),
+					description:network_desc.getComponent(0).getValue()
+				};
+	ajax_request(v_serviceType,v_json);
+	});commonWindow.show();
+	}else if(value=='software'){
+	commonWindow.add(softwareForm);
+	addButton.setHandler(
+	function(){
+		if(checkForm(value)==false){showMsg(); return;}
+	var v_json={
+					serviceType:v_serviceType,
+					name:software_name.getComponent(0).getValue(),
+					version:software_version.getComponent(0).getValue(),	
+					arch:software_arch.getValue(),
+					language:software_lang.getComponent(0).getValue(),
+					platform:software_platform.getComponent(0).getValue(),
+					type:software_type.getComponent(0).getValue(),
+					vendor:software_vendor.getComponent(0).getValue(),
+					price:software_price.getComponent(0).getValue(),
+					description:software_desc.getComponent(0).getValue()
+				};
+	ajax_request(v_serviceType,v_json);
+	});commonWindow.show();
+	}else if(value=='commonService'){
+		commonService_times.getComponent(1).setValue(v_measureTypeStore.getAt(0));
+	commonWindow.add(commonServiceForm);
+	addButton.setHandler(
+	function(){
+		if(checkForm(value)==false){showMsg(); return;}
+	var v_json={
+					serviceType:v_serviceType,
+					name:commonService_name.getComponent(0).getValue(),								
+					times:commonService_times.getComponent(0).getValue(),
+					measureType:commonService_times.getComponent(1).getValue(),
+					type:commonService_type.getComponent(0).getValue(),
+					vendor:commonService_vendor.getComponent(0).getValue(),
+					price:commonService_price.getComponent(0).getValue(),
+					description:commonService_desc.getComponent(0).getValue()
+				};
+	ajax_request(v_serviceType,v_json);
+	});commonWindow.show();
+	}
+    
+	
+					
+}
+
+ var v_menu=Ext.create('Ext.menu.Menu',{
+     	items: [
+      	{
+          text: 'cpu',
+          id:'menu_cpu',
+          handler: function(){
+        	  showWindow(this.getId());
+          }
+	   },{
+          text: 'ram',
+          id:'menu_ram',
+          handler: function(){
+        	  showWindow(this.getId());
+       }
+      },{
+          text: 'disk',
+          id:'menu_disk',
+          handler: function(){
+        	  showWindow(this.getId());
+       }
+      },{
+          text: 'os',
+          id:'menu_os',
+          handler: function(){
+        	  showWindow(this.getId());
+       }
+      },{
+          text: 'network',
+          id:'menu_network',
+          handler: function(){
+        	  showWindow(this.getId());
+       }
+      },{
+          text: 'software',
+          id:'menu_software',
+          handler: function(){
+        	  showWindow(this.getId());
+       		}
+      },{
+          text: 'commonService',
+          id:'menu_commonService',
+          handler: function(){
+        	  showWindow(this.getId());
+       		}
+      }
+    ]
+});
+
+Ext.QuickTips.init();
+Ext.form.Field.prototype.msgTarget = 'side';
+var pluginExpanded = true;
+var dataGrid=Ext.create('Ext.grid.Panel', {
+    layout:'fit',
+	title:i18n._('CMDB')+'&nbsp;&nbsp;>>&nbsp;&nbsp;'+i18n._('EquipmentManagement'),
+    store: v_store,
+	simpleSelect:true,	
+    columns: cpu_columns,
+	selModel: Ext.create('Ext.selection.RowModel'),
+    //selType: 'rowmodel',
+	bbar: Ext.create('Ext.PagingToolbar', {
+          store:v_store ,
+          displayInfo: true
+    }),
+    viewConfig: {
+        plugins: {
+            ptype: 'gridviewdragdrop',
+            dragText: 'Drag and drop to reorganize'
+        }
+    },
+// //////////////////////////////
+	 dockedItems:[
+			{xtype:'toolbar',
+			dock: 'top',
+			items:[
+			  {
+				xtype:'splitbutton',
+				text:i18n._('add resource'),
+     			style:'margin-left:750px;',
+				icon: '../images/add.png',
+	  			margin:'0 0 0 2',
+     			menu: v_menu
+			},'-',
+			{    
+			    margin:'0 0 0 0',
+                text:i18n._('modify resource'),
+				//text:i18n._('Modify_ServiceCatalog'),
+				style:'margin-left:750px;',
+               
+				icon: '../images/refresh.png',
+				handler:function(){
+				addButton.setText(i18n._('modify'));
+				commonWindow.setTitle(i18n._('modify resource'));
+				var rows=dataGrid.getSelectionModel().getSelection();
+				 var scId=0;
+				 if(rows.length > 0){
+				 scId=rows[0].get('id');
+					}else{
+						 Ext.MessageBox.show({
+						    title:i18n._('notice'),
+						    msg:i18n._('please choose one column'),
+                          icon:Ext.MessageBox.WARNING,
+                         buttons: Ext.MessageBox.OK
+                         }); 
+						return;
+			    	}
+				
+				var record=	v_store.getById(scId);
+				commonWindow.removeAll(false);
+				var value=combo_serviceType.getRawValue();
+				var v_serviceType=combo_serviceType.getValue();
+				
+				setRecord(value,record);
+				
+				if(value==''||value=='cpu'){					
+					commonWindow.add(cpuForm);
+					addButton.setHandler(
+					function(){
+						if(checkForm(value)==false){showMsg(); return;}
+					var v_json={id:scId,
+								serviceType:v_serviceType,
+								name:cpu_name.getComponent(0).getValue(),
+								model:cpu_model.getComponent(0).getValue(),
+								frequency:cpu_frequency.getComponent(0).getValue(),
+								coreNum:cpu_coreNum.getComponent(0).getValue(),
+								arch:cpu_arch.getValue(),
+								vendor:cpu_vendor.getComponent(0).getValue(),
+								price:cpu_price.getComponent(0).getValue(),
+								description:cpu_desc.getComponent(0).getValue()
+							};
+					ajax_request(v_serviceType,v_json);		
+					});
+				}else if(value=='ram'){
+				commonWindow.add(ramForm);	
+				addButton.setHandler(
+				function(){
+					if(checkForm(value)==false){showMsg(); return;}
+				var v_json={id:scId,
+								serviceType:v_serviceType,
+								size:ram_size.getComponent(0).getValue(),
+								model:ram_model.getComponent(0).getValue(),							
+								price:ram_price.getComponent(0).getValue()
+							};
+				ajax_request(v_serviceType,v_json);
+				}
+				
+					);
+				}else if(value=='disk'){
+				commonWindow.add(diskForm);
+				addButton.setHandler(
+				function(){
+					if(checkForm(value)==false){showMsg(); return;}
+				var v_json={id:scId,
+								serviceType:v_serviceType,
+								capacity:disk_capacity.getComponent(0).getValue(),
+								model:disk_model.getComponent(0).getValue(),							
+								price:disk_price.getComponent(0).getValue()
+							};
+				ajax_request(v_serviceType,v_json);
+				}
+				);
+				}else if(value=='os'){
+				commonWindow.add(osForm);
+				addButton.setHandler(
+				function(){
+					if(checkForm(value)==false){showMsg(); return;}
+				var v_json={id:scId,
+								serviceType:v_serviceType,
+								name:os_name.getComponent(0).getValue(),
+								version:os_version.getComponent(0).getValue(),	
+								arch:os_arch.getValue(),
+								language:os_lang.getComponent(0).getValue(),
+								family:os_family.getComponent(0).getValue(),
+								vendor:os_vendor.getComponent(0).getValue(),
+								imageId:record.get('imageId'),
+								imageSize:record.get('imageSize'),
+								price:os_price.getComponent(0).getValue(),
+								description:os_desc.getComponent(0).getValue()
+							};
+				ajax_request(v_serviceType,v_json);
+				}
+				);
+				}else if(value=='network'){
+				commonWindow.add(networkForm);
+				addButton.setHandler(
+				function(){
+					if(checkForm(value)==false){showMsg(); return;}
+				var v_json={id:scId,
+								serviceType:v_serviceType,
+								bandWidth:network_bandWidth.getComponent(0).getValue(),							
+								type:network_type.getComponent(0).getValue(),
+								vendor:network_vendor.getComponent(0).getValue(),
+								price:network_price.getComponent(0).getValue(),
+								description:network_desc.getComponent(0).getValue()
+							};
+				ajax_request(v_serviceType,v_json);
+				});
+				}else if(value=='software'){
+				commonWindow.add(softwareForm);
+				addButton.setHandler(
+				function(){
+					if(checkForm(value)==false){showMsg(); return;}
+				var v_json={id:scId,
+								serviceType:v_serviceType,
+								name:software_name.getComponent(0).getValue(),
+								version:software_version.getComponent(0).getValue(),	
+								arch:software_arch.getValue(),
+								language:software_lang.getComponent(0).getValue(),
+								platform:software_platform.getComponent(0).getValue(),
+								type:software_type.getComponent(0).getValue(),
+								vendor:software_vendor.getComponent(0).getValue(),
+								price:software_price.getComponent(0).getValue(),
+								description:software_desc.getComponent(0).getValue()
+							};
+				ajax_request(v_serviceType,v_json);
+				});
+				}else if(value=='commonService'){
+				commonWindow.add(commonServiceForm);
+				addButton.setHandler(
+				function(){
+					if(checkForm(value)==false){showMsg(); return;}
+				var v_json={id:scId,
+								serviceType:v_serviceType,
+								name:commonService_name.getComponent(0).getValue(),								
+								times:commonService_times.getComponent(0).getValue(),
+								measureType:commonService_times.getComponent(1).getValue(),
+								type:commonService_type.getComponent(0).getValue(),
+								vendor:commonService_vendor.getComponent(0).getValue(),
+								price:commonService_price.getComponent(0).getValue(),
+								description:commonService_desc.getComponent(0).getValue()
+							};
+				ajax_request(v_serviceType,v_json);
+				});
+				}
+	            commonWindow.show();
+			  }
+   
+            },'-',
+			{
+                itemId: 'removeButton',
+				text:i18n._('delete resource'),
+                icon: '../images/delete.png',
+				handler:function(){
+				var rows=dataGrid.getSelectionModel().getSelection();
+				 var scId;
+				 if(rows.length > 0){
+				 scId=rows[0].get('id');
+				 
+				 Ext.MessageBox.show({
+							    title: i18n._('notice'),
+								msg:i18n._('Are you sure to delete'),
+			                   buttons: Ext.MessageBox.YESNO,
+			                   icon: Ext.MessageBox.QUESTION,
+			                   fn:function(e){
+			                	   if(e=="no"){
+			                		   return;
+			                	   }else if(e=='yes'){
+			                		   Ext.Ajax.request({
+											url: path+'/sc/serviceItem!delete.action',
+											method: 'POST',
+											params:{
+											'serviceItem.id':scId
+											},
+											success:function(response){
+					           					var result=Ext.JSON.decode(response.responseText);
+					           					if(result.success==false){
+					           						Ext.MessageBox.show({
+				                                        title:i18n._('notice'),
+					 	                               msg: result.resultMsg,
+					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+					 	                               buttons: Ext.MessageBox.OK	 	                      
+					 	           				});
+					           					}else{
+					           						Ext.MessageBox.show({
+														  title: i18n._('notice'),
+														 msg:i18n._('delete successfully'),
+				                                          icon:Ext.MessageBox.INFO,
+				                                          buttons: Ext.MessageBox.OK
+				           
+														});
+												v_store.load();
+												}
+											}
+												});
+			                	   }
+			                	 
+			                	}
+			    		});	 	
+					}else{
+						 Ext.MessageBox.show({
+							    title: i18n._('notice'),
+							    msg:i18n._('please choose one column'),
+                                icon:Ext.MessageBox.WARNING,
+                                buttons: Ext.MessageBox.OK
+						}); 
+						return;
+			    	}		           
+			        }
+            },
+			{xtype:'tbfill'},combo_serviceType
+			
+			/*{    
+			margin:'0 0 0 65',
+				fieldLabel: '资源类型',
+				//fieldLabel:i18n._('ServiceCatalog_name'),
+                labelWidth: 100,
+				id:'combo',
+				labelAlign:'right',
+                xtype:'combo',
+				store: v_serviceTypes,
+				displayField: 'serviceName',
+
+                valueField: 'id',
+				forceSelection:true,
+				renderTo: Ext.getBody(),
+				listeners:{
+				  "change":{
+				  fn:function(field,newValue,oldValue,eOpts){
+				 // alert(newValue)
+				  }
+				  }
+				}
+			}*/		
+			]}],
+    plugins: [
+        Ext.create('Ext.grid.plugin.CellEditing', {
+            clicksToEdit: 1
+        })
+    ],
+   // height:600,
+    width: '100%'
+    
+});
+
+ Ext.create('Ext.Viewport',{
+ layout:'fit',
+ items: dataGrid
+});
+
+
+            }
+        };
+    })();
+
+     MultiLang.init();  
+ });
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

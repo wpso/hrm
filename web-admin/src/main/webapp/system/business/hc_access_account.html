@@ -1,0 +1,529 @@
+<html>
+<head>
+<title>hc_access_account</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+    href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<!--  <script src="../resources/myproject-lang.js"></script>-->
+<!--  <script src="../ext-4.0.7-gpl/ext-all-debug.js"></script>-->
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../systemmanagement/common.js"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/basicUtil.js"></script>
+
+<script type="text/javascript">
+
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+}
+
+//类别
+var type = 0;
+
+function renderPage(){
+	function vd(text){
+        if(ltrim(rtrim(text)) == '') {
+            return i18n._('cannotBeNull');
+        } else {
+            return true;
+        }
+    };
+    
+    function checkEmail(email) {
+    	var reg = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+        if(!reg.test(email)) {
+        	return i18n._('emailError');
+        } else {
+        	return true;
+        }
+    }
+    
+    //状态转换
+    function transferType(value) {
+        if(value == '0') {
+            return i18n._('customer');
+        } else {
+            return i18n._('domainCustomer');
+        }
+    }
+    
+    function clickCancel() {
+        announcementForm.getForm().reset();
+        announcementWin.hide();
+    }
+    
+  //定义平台
+    Ext.define('Domain',{
+                 extend: 'Ext.data.Model',
+                 fields:[
+                 {name:'id',type:'long'},
+                 {name:'code',type:'string'},
+                 {name:'abbreviation',type:'string'}
+                 ]
+    });
+    var domainArr=[];
+    $.ajax({
+        url:'../../admin_mgmt/basicData!loadDomain.action',
+        async:false,
+        dataType:'json',
+        type:'POST',
+        success:function(domainObj){
+            
+            if(domainObj.success){
+                var domainArrTemp=domainObj.resultObject;
+                domainArr.push({id:'',abbreviation:'全部'});
+                for(var i=0;i<domainArrTemp.length;i++){
+                    domainArr.push(domainArrTemp[i]);
+                }
+            }else{
+                alert("load domain failure");
+            }
+        },
+        failure:function(){
+            alert("load domain failure");
+        }
+    });
+
+    var domainStore = Ext.create("Ext.data.Store",{
+        model:"Domain",
+        data:domainArr
+    });
+    
+    function clickSubmit() {
+		var id = Ext.getCmp('id').getValue();
+		var accessId = Ext.getCmp('accessId').getValue();
+		var accessId1 = Ext.getCmp('accessId1').getValue();
+        var accessKey = Ext.getCmp('accessKey').getValue();
+        var ip = Ext.getCmp('ip').getValue();
+        var description = Ext.getCmp('description').getValue();
+        
+        if(type == 0) { //大客户
+        	Ext.getCmp('accessId1').setValue(accessId);
+        } else if(type == 1) { //分平台
+        	Ext.getCmp('accessId').setValue('11@22.com');
+        	accessId = accessId1;
+        }
+        if(!announcementForm.form.isValid()) {
+        	return;
+        }
+        var progress=Ext.Ajax.request({
+            url: path + '/../admin_mgmt/accessAccount!saveAccessAccount.action',
+            method:'POST',
+            params:{
+                'accessAccountVO.id': id,
+                'accessAccountVO.accessId': accessId,
+                'accessAccountVO.accessKey': accessKey,
+                'accessAccountVO.type': type,
+                'accessAccountVO.ip': ip,
+                'accessAccountVO.description': description
+            },
+            success:function(form,action){
+                var obj = Ext.decode(form.responseText);
+                if(obj==null || obj.success==null){
+                    alertOKShow(i18n._('errorNotice'), i18n._('returnNull'));
+                    return;
+                }
+                if(!obj.success){
+                    alertOKShow(i18n._('errorNotice'), obj.resultMsg);
+                } else if(obj.resultObject == 'registered') {
+                	alertOKShow(i18n._('errorNotice'), i18n._('registered'));
+                } else if(obj.resultObject == 'userNotExist') {
+                	alertOKShow(i18n._('errorNotice'), i18n._('userNotExist'));
+                } else if(obj.resultObject == 'notApprovedStatus') {
+                	alertOKShow(i18n._('errorNotice'), i18n._('notApprovedStatus'));
+                } else {
+                	var msg = i18n._('Operating')+i18n._('Successful');
+                	alertOKShow(i18n._('notice'), msg, reLoadData(announcementStore));
+                	announcementForm.getForm().reset();
+                    announcementWin.hide();
+                }
+                return;
+            },   
+            failure:function(form,action){
+                alertOKShow(i18n._('errorNotice'), i18n._('operateFail'));
+            }
+        });
+    }
+	var announcementForm=Ext.create('Ext.form.FormPanel', {
+        width: '440',
+        height: '400',
+        border:false,
+        bodyPadding : 10,
+        autoScroll:true,
+        fieldDefaults : {
+            labelAlign : 'right',
+            labelWidth : 60,
+            width:300,
+            anchor : '100%'
+        },  
+        items: [
+        {
+            fieldLabel:i18n._('authorizeId'),
+            name:"title",
+            id:'accessId',
+            xtype:"textfield",
+            validator : checkEmail,
+            maxLength:50
+        },{
+            xtype:'combo',
+            fieldLabel:i18n._('authorizeId'),
+            id:'accessId1',
+            store: domainStore,
+            queryMode: 'local',
+            displayField: 'code',
+            emptyText:i18n._('Please Select'),
+            allowBlank: false,
+            editable: false,
+            valueField: 'code'
+        },{
+            fieldLabel:i18n._('authorizeKey'),
+            name:"title",
+            id:'accessKey',
+            xtype:"textfield",
+            validator : vd,
+            minLength: 6,
+            maxLength:50
+        },{
+            fieldLabel:i18n._('limitIP'),
+            name:"title",
+            id:'ip',
+            xtype:"textfield",
+            regex:/^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])){2}(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5]))(;(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])){2}(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])))*$/,//禁止输入空白字符
+            regexText:i18n._('InvalidIP'),
+            emptyText:i18n._('ipRemind'),    
+            validator : vd,
+            maxLength:50
+        },{
+            fieldLabel:i18n._('remark'),
+            id:'description',
+            name:"content",
+            height:150,
+            xtype:"textarea",
+            maxLength:1000
+        },{
+            xtype:'textfield',
+            id:'id',
+            hidden: true,
+            hideLabel: true
+        }],
+        buttons:[
+            {text:i18n._('OK'), handler:clickSubmit},
+            {text:i18n._('Cancel'), handler:clickCancel}
+        ]
+        
+    });
+	
+	var announcementWin = Ext.create('Ext.window.Window', {
+        width : 440,
+        height : 400,
+        closable : false,
+        constrain : true,
+        modal : true,
+        tools : [ {
+            type : 'close',
+            handler : clickCancel
+        }],
+        layout : 'fit',
+        defaults : {
+            split : false
+        },
+        items : [announcementForm]
+    });
+	//分页序号
+    Ext.grid.PageRowNumberer = Ext.extend(Ext.grid.RowNumberer, { 
+        baseCls:Ext.baseCSSPrefix + 'column-header ' + Ext.baseCSSPrefix + 'unselectable',
+        cls:Ext.baseCSSPrefix + 'row-numberer',
+        tdCls:Ext.baseCSSPrefix+"grid-cell-special",
+        renderer:function(value, cellmeta, record, rowIndex, columnIndex, store){   
+            return (store.currentPage - 1) * store.pageSize + rowIndex + 1;  
+        }       
+    });
+	//遮罩层
+    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+        msg : i18n._('please wait'),
+        removeMask : true           
+    });
+    var announcementModel = Ext.define('accessAccountModel', {
+        extend : 'Ext.data.Model',
+        fields : ['id','accessId','accessKey','type','ip','emailAddr','description']
+    });
+	var announcementStore = Ext.create('Ext.data.Store', {
+        model : 'accessAccountModel',
+        autoLoad : true,//true
+        pageSize : pageSize,//每页显示16条数据
+        sorters : [ {
+            property : 'id',
+            direction : 'DESC'
+        } ],
+        proxy : new Ext.data.proxy.Ajax({
+            url : path + '/../admin_mgmt/accessAccount!findAccessAccountPage.action',
+            reader : {
+                type : 'json',
+                root : 'resultObject.result',
+                totalProperty : 'resultObject.totalCount'
+            },
+            listeners:{
+                exception:function(reader, response, error, eOpts){
+                    ajaxException(reader, response, error, eOpts );
+                }
+            }
+        }), 
+        listeners : {
+            beforeload : function(store,operation, eOpts ){ 
+                v_mask.show();
+            },
+            load : function(store, records, successful, eOpts ){
+                v_mask.hide();
+            }
+        }
+    });
+	
+	var accessAccountGrid=Ext.create('Ext.grid.Panel', {
+        layout:'fit',                   
+        store:announcementStore,
+        simpleSelect:true,
+        selModel: Ext.create('Ext.selection.RowModel'),
+        columns: [
+                    Ext.create('Ext.grid.PageRowNumberer',{flex : 0.1}),
+                    {
+                        header: i18n._('authorizeId'), 
+                        dataIndex: 'accessId',
+                        flex:0.5
+                    }, {
+                        header: i18n._('authorizeKey'), 
+                        dataIndex: 'accessKey',
+                        flex:0.3
+                    }, {
+                        header: i18n._('type'),  
+                        dataIndex: 'type',
+                        flex:0.3,
+                        renderer: transferType
+                    }, {
+                        header: i18n._('limitIP'), 
+                        dataIndex: 'ip',
+                        flex:0.3
+                    }, {
+                        header: i18n._('remark'), 
+                        dataIndex: 'description',
+                        flex:0.8
+                    }
+        ],
+        bbar: Ext.create('Ext.toolbar.Paging', {
+              store:announcementStore,
+              displayInfo: true,
+              beforePageText:i18n._('beforePageText'),//"第"
+              firstText: i18n._('firstText'),//"第一页"
+              prevText: i18n._('prevText'),//"上一页"
+              nextText: i18n._('nextText'),//"下一页"
+              lastText: i18n._('lastText'),//"最后页"
+              refreshText: i18n._('refreshText')//"刷新"
+        }),             
+        viewConfig: {
+            stripeRows: true
+        },                  
+        dockedItems:[
+        {
+            xtype:'toolbar',
+            cls: 'toolbarCSS',
+            dock: 'top',            
+            items:[         
+                    {                                  
+                        xtype : 'button',                                   
+                        text: '<font id="addCustomerId" color="#ffffff" >' + i18n._('addCustomer') + '</font>',//发布公告
+                        listeners: changeColor("addCustomerId"),
+                        icon : '../../images/add_new.png',
+                        handler:function(){
+                            getSessionUser();
+                            type = 0;
+                            announcementWin.setTitle(i18n._('addCustomer'));
+                            Ext.getCmp('accessId1').hide();
+                            Ext.getCmp('accessId').show();
+                            announcementWin.show(); 
+                        }                  
+                    },
+                    {                                  
+                        xtype : 'button',                                   
+                        text: '<font id="addDomainCustomerId" color="#ffffff" >' + i18n._('addDomainCustomer') + '</font>',//发布公告
+                        listeners: changeColor("addDomainCustomerId"),
+                        icon : '../../images/add_new.png',
+                        handler:function(){
+                            getSessionUser();
+                            type = 1;
+                            announcementWin.setTitle(i18n._('addDomainCustomer'));
+                            Ext.getCmp('accessId1').show();
+                            Ext.getCmp('accessId').hide();
+                            announcementWin.show();     
+                        }                  
+                    },
+                    {                                  
+                        xtype : 'button',                                   
+                        text: '<font id="modifyAnnouncement" color="#ffffff" >' + i18n._('modify') + '</font>',//编辑公告
+                        listeners: changeColor("modifyAnnouncement"),
+                        icon : '../../images/edit_new.png',
+                        handler:function(){
+                            getSessionUser();
+                            var rows = accessAccountGrid.getSelectionModel().getSelection();
+                            if (rows.length < 1) {
+                                alertOKShow(i18n._('Prompt'), i18n._('selectOne'));
+                                return;
+                            }
+                            type = rows[0].get('type');
+                            if(type == 0) {//大客户
+                            	Ext.getCmp('accessId1').hide();
+                                Ext.getCmp('accessId').show();
+                            } else if(type == 1){
+                            	Ext.getCmp('accessId1').show();
+                                Ext.getCmp('accessId').hide();
+                            }
+                            
+                            Ext.getCmp('id').setValue(rows[0].get('id'));
+                            Ext.getCmp('accessId').setValue(rows[0].get('accessId'));
+                            Ext.getCmp('accessId1').setValue(rows[0].get('accessId'));
+                            Ext.getCmp('accessKey').setValue(rows[0].get('accessKey'));
+                            Ext.getCmp('ip').setValue(rows[0].get('ip'));
+                            Ext.getCmp('description').setValue(rows[0].get('description'));
+                            announcementWin.setTitle(i18n._('modify'));
+                            announcementWin.show();         
+                        }                  
+                    },
+                    {                                  
+                        xtype : 'button',                                   
+                        text: '<font id="delAnnouncement" color="#ffffff" >' + i18n._('delete') + '</font>',//发布公告
+                        listeners: changeColor("delAnnouncement"),
+                        icon : '../../images/delete.png',
+                        handler:function(){
+                            getSessionUser();
+                            // 删除公告
+                            var rows = accessAccountGrid.getSelectionModel().getSelection();
+                            if (rows.length > 0) {
+                            	var id = rows[0].get('id');
+                                Ext.MessageBox.show({                                 
+                                    title: i18n._('notice'),
+                                    msg:i18n._('Are you sure to delete'),
+                                    buttons: Ext.MessageBox.YESNO,
+                                    icon: Ext.MessageBox.QUESTION,
+                                    fn:function(e){
+                                        if(e=='yes'){
+                                            Ext.Ajax.request({
+                                            	url: path + '/../admin_mgmt/accessAccount!deleteAccessAccount.action',
+                                                method: 'POST',
+                                                params:{
+                                                    'accessAccountVO.id':id
+                                                },
+                                                success: function (response) {
+                                                    var result=Ext.JSON.decode(response.responseText);
+                                                    if(result.success==true){
+                                                        var msg = i18n._('Operating')+i18n._('Successful');
+                                                        alertOKShow(i18n._('notice'), msg, afterDelete(announcementStore));
+                                                    }else{
+                                                        alertOKShow(i18n._('notice'), result.resultMsg);
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    }
+                                }); 
+                            } else {
+                                alertOKShow(i18n._('Prompt'), i18n._('selectOne'));
+                            }       
+                        }                  
+                    },
+                    {xtype:'tbfill'},
+                    {
+                        xtype : 'label',
+                        text : i18n._('QuickSearch')+':',
+                        style: 'color:#ffffff'
+                    },
+                    {
+                        labelWidth : 50,
+                        xtype : 'searchfield',
+                        tooltip:i18n._('authorizeId'),
+                        emptyText:i18n._('authorizeId'),
+                        store : announcementStore,
+                        id : 'vmSearchfield',
+                        onTrigger1Click : function() {
+                            var proxy = announcementStore.getProxy(), val;
+                            if (me.hasSearch) {
+                                me.setValue('');
+                                proxy.extraParams[me.paramName] = '';
+                                proxy.extraParams.start = 0;
+                                announcementStore.loadPage(1,null);
+                                me.hasSearch = false;
+                                me.triggerEl.item(0).setDisplayed('none');
+                                me.doComponentLayout();
+                            }
+                        },
+                        onTrigger2Click : function() {// 点击查询按钮或回车调用该方法
+                            var proxy = announcementStore.getProxy(), value = this.getValue();
+                            proxy = announcementStore.getProxy();
+                            proxy.extraParams['query'] = value;                                     
+                            proxy.extraParams.start = 0;
+                            announcementStore.loadPage(1,null);
+                            this.hasSearch = true;
+                            me.triggerEl.item(0).setDisplayed('block');
+                            me.doComponentLayout();
+                        }
+                    }
+                ]
+        }]
+    });
+	
+	Ext.create('Ext.Viewport',{
+         layout:'border',
+         width:'100%',                   
+         items:[
+             {
+                 region:'center',
+                 xtype:'panel',
+                 id:'panel_one',
+                 title:i18n._('BusinessManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('apiUserManagement'),
+                 width:'60%',
+                 layout:'fit',
+                 autoScroll:true,
+                 items:[
+                     {
+                         xtype:'panel',
+                         layout:'fit',
+                         autoScroll:true,
+                         items: accessAccountGrid
+                     }
+                 ]
+             }
+         ]//panel
+     });
+}
+</script>
+</head>
+<body>
+</body>
+</html>

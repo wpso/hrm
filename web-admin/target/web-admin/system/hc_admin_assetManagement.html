@@ -1,0 +1,858 @@
+<html>
+<head>
+<title>hc_admin_assetManagement</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+	href='../extjs-4.1.0/resources/css/ext-all.css' />
+<script type='text/javascript' src='../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<!--  <script src="../resources/myproject-lang.js"></script>-->
+<!--  <script src="../ext-4.0.7-gpl/ext-all-debug.js"></script>-->
+<script type="text/javascript" src="../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+<style type="text/css">
+/* style rows on mouseover */
+.x-grid-row-over .x-grid-cell-inner {
+	font-weight: bold;
+}
+/* shared styles for the ActionColumn icons */
+.x-action-col-cell img {
+	height: 16px;
+	width: 16px;
+	cursor: pointer;
+}
+/* custom icon for the "buy" ActionColumn icon */
+.x-action-col-cell img.buy-col {
+	background-image: url(../images/accept.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img.alert-col {
+	background-image: url(../images/image_add.png);
+}
+
+.x-ie6 .x-action-col-cell img.buy-col {
+	background-image: url(../images/accept.gif);
+}
+
+.x-ie6.x-action-col-cell img.alert-col {
+	background-image: url(../images/image_add.png);
+}
+
+.x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.png);
+}
+/* custom icon for the "alert" ActionColumn icon */
+.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img.refresh {
+	background-image: url(../images/refresh.gif);
+}
+
+.x-ie6.x-action-col-cell img._cross {
+	background-image: url(../images/_cross.png);
+}
+
+.x-ie6 .x-action-col-cell img {
+	position: relative;
+	top: -1px;
+}
+</style>
+
+
+<script>
+function showResult(btn){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+
+function showResultText(bt1, text){
+    Ext.example.msg('Button Click', 'You clicked the {0} button and entered the text "{1}".', btn, text);
+};
+
+function showResultText(bt1){
+    Ext.example.msg('Button Click', 'You clicked the {0} button', btn);
+};
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+	'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+	'Ext.selection.CheckboxModel',
+	'Ext.tip.QuickTipManager',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+Ext.onReady(function() {
+	var dId=0;
+    var params;
+	var formTitle='';
+	Ext.QuickTips.init();
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {
+				
+				//define model
+				var deviceStatusModel=Ext.define('DeviceStatusModel', {
+					extend: 'Ext.data.Model',
+					fields: [
+						'id', 'deviceID', 'deviceStatus',
+						{name: 'checkTime', mapping: 'checkTime', type: 'date', dateFormat: 'time'}
+					],					
+					idProperty: 'id'
+				});
+
+				var deviceStatusStore= Ext.create('Ext.data.Store', {
+					model: 'DeviceStatusModel',
+					remoteSort: true,
+					proxy: new Ext.data.proxy.Ajax({
+					//url: path+'/ops/getVmsByUserId!getVmsByUserId.action',
+					url: path+'/cisl/findAllServiceItemsStatus!findAllServiceItemsStatus.action',
+					reader: {
+				            type: 'json',
+				            root: 'resultObject.result',
+				            totalProperty: 'resultObject.totalCount'
+				        }				        
+					}),
+					//sortInfo: {field:'id',direction:'DESC'}
+					sorters: ["id"]
+				});
+				var deviceStatusGrid = Ext.create('Ext.grid.Panel', {
+					height:200,
+					store: deviceStatusStore,
+					stateful: true,
+					forceFit: true,
+					stateId: 'stateGrid',
+					bbar: Ext.create('Ext.toolbar.Paging', {
+						store: deviceStatusStore,
+						displayInfo: true					
+					}),
+					viewConfig: {
+						   stripeRows: true							
+						},
+					columnLines:true,					
+					border:true,
+					frame:true,
+					columns: [Ext.create('Ext.grid.RowNumberer',{header:i18n._('row_Num'),dataIndex:'item',align:'left'}),
+						{
+							id: 'id',
+							text     : i18n._('记录ID'),
+							//flex     : 1,
+							sortable : false,
+							dataIndex: 'id',
+							field:'textfield',
+							hidden:true
+							
+						},
+						{
+							text     : i18n._('deviceID'),
+							//flex     : 1,
+							sortable : false,
+							dataIndex: 'deviceID',
+							field:'textfield',
+							hidden:true
+						},
+						{
+							text     : i18n._('status'),
+							//flex     : 1,
+							sortable : false,						
+							dataIndex: 'deviceStatus',
+							field:DStatusGridComb,
+							renderer:function(value){							
+								var index2 = DStatusGridStore.find(DStatusGridComb.valueField,value);
+								var record2 = DStatusGridStore.getAt(index2);
+								return record2.data.text;							
+							}
+						},
+						{
+							text     : i18n._('Timer'),
+							//flex     : 1,
+							sortable : false,
+							dataIndex: 'checkTime',						
+							renderer: Ext.util.Format.dateRenderer("Y-m-d H:i:s")
+						}
+					]					
+					});					
+
+					var deviceStatusWin = new Ext.create('Ext.window.Window',{
+						title:i18n._('device')+i18n._('detail'),
+						renderTo:Ext.getBody(),
+						width:500,
+						height:'80%',
+						closable:false,
+						constrain:true,
+						modal:true,
+						tools:[{
+								type:'close',
+								handler:function(){
+									deviceStatusWin.hide()
+								}
+							}
+						],					
+						defaults:{
+							split:false
+						},
+						items:deviceStatusGrid						
+					});
+					var DTypeDatas=[
+						{"value":"00","text":i18n._('server')},
+						{"value":"01","text":i18n._('networkEquipment')},
+						{"value":"10","text":i18n._('storage')},
+						{"value":"11","text":i18n._('others')},
+						{"value":"","text":i18n._('All')}
+					];
+					//设备类型
+					var DTypeData=[
+						{"value":"00","text":i18n._('server')},
+						{"value":"01","text":i18n._('networkEquipment')},
+						{"value":"10","text":i18n._('storage')},
+						{"value":"11","text":i18n._('others')}
+					];
+					var DTypeStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:DTypeData
+					});
+					var DTypeGridStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:DTypeData
+					});
+					var DTypeGridComb=Ext.create('Ext.form.ComboBox', {
+						editable:false,
+						store:DTypeGridStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField:'value'
+					});
+					//状态
+					var DStatusData=[
+						{"value":"00","text":i18n._('normal')},						
+						{"value":"11","text":i18n._('fault')},
+						{"value":"","text":i18n._('All')}
+					];
+					var DStatusStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:DStatusData
+					});
+					var DStatusGridStore=Ext.create('Ext.data.Store', {
+						fields: ['value', 'text'],
+						data:DStatusData
+					});
+					var DStatusGridComb=Ext.create('Ext.form.ComboBox', {
+						editable:false,
+						store:DStatusGridStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField:'value'
+					});
+					var DTypeCombo=Ext.create('Ext.form.ComboBox', {
+						fieldLabel: i18n._('deviceType'),
+						width: 220,
+						labelWidth: 60,
+						editable:false,
+						allowBlank:false,
+						store: DTypeStore,
+						queryMode: 'local',
+						displayField: 'text',
+						valueField: 'value',
+						emptyText:i18n._('PleaseSelect'),
+						renderTo: Ext.getBody()
+					});	
+					var DNametextField=Ext.create('Ext.form.field.Text',{
+						name: 'DeviceName',
+						fieldLabel: i18n._('deviceName'),//设备名称
+						allowBlank:false,
+						regex:/^[\S]+$/,//禁止输入空白字符
+						regexText:i18n._('InvalidCharacters'),
+						maxLength:24,
+						//readOnly:true,
+						width:220,
+						emptyText:i18n._('deviceName')
+					});
+					var DNumtextField=Ext.create('Ext.form.field.Text',{
+						name: 'DeviceNum',
+						fieldLabel: i18n._('deviceNum'),//设备编号
+						allowBlank:false,
+						regex:/^[\S]+$/,//禁止输入空白字符
+						regexText:i18n._('InvalidCharacters'),
+						width:220,
+						maxLength:24,
+						emptyText:i18n._('deviceNum')
+					});
+					var DIptextField=Ext.create('Ext.form.field.Text',{
+						name: 'DeviceIP',
+						fieldLabel: i18n._('deviceIP'),//设备IP
+						allowBlank:false,
+						regex:/^(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])(\.(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])){3}$/,//禁止输入空白字符
+						regexText:i18n._('InvalidCharacters'),
+						//readOnly:true,
+						maxLength:20,
+						width:220,
+						emptyText:i18n._('deviceIP')
+					});
+					//Form表单提交
+					var formPanel = Ext.create('Ext.form.Panel', {
+						frame: true,						
+						//title: 'Form Fields',
+						width: 250,						
+						bodyPadding: 5,
+						fieldDefaults: {
+							labelAlign: 'left',
+							labelWidth: 60,
+							anchor: '100%'
+						},
+						items: [
+							DNametextField,
+							DNumtextField,
+							DIptextField,
+							DTypeCombo							
+						],
+						buttons: [{
+							text: i18n._('OK'),
+							handler:function(){	
+								//提交后台之前先做有效性验证
+								if(!formPanel.getForm().isValid()){
+									return;
+								}
+								var deviceName=DNametextField.getValue();
+								var deviceNum=DNumtextField.getValue();
+								var deviceIP=DIptextField.getValue();
+								var deviceType=DTypeCombo.getValue();								
+								if(deviceName==""){
+									Ext.Msg.alert(i18n._('notice'), i18n._('please input')+i18n._('deviceName'));
+									DNametextField.focus();
+								}else if(deviceNum==""){
+									Ext.Msg.alert(i18n._('notice'), i18n._('please input')+i18n._('deviceNum'));
+									DNumtextField.focus();
+								}else if(deviceIP==""){
+									Ext.Msg.alert(i18n._('notice'), i18n._('please input')+i18n._('deviceIP'));
+									DIptextField.focus();
+								}else if(deviceType==null){
+									Ext.Msg.alert(i18n._('notice'), i18n._('please select')+i18n._('deviceType'));
+									DTypeCombo.focus();
+								}else{
+									if(dId==0){									
+										var create=Ext.Ajax.request({
+											url:path+'/cisl/createServiceItemsConfig!createServiceItemsConfig.action',
+											method:'POST',
+											params:{
+												'deviceName':deviceName,
+												'deviceNum':deviceNum,
+												'deviceIP':deviceIP,
+												'deviceType':deviceType										
+											},
+											success:function(form,action){
+			 									var obj = Ext.decode(form.responseText);
+			 									if(obj==null || obj.success==null){
+			 										Ext.MessageBox.show({
+			 								           title: i18n._('errorNotice'),
+			 								           msg: i18n._('returnNull'),
+			 								          buttons: Ext.MessageBox.OK,
+			 								           icon: Ext.MessageBox.ERROR
+			 										});//INFO,QUESTION,WARNING,ERROR
+			 										return;
+			 									}
+		 										if(!obj.success){
+		 											Ext.MessageBox.show({
+			 								           title: i18n._('errorNotice'),
+			 								           msg: obj.resultMsg,
+			 								          buttons: Ext.MessageBox.OK,
+			 								           icon: Ext.MessageBox.WARNING
+			 										});
+		 											return;
+		 										}
+		 										Ext.Msg.alert(i18n._('notice'), i18n._('add')+i18n._('Successful'));
+		 										deviceStore.load();
+									    	},   
+		 								    failure:function(form,action){   
+		 								    	Ext.MessageBox.show({
+			 								           title: i18n._('errorNotice'),
+			 								           msg: i18n._('operateFail'),
+			 								          buttons: Ext.MessageBox.OK,
+			 								           icon: Ext.MessageBox.WARNING
+			 										});  
+		 								    }
+										 });	
+									}else{
+										var update=Ext.Ajax.request({
+											url:path+'/cisl/updateServiceItemsConfig!updateServiceItemsConfig.action',
+											method:'POST',
+											params:{
+												'deviceID':dId,
+												'deviceName':deviceName,
+												'deviceNum':deviceNum,
+												'deviceType':deviceType
+											},
+											success:function(form,action){
+			 									var obj = Ext.decode(form.responseText);
+			 									if(obj==null || obj.success==null){
+			 										Ext.MessageBox.show({
+			 								           title: i18n._('errorNotice'),
+			 								           msg: i18n._('returnNull'),
+			 								          buttons: Ext.MessageBox.OK,
+			 								           icon: Ext.MessageBox.ERROR
+			 										});//INFO,QUESTION,WARNING,ERROR
+			 										return;
+			 									}
+		 										if(!obj.success){
+		 											Ext.MessageBox.show({
+			 								           title: i18n._('errorNotice'),
+			 								           msg: obj.resultMsg,
+			 								          buttons: Ext.MessageBox.OK,
+			 								           icon: Ext.MessageBox.WARNING
+			 										});
+		 											return;
+		 										}
+		 										Ext.Msg.alert(i18n._('notice'), i18n._('modify')+i18n._('Successful'));
+		 										deviceStore.load();
+									    	},   
+		 								    failure:function(form,action){   
+		 								    	Ext.MessageBox.show({
+			 								           title: i18n._('errorNotice'),
+			 								           msg: i18n._('operateFail'),
+			 								          buttons: Ext.MessageBox.OK,
+			 								           icon: Ext.MessageBox.WARNING
+			 										});  
+		 								    }
+										 });
+									}
+									formPanel.getForm().reset();
+									processingWinForm.hide();
+								}
+																
+							}	
+						},{
+							text: i18n._('Cancel'),
+							handler:function(){
+								formPanel.getForm().reset();
+								processingWinForm.hide()
+							}
+						}]
+					});
+
+					var processingWinForm = new Ext.create('Ext.window.Window',{								
+						width:240,
+						height:200,
+						closable:false,
+						constrain:true,
+						modal:true,
+						tools:[{
+							type:'close',
+							handler:function(){	
+								formPanel.getForm().reset();
+								processingWinForm.hide()
+							}
+						}],
+						layout:'fit',
+						defaults:{
+							split:false
+						},
+						items:[					
+							{
+								xtype: 'form',//fieldset								
+								layout:'fit',
+								items:formPanel
+							}
+						]
+					}); 
+
+				var Pcombo = Ext.create('Ext.form.field.ComboBox', {
+					//hideLabel: true,
+					//editable:false,//false为不可编辑
+					store: DStatusStore,
+					displayField: 'text',
+					valueField: 'value',
+					typeAhead: true,
+					queryMode: 'local',
+					triggerAction: 'all',
+					emptyText:i18n._('PleaseSelect'),
+					//selectOnFocus: true,
+					width: 135,
+					iconCls: 'no-icon',
+					listeners:{
+			             'select': function(record){
+			            	proxy.setExtraParam(itemKey, Pcombo.getValue());												
+			            	//deviceStore.load();
+			            	deviceStore.load(1,null);
+			             }
+			         }
+				});
+				DStatusStore.loadData(DTypeDatas);	
+				//define model
+				var deviceModel=Ext.define('DeviceModel', {
+					extend: 'Ext.data.Model',
+					fields: [
+						'id', 'deviceType', 'deviceName','deviceNum','deviceIP','deviceStatus'
+						//{name: 'ComplaintTime', mapping: 'ComplaintTime', type: 'date', dateFormat: 'time'}
+					],					
+					idProperty: 'id'
+				});
+				//create the Data Store
+				var deviceStore= Ext.create('Ext.data.Store', {
+					model: 'DeviceModel',
+					remoteSort: true,
+					pageSize:15,
+					proxy: new Ext.data.proxy.Ajax({
+					//url: path+'/ops/getDeviceDetail!DeviceDetail.action',
+					url: path+'/cisl/findAllServiceItemsConfig!findAllServiceItemsConfig.action',
+					reader: {
+				            type: 'json',
+				            root: 'resultObject.result',
+				            totalProperty: 'resultObject.totalCount'
+				        }				        
+					}),
+					//sortInfo: {field:'id',direction:'DESC'}
+					sorters: ["id"]
+				});
+				var pluginExpanded = true;
+				var itemKey='deviceType';
+				var proxy=deviceStore.getProxy();
+				var deviceGrid = Ext.create('Ext.grid.Panel', {
+				store: deviceStore,
+				stateful: true,
+				forceFit: true,
+				bbar: Ext.create('Ext.toolbar.Paging', {
+					store: deviceStore,
+					displayInfo: true					
+				}),
+				viewConfig: {
+					   stripeRows: true						
+					},
+				stateId: 'stateGrid',
+				dockedItems: [
+							 {
+								xtype: 'toolbar',
+								items: [									
+									{
+										 xtype:'button',
+										 text: i18n._('add'),										 
+										 icon: '../images/add.png',										 
+										 handler:function(){
+											processingWinForm.setTitle(i18n._('add')+i18n._('device'));
+											DNametextField.setReadOnly(false);
+											DIptextField.setReadOnly(false);
+											//DNametextField.focus(tr);
+											//DIptextField.focus(false);
+											processingWinForm.show();
+										 }
+									},
+									{
+										 xtype:'button',
+										 text: i18n._('modify'),										 
+										 icon: '../images/refresh.png',
+										 handler:function(){
+											 var row = deviceGrid.getSelectionModel().getSelection();
+												if (row.length == 0) {
+													Ext.MessageBox.show({										  		           
+														   title:i18n._('notice'),
+														   msg:i18n._('selectOne'),
+										  		           icon:Ext.MessageBox.INFO,
+										  		           buttons: Ext.MessageBox.OK										  		           
+										  		       });													
+												} else {
+													var record = deviceGrid.getStore().getAt(row[0].index);
+													dId=row[0].get('id');//record.get('id');
+													DNametextField.setValue(row[0].get('deviceName'));//record.get('deviceName')
+													DNumtextField.setValue(row[0].get('deviceNum'));//record.get('deviceNum')
+													DIptextField.setValue(row[0].get('deviceIP'));//record.get('deviceIP')
+													DTypeCombo.setValue(row[0].get('deviceType'));//record.get('deviceType')
+													DNametextField.setReadOnly(true);
+													DIptextField.setReadOnly(true);
+													DNametextField.focus(false);
+													DIptextField.focus(false);
+													processingWinForm.setTitle(i18n._('modify')+i18n._('device'));																	
+													processingWinForm.show();
+												}											
+										 }
+									},
+									{
+										 xtype:'button',
+										 text: i18n._('delete'),										 
+										 icon: '../images/delete.png',
+										 handler:function(){
+											 var row = deviceGrid.getSelectionModel().getSelection();
+											 if (row.length == 0) {  
+												 Ext.MessageBox.show({										  		           
+													   title:i18n._('notice'),
+													   msg:i18n._('selectOne'),
+									  		           icon:Ext.MessageBox.INFO,
+									  		           buttons: Ext.MessageBox.OK										  		           
+									  		       });  
+												} else {
+													var record = deviceGrid.getStore().getAt(row[0].index);
+													dId=row[0].get('id');//record.get('id');														
+													status=row[0].get('deviceStatus');//record.get('deviceStatus');
+													//alert(status);
+													  if(status=='11'){
+														Ext.MessageBox.confirm(i18n._('confirm'),i18n._('Are you sure to delete'),function(btn){
+															if(btn=='yes'){
+																var del=Ext.Ajax.request({
+																	url:path+'/cisl/deleteServiceItemsConfig!deleteServiceItemsConfig.action',
+																	method:'POST',
+																	params:'deviceID='+dId,
+																	success:function(form,action){
+						 												var obj = Ext.decode(form.responseText);
+						 												if(obj==null || obj.success==null){
+						 													Ext.MessageBox.show({
+						 								           				title: i18n._('errorNotice'),
+						 								           				msg: i18n._('returnNull'),
+						 								          				buttons: Ext.MessageBox.OK,
+						 								           				icon: Ext.MessageBox.ERROR
+						 													});//INFO,QUESTION,WARNING,ERROR
+						 													return;
+						 												}
+					 													if(!obj.success){
+					 														Ext.MessageBox.show({
+						 								           				title: i18n._('errorNotice'),
+						 								           				msg: obj.resultMsg,
+						 								          				buttons: Ext.MessageBox.OK,
+						 								           				icon: Ext.MessageBox.WARNING
+						 													});
+					 														return;
+					 													}
+					 													deviceStore.load();
+												    				},   
+					 								    			failure:function(form,action){   
+					 								    				Ext.MessageBox.show({
+						 								           			title: i18n._('errorNotice'),
+						 								           			msg: i18n._('operateFail'),
+						 								          			buttons: Ext.MessageBox.OK,
+						 								           			icon: Ext.MessageBox.WARNING
+						 												});  
+					 								    			}
+													 			});
+															}
+														});
+													  }else{
+														  Ext.MessageBox.show({										  		           
+															   title:i18n._('notice'),
+															   msg:i18n._('openError'),
+											  		           icon:Ext.MessageBox.ERROR,
+											  		           buttons: Ext.MessageBox.OK										  		           
+											  		       });														  
+													  }
+													
+												}
+										 }
+									},
+									{
+										xtype:'tbfill'
+									},
+									{
+										xtype:'splitbutton',
+										text:i18n._('type'),
+										id:'split',
+										menu: new Ext.menu.Menu({
+											items: [
+												{
+													text: i18n._('type'),
+													handler: function(){
+														Ext.getCmp('split').setText(i18n._('type'));
+														DStatusStore.loadData(DTypeDatas);
+														Pcombo.initValue();
+														Pcombo.setValue(i18n._('PleaseSelect'));
+														itemKey='deviceType';
+														proxy.setExtraParam('deviceStatus', null);
+													}
+												},
+												{
+													text: i18n._('status'),
+													handler: function(){
+														Ext.getCmp('split').setText(i18n._('status'));
+														DStatusStore.loadData(DStatusData);
+														Pcombo.initValue();
+														Pcombo.setValue(i18n._('PleaseSelect'));
+														itemKey='deviceStatus';
+														proxy.setExtraParam('deviceType', null);
+													}
+												}
+												
+											 ]
+										})
+									},																		
+									Pcombo
+									/*{
+										 xtype:'button',
+										 text: i18n._('search'),										 
+										 icon: '../images/zoom.png',
+										 handler:function(){
+											//if(Pcombo.getValue()==null){
+											//	Ext.Msg.alert(i18n._('notice'), i18n._('searchCriteria'));
+											//}else{
+												var proxy=deviceStore.getProxy();
+												proxy.extraParams[itemKey] = Pcombo.getValue();						
+												deviceStore.load();
+												//proxy.extraParams[itemKey]='';
+											//}
+											//alert();
+											//processingWinForm.show();	
+											//formPanel.hidden=false;
+										 }
+									}*/									
+								]
+							  }],
+				columnLines:true,
+				//bodyBorder:false,
+				frame:true,
+				border:true,
+				columns: [Ext.create('Ext.grid.RowNumberer',{header:i18n._('row_Num'),dataIndex:'item',align:'left'}),
+					{
+						id: 'id',
+						text     : i18n._('设备ID'),
+						//flex     : 1,
+						sortable : false,
+						dataIndex: 'id',
+						field:'textfield',
+						hidden:true
+						
+					},
+					{						
+						text     : i18n._('deviceType'),
+						//flex     : 1,
+						sortable : false,
+						dataIndex: 'deviceType',
+						field:DTypeGridComb,
+						renderer:function(value){							
+							var index1 = DTypeGridStore.find(DTypeGridComb.valueField,(value==null||value=='')?11:value);
+							var record1 = DTypeGridStore.getAt(index1);
+							return record1.data.text;							
+						}						
+						
+					},
+					{
+						text     : i18n._('deviceName'),
+						//flex     : 1,
+						sortable : false,						
+						dataIndex: 'deviceName'
+					},
+					{
+						text     : i18n._('deviceNum'),
+						//flex     : 1,
+						sortable : false,						
+						dataIndex: 'deviceNum'
+					},					
+					{
+						text     : i18n._('deviceIP'),
+						//flex     : 1,
+						sortable : false,
+						dataIndex: 'deviceIP'						
+					},		            
+		            {
+		                text     : i18n._('status'),
+		                //flex     : 1,
+		                sortable : false,		                
+		                dataIndex: 'deviceStatus',						
+						field:DStatusGridComb,
+						renderer:function(value){							
+							var index2 = DStatusGridStore.find(DStatusGridComb.valueField,value);
+							var record2 = DStatusGridStore.getAt(index2);
+							return record2.data.text;							
+						},
+						listeners:{
+							"click":function(grid,cell,row){ 
+								var r =  grid.store.getAt(row);
+								var cId=grid.getSelectionModel().getSelection()[0].get('id');								
+								var proxy=deviceStatusStore.getProxy();
+								proxy.extraParams['deviceID'] = cId;								
+								deviceStatusStore.load();								
+								deviceStatusWin.show();  
+						   }
+						}
+		            }
+				]				
+				});//grid
+				deviceStore.load();
+				deviceGrid.store.sort([{ property: "id", direction: "DESC" }]);
+				Ext.create('Ext.Viewport',{
+					layout:'fit',
+					width:'100%',
+					items:[{
+					xtype:'panel',
+					id:'panel_one',
+					title:i18n._('SLM')+'&nbsp;&nbsp;>>&nbsp;&nbsp;'+i18n._('CIS'),
+					width:'100%',
+					layout:'fit',
+					tools:[{
+					type:'pin',
+					handler:function(){
+					  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_assetManagement.html';
+					}
+					},{
+					type:'refresh',
+					handler:function(){
+					  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_assetManagement.html';
+					}	
+					},{
+					type:'left',
+					handler:function(){
+					  history.go(-1);
+					}
+					}],
+					items:[
+					{
+						 xtype:'panel',
+						 layout:'fit',
+						 border:false,
+						 items:deviceGrid
+					  }
+					]
+					}]//panel
+					});			
+				
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+</script>
+</head>
+<body>
+</body>
+</html>

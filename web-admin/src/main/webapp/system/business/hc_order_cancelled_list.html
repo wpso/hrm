@@ -1,0 +1,522 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>订单列表 </title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/ProgressBarPager.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../business/common.js"></script>
+<script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+Ext.QuickTips.init(true,{dismissDelay:600000});
+Ext.require([
+    'Ext.data.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.ux.form.SearchField',
+	'Ext.ux.RowExpander',
+    'Ext.selection.CheckboxModel',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.ProgressBarPager'
+]);
+
+
+Ext.onReady(function() {
+	var vmid=0;
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {	
+  Ext.define('Order', {
+      extend: 'Ext.data.Model',
+      fields: [
+          'id', 'orderNo', 'totalPrice', 'status','quantity','remark',
+          {name: 'userName', mapping: 'user.name'},
+          {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'},
+          {name: 'payDate', mapping: 'payDate', type: 'date', dateFormat: 'time'}
+      ],
+      idProperty: 'id'
+  });
+
+  // create the Data Store
+  var store = Ext.create('Ext.data.Store', {
+      pageSize: pageSize,
+      model: 'Order',
+      sorters: [
+                {
+                    property : 'createDate',
+                    direction: 'DESC'
+                }
+            ],
+      remoteSort: true,
+      proxy: new Ext.data.proxy.Ajax({
+      	url: path+'/../order/order!page.action',
+		reader: {
+              type: 'json',
+              root: 'resultObject.result',
+              totalProperty: 'resultObject.totalCount'
+        },
+        listeners:{
+			exception:function(reader, response, error, eOpts){
+				ajaxException(reader, response, error, eOpts );
+			}
+		}
+      })
+  });
+ 
+
+
+
+ 
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // Grid 4
+    ////////////////////////////////////////////////////////////////////////////////////////
+    var selModel = Ext.create('Ext.selection.CheckboxModel', {
+        listeners: {
+            selectionchange: function(sm, selections) {
+                grid4.down('#removeButton').setDisabled(selections.length == 0);
+            }
+        }
+    });
+    var sm = Ext.create('Ext.selection.RowModel');
+    var pluginExpanded = true;
+    var grid = Ext.create('Ext.grid.Panel', {
+        id:'button-grid',
+        store: store,
+        title:i18n._('BusinessManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('Order management')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('Canceled'),
+		layout:'fit',
+		//sortableColumns:false,
+		margin:'0 0 0 0',
+	    width:'100%',
+		height:'100%',
+	//	height:300,
+        frame: true,
+		border:false,
+		simpleSelect :true,
+     	selModel:sm,
+        iconCls: 'icon-grid',
+		//自适应
+        viewConfig: {
+            stripeRows: true,
+			forceFit: true
+        },
+        columns:[
+		{xtype: 'rownumberer',width:50},
+       {
+            text: i18n._('order_id'),
+            dataIndex: 'orderNo',
+            flex: 1,
+            sortable: true
+        },{
+            text: i18n._('order_quantity'),
+            dataIndex: 'quantity',
+            flex: 1,
+            sortable: true
+        },{
+            text: i18n._('money'),
+            //xtype:'templatecolumn', tpl:'{totalPrice} RMB',
+            flex: 1,
+            dataIndex:'totalPrice',
+            renderer:function(value){
+            	if(value!='')
+            		return value+'RMB';
+            },
+            sortable: true
+        },{
+            text: i18n._('createDate'),
+            dataIndex: 'createDate',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+            flex: 1,
+            sortable: true
+        },{
+            text: i18n._('endTime'),
+            dataIndex: 'payDate',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+            flex: 1,
+            sortable: true
+        },{
+            text: i18n._('Create User'),
+            dataIndex: 'userName',
+            flex: 1,
+            sortable: false
+        },{
+            text: i18n._('status'),
+            dataIndex: 'status',
+            flex: 1,
+            sortable: true,
+            renderer: function(value){
+                if (value == 'Unpaid') {
+                	return i18n._('Unpaid');
+                }else if(value == 'Paid'){
+                	return i18n._('Paid');
+                }else if(value == 'Cancelled'){
+                	return i18n._('Canceled');
+                }
+             }
+        },{
+    	 text: i18n._('Remark'),
+         dataIndex: 'remark',
+         flex: 1,
+         sortable: false,
+         renderer: function(value,metaData,record,colIndex,store,view) {
+        	 if(value!=null){
+ 	        	var strLine=value.split("||");
+ 	        	var result=strLine.join("<br/>");
+ 	         	metaData.tdAttr = 'data-qtip="' + result + '"';
+ 	         	return value;
+         	}
+         }
+    }],
+        columnLines: true,
+         //page
+
+		 bbar: Ext.create('Ext.PagingToolbar', {
+            store: store,
+			pageSize: 0,
+			displayInfo: true
+			//,plugins: Ext.create('Ext.ux.ProgressBarPager', {})
+        }),
+        
+        listeners:{
+        	"itemdblclick":{
+        		fn:function(){
+        			viewDetail();
+        		}
+        	}
+        },
+        
+        // inline buttons
+        dockedItems: [ {
+            xtype: 'toolbar',
+            cls: 'toolbarCSS',
+            //style:'background-color:#4c4c4c; background-image:url();',
+            items: [
+			{
+            	xtype:'button',
+                text:'<font id="orderDetail" color="white">'+i18n._('Details')+'</font>',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("orderDetail").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("orderDetail").style.color = "black";
+					 }
+						
+				},
+                tooltip:i18n._('Details'),
+                shadow:false,
+                icon:'../../images/detail.png',
+                handler:function(){
+                	viewDetail();
+            	}},
+            {xtype:'tbfill'},
+            {
+				xtype:'displayfield',
+				hideLabel:true,
+				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+			},
+	        {
+                xtype: 'searchfield',
+                hideLabel:true,
+				hasSearch:true,
+				emptyText:i18n._('orderSearchText'),
+                store: store
+			 }
+            ]
+        }]
+    });
+    
+    
+    function setUrl(rightUrl, url) {
+    	if(rightUrl == '') {
+    		rightUrl = url;
+    	}
+    	return rightUrl;
+    }
+    
+    function viewDetail(){
+    	var rows = grid.getSelectionModel().getSelection();
+    	if(rows.length > 0){
+    		var id = rows[0].get('id');
+    		Ext.define('OrderItemVo', {
+    		      extend: 'Ext.data.Model',
+    		      fields: [
+    		          'id', 'serviceCatalogName','price','amount','quantity','totalPrice','orderNo','os','cpu','memory','disk','addDisk','network','software','serviceDesc','priceType','pricePeriod','pricePeriodType',
+    		          {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'}
+    		      ],
+    		      idProperty: 'id'
+    		  });
+
+    		
+    		  // create the Data Store
+    		  var store1 = Ext.create('Ext.data.Store', {
+    		      model: 'OrderItemVo',
+    		      remoteSort: true,
+    		      proxy: new Ext.data.proxy.Ajax({
+    		    	  url: path+'/../order/order!queryAllOrderItemsByOrder.action?order.id='+id,
+        				reader: {
+        		              type: 'json',
+        		              root: 'resultObject'
+        		        }
+    		      })
+    		  });
+              
+    		  var arr;
+    		  var orderNo='';
+    		  store1.on('load',function(){
+    	    		var total = 0;
+    	    		arr = new Array();
+    	    		orderNo=store1.getAt(0).get('orderNo');
+    	    		var orderNoField=Ext.create('Ext.form.Display',{
+    	    			fieldLabel:i18n._('order_id'),
+    	    			value:orderNo,
+    	    			margin:'10 10 10 10'
+    	    		})
+    	    		arr.push(orderNoField);
+    	    		for(var i=0;i<store1.getCount();i++){
+    	    			total += store1.getAt(i).get('price');
+
+    	    		fieldSet =  Ext.create('Ext.form.FieldSet', {
+    	    	        title: i18n._('Goods')+(i+1)+i18n._('Details'),
+    	    	        layout: 'anchor',
+    	    	        defaults: {anchor: '100%'},
+    	    				margin:'0 0 0 0',
+    	    				collapsible: true,
+    	    	        items: [
+    	    	{
+    	    	xtype: 'displayfield',
+    	    	style:'margin:10 0 10 30',
+    	    	fieldLabel: i18n._('serviceCatalog'),
+    	    	name: i18n._('serviceCatalog'),
+    	    	value: store1.getAt(i).get('serviceCatalogName')
+    	    	},
+    	    	{
+    	    	xtype: 'fieldset',
+    	    	width:400,
+    	    	height: 300,
+    	    	items: [{
+    	    	xtype: 'displayfield',
+    	        style:'margin:10 0 0 30',
+    	    	fieldLabel: 'OS',
+    	    	name: 'OS',
+    	    	value: store1.getAt(i).get('os')
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: 'CPU',
+    	    	name: 'CPU',
+    	    	value: store1.getAt(i).get('cpu')
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('Memory'),
+    	    	name: i18n._('Memory'),
+    	    	value: store1.getAt(i).get('memory')+' M'
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    	style:'margin:0 0 0 30',
+            	fieldLabel: i18n._('Disk'),
+    	    	name: i18n._('Disk'),
+    	    	value: store1.getAt(i).get('disk')+' G'
+    	    	}, 
+    	    	{
+    		    	xtype: 'displayfield',
+    		    	style:'margin:0 0 0 30',
+    	        	fieldLabel: i18n._('extDisk'),
+    		    	name: i18n._('extDisk'),
+    		    	value: splitExtDisk(store1.getAt(i).get('addDisk'))
+    		    	},
+    	    	{
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('Network'),
+    	    	name: i18n._('Network'),
+    	    	value: store1.getAt(i).get('network')+' M'
+    	    	},{
+    	    		xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('software'),
+    	    	name: i18n._('software'),
+    	    	value: store1.getAt(i).get('software')
+    	    	},{
+    	    	xtype: 'displayfield',
+    	    	style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('ExpensesDesc'),
+    	    	width:475,
+    	    	name: i18n._('ExpensesDesc'),
+    	    	value: store1.getAt(i).get('serviceDesc')
+    	    	}]
+    	    	},
+    	    	{
+    	    	xtype: 'displayfield',
+    	    		style:'margin:5 0 0 30',
+    	    	fieldLabel: i18n._('Quantity'),
+    	    	name: i18n._('Quantity'),
+    	    	value: store1.getAt(i).get('quantity')
+    	    	},
+    	    	{
+    	    		xtype: 'displayfield',
+    	    		name: 'price',
+    	    		fieldLabel: i18n._('Price'),
+    	    			style:'margin:5 0 0 30',
+    	    			width: 200,
+    	    			value: store1.getAt(i).get('priceType')==1?('一次性购买'+store1.getAt(i).get('pricePeriod')+(getPricePeriodTypeDisplayValue(store1.getAt(i).get('pricePeriodType')))+store1.getAt(i).get('price')+' RMB'):store1.getAt(i).get('priceType')==2?store1.getAt(i).get('price')+' RMB/'+i18n._('Hour'):store1.getAt(i).get('priceType')==3?store1.getAt(i).get('price')+' RMB/'+i18n._('Month'):store1.getAt(i).get('price')+' RMB/'+i18n._('Year')
+
+    	    		},
+    	    		{
+    	    			xtype: 'displayfield',
+    	    			name: 'price',
+    	    			fieldLabel: i18n._('Expenses'),
+    	    				style:'margin:5 0 0 30',
+    	    				width: 200,
+    	    				value: store1.getAt(i).get('amount')+' RMB'
+
+    	    			}]
+    	    		  });
+    	    		arr.push(fieldSet);
+
+    	    	}
+
+    	    		var win = Ext.create('Ext.window.Window', {
+    	    	        title: i18n._('Order Detail'),
+    	    	        width: 570,
+    	    	        height: 430,
+    	    	      //  minWidth: 300,
+    	    	      //  minHeight: 200,
+    	    	        layout: 'fit',
+    	    	        plain:true,
+    	    	        modal:true,
+    	    	        items: {
+    	    			    xtype: 'form',
+    						//layout:"fit",
+    	    		        height:'100%',
+    	    			    width:'80%',
+    	    				autoScroll:true,
+    	    			//	margin:10,
+    	    	            border: false,
+    	    			    items: arr
+    	    			},
+
+    	    	        buttons: [{
+    	    	            xtype: 'displayfield',
+    	    	            id:"totalPriceField",
+    	    	            name: 'price',
+    	    				layout:{pack:'start'},
+    	    	            fieldLabel: i18n._('Total Cost'),
+    	    		    	//style:'margin:5 0 0 45',
+    	    				margin:'0 0 0 0',
+    	    		    	width: 200
+    	    	     }]
+    	    	    }).show();
+    	    		
+    	    		Ext.getCmp('totalPriceField').setValue(total+' RMB');
+    	    		
+    	    	});
+    		  store1.load();
+    		  
+    		
+    		
+    	}else{
+    		Ext.MessageBox.show({
+    	           title: i18n._('Prompt'),
+    	           msg: i18n._('selectOne'),
+    		           icon:Ext.MessageBox.WARNING,
+    		           buttons: Ext.MessageBox.OK
+    		           
+    		       }); 
+    	}
+    }
+
+Ext.create('Ext.Viewport',{
+	 layout:'fit',
+	 items: grid
+	});
+
+
+		var new_params={'order.status':'Cancelled'};
+		Ext.apply(store.proxy.extraParams,new_params);
+		store.load();
+		
+            }
+        };
+    })();
+
+    MultiLang.init();
+    
+});
+
+
+
+function splitExtDisk(addDisk){
+	if(addDisk){
+		var extDiskNameArr=addDisk.split(",");
+		for(var i in extDiskNameArr){
+			extDiskNameArr[i]=extDiskNameArr[i]+'G';
+		}
+		return extDiskNameArr.join(',');
+		}else{
+			return '';
+		}
+}
+function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

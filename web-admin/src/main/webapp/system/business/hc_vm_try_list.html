@@ -1,0 +1,1804 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>试用云主机列表 </title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/ProgressBarPager.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../business/common.js"></script>
+<style type="text/css">
+	#additionalDelayButton .x-btn-icon {
+	  width:23px;
+	}
+</style>
+<script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+Ext.QuickTips.init(true,{dismissDelay:600000,maxWidth: 500});
+Ext.require([
+    'Ext.data.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.ux.form.SearchField',
+	'Ext.ux.RowExpander',
+    'Ext.selection.CheckboxModel',
+	'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.ProgressBarPager'
+]);
+
+
+Ext.onReady(function() {
+	var vmid=0;
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {	
+            	
+Ext.define('TryVM', {
+    extend: 'Ext.data.Model',
+    fields: [//'totalPrice','quantity',
+        'referenceId', 'vmId','vmType','scId',
+        {name: 'vmName', mapping: 'vmName'},
+        {name: 'ipInner', mapping: 'ipInner'},
+        {name: 'ipOuter', mapping: 'ipOuter'},
+        {name: 'applyTime', mapping: 'applyTime', type: 'date', dateFormat: 'time'},
+        {name: 'createTime', mapping: 'createTime', type: 'date', dateFormat: 'time'},
+        {name: 'expireTime', mapping: 'expireTime', type: 'date', dateFormat: 'time'},
+        {name: 'userName', mapping: 'userName'},//user.name
+        {name: 'vmStatus_buss', mapping: 'vmStatus_buss'}        
+    ],
+    idProperty: 'id'
+});
+
+
+Ext.define('ServiceCatalog', {
+    extend: 'Ext.data.Model',
+    fields: ['id', 'scName'],
+    idProperty: 'id'
+});
+var refundReferenceId=0;
+
+var checkFlag=false;
+
+  // create the Data Store
+  var store = Ext.create('Ext.data.Store', {
+      pageSize: pageSize,
+      model: 'TryVM',
+      sorters: [
+                {
+                    property : 'createDate',
+                    direction: 'DESC'
+                }
+            ],
+      remoteSort: true,
+      listeners : {
+  		beforeload : function(store,operation, eOpts ){							
+  			//遮罩层
+  			v_mask = new Ext.LoadMask(Ext.getBody(), {
+  				msg : i18n._('please wait')
+  			});
+  			v_mask.show();
+  		},
+  		load : function(store, records, successful, eOpts ){
+  			v_mask.hide();
+  		}
+      },
+      proxy: new Ext.data.proxy.Ajax({
+      	url: path+'/../ops/ops!listVMForBussiness.action',
+		reader: {
+              type: 'json',
+              root: 'resultObject.result',
+              totalProperty: 'resultObject.totalCount'
+        },
+        timeout:66666666
+        /*
+        listeners:{
+			exception:function(reader, response, error, eOpts){
+				ajaxException(reader, response, error, eOpts );
+			}
+		}*/
+      })
+  });
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // Grid 4
+    ////////////////////////////////////////////////////////////////////////////////////////
+var sellAction = Ext.create('Ext.Action', {    
+    text: i18n._('order_id'),
+    //disabled: true,
+    handler: function(widget, event) {
+        var rec = grid.getSelectionModel().getSelection()[0];        
+        if (rec) {
+        	var orderNumber = rec.get('orderNo');
+        	Ext.MessageBox.show({
+				title : i18n._('order_id'),				
+				//icon : Ext.MessageBox.INFO,
+				buttons : Ext.MessageBox.OK,
+				prompt :true,
+				value :orderNumber
+			});
+        }
+    }
+});
+
+//延期天数输入框
+var vmDelayField = Ext.create('Ext.form.field.Number', {	
+	fieldLabel : i18n._('toDelay'),//
+	allowBlank : false,
+	maxLength : 20,
+	labelWidth : 40,
+	width : 150,
+	value: 1,
+	msgTarget :'side',
+    maxValue: 90,
+    minValue: 1
+});
+var vmDelayContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	items : [ vmDelayField, {
+		xtype : 'displayfield',
+		margin :'0 0 0 5',
+		value : i18n._('Day')
+	}]
+});
+//延期表单
+var vmDelayForm = Ext.create('Ext.form.Panel', {
+	frame : true,
+	items : [vmDelayContainer],
+	buttons : [ {
+		text : i18n._('OK'),
+		handler : function() {
+			var delayDays = vmDelayField.getValue();
+// 			if(delayDays<=0){
+// 				Ext.MessageBox.show({
+// 					title : i18n._('errorNotice'),
+// 					msg : i18n._('InputNumber'),
+// 					buttons : Ext.MessageBox.OK,
+// 					icon : Ext.MessageBox.WARNING
+// 				});
+// 				return;
+// 			}
+			if(vmDelayField.isValid()){
+				Ext.Ajax.request({
+					url : path + '/../ops/ops!verifyForDelayTryVm.action',
+					method : 'POST',
+					params : {
+						'delayLong' : delayDays,
+						'referenceId' : refundReferenceId
+					},				
+					success : function(form, action) {
+						var obj = Ext.decode(form.responseText);					
+						if (!obj.success) {
+							Ext.MessageBox.show({
+								title : i18n._('errorNotice'),
+								msg : obj.resultMsg,
+								buttons : Ext.MessageBox.OK,
+								icon : Ext.MessageBox.WARNING
+							});
+							return;
+						}
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('Operating')+i18n._('Successful'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK,
+							fn: reLoadData
+						});					
+					},
+					failure : function(form, action) {
+						Ext.MessageBox.show({
+							title : i18n._('errorNotice'),
+							msg : i18n._('operateFail'),
+							buttons : Ext.MessageBox.OK,
+							icon : Ext.MessageBox.WARNING
+						});
+					}
+				});
+				vmDelayForm.getForm().reset();			
+				vmDelayWin.hide();
+			}
+			
+		}
+	}, {
+		text : i18n._('Cancel'),
+		handler : function() {
+			vmDelayForm.getForm().reset();			
+			vmDelayWin.hide();
+		}
+	} ]
+});
+//延期弹出窗
+var vmDelayWin = Ext.create('Ext.window.Window', {
+	title:i18n._('延期试用云主机'), // 延期试用订单
+	width : 200,// 400
+	height : 100,
+	autoDestroy : false,
+	closable : false,
+	constrain : true,
+	modal : true,
+	tools : [ {
+		type : 'close',
+		handler : function() {
+			vmDelayForm.getForm().reset();			
+			vmDelayWin.hide();
+		}
+	} ],
+	layout : 'fit',
+	defaults : {
+		split : false
+	},
+	items : [vmDelayForm]
+});
+
+//延期天数输入框
+var vmAdditionalDelayField = Ext.create('Ext.form.field.Number', {	
+	fieldLabel : i18n._('toDelay'),//
+	allowBlank : false,
+	maxLength : 20,
+	labelWidth : 40,
+	width : 150,
+	value: 1,
+	msgTarget :'side',
+    minValue: 1
+});
+var vmAdditionalDelayContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	items : [ vmAdditionalDelayField, {
+		xtype : 'displayfield',
+		margin :'0 0 0 5',
+		value : i18n._('Day')
+	}]
+});
+//延期表单
+var vmAdditionalDelayForm = Ext.create('Ext.form.Panel', {
+	frame : true,
+	items : [vmAdditionalDelayContainer],
+	buttons : [ {
+		text : i18n._('OK'),
+		handler : function() {
+			var delayDays = vmAdditionalDelayField.getValue();
+			if(vmAdditionalDelayField.isValid()){
+				Ext.Ajax.request({
+					url : path + '/../ops/ops!extraDelayTryVm.action',
+					method : 'POST',
+					params : {
+						'delayLong' : delayDays,
+						'referenceId' : refundReferenceId
+					},				
+					success : function(form, action) {
+						var obj = Ext.decode(form.responseText);					
+						if (!obj.success) {
+							Ext.MessageBox.show({
+								title : i18n._('errorNotice'),
+								msg : obj.resultMsg,
+								buttons : Ext.MessageBox.OK,
+								icon : Ext.MessageBox.WARNING
+							});
+							return;
+						}
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('Operating')+i18n._('Successful'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK,
+							fn: reLoadData
+						});					
+					},
+					failure : function(form, action) {
+						Ext.MessageBox.show({
+							title : i18n._('errorNotice'),
+							msg : i18n._('operateFail'),
+							buttons : Ext.MessageBox.OK,
+							icon : Ext.MessageBox.WARNING
+						});
+					}
+				});
+				vmAdditionalDelayForm.getForm().reset();			
+				vmAdditionalDelayWin.hide();
+			}
+// 			if(delayDays<=0){
+// 				Ext.MessageBox.show({
+// 					title : i18n._('errorNotice'),
+// 					msg : i18n._('InputNumber'),
+// 					buttons : Ext.MessageBox.OK,
+// 					icon : Ext.MessageBox.WARNING
+// 				});
+// 				return;
+// 			}
+		}
+	}, {
+		text : i18n._('Cancel'),
+		handler : function() {
+			vmAdditionalDelayForm.getForm().reset();			
+			vmAdditionalDelayWin.hide();
+		}
+	} ]
+});
+//延期弹出窗
+var vmAdditionalDelayWin = Ext.create('Ext.window.Window', {
+	title:i18n._('额外延期试用云主机'), // 延期试用订单
+	width : 200,// 400
+	height : 100,
+	autoDestroy : false,
+	closable : false,
+	constrain : true,
+	modal : true,
+	tools : [ {
+		type : 'close',
+		handler : function() {
+			vmAdditionalDelayForm.getForm().reset();			
+			vmAdditionalDelayWin.hide();
+		}
+	} ],
+	layout : 'fit',
+	defaults : {
+		split : false
+	},
+	items : [vmAdditionalDelayForm]
+});
+    var selModel = Ext.create('Ext.selection.CheckboxModel', {
+        listeners: {
+            selectionchange: function(sm, selections) {
+                grid4.down('#removeButton').setDisabled(selections.length == 0);
+            }
+        }
+    });
+    var sm = Ext.create('Ext.selection.RowModel');
+    var pluginExpanded = true;
+    var grid = Ext.create('Ext.grid.Panel', {
+        id:'button-grid',
+        store: store,
+        title:i18n._('BusinessManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('VmManagement')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('vmTrial'),
+		layout:'fit',
+		margin:'0 0 0 0',
+	    width:'100%',
+		height:'100%',
+        frame: true,
+		border:false,
+		sortableColumns:false,
+		simpleSelect :true,
+     	selModel:sm,
+        iconCls: 'icon-grid',
+		//自适应
+        viewConfig: {
+            stripeRows: true,
+			forceFit: true
+        },
+        columns:[
+		{xtype: 'rownumberer',flex:0.1},
+       {
+            text: i18n._('vmName'),
+            dataIndex: 'vmName',
+            flex: 0.4,
+            sortable: false,
+            renderer :function(data, metadata, record, rowIndex, columnIndex, store){
+    			metadata.tdAttr = 'data-qtip="' + data + '"';
+    		    return data;							
+    		}
+        },{
+            text: i18n._('IPAddress'),
+            dataIndex: 'ipOuter',
+            flex: 0.35,            
+            renderer :function(data, metadata, record, rowIndex, columnIndex, store){
+            	var ipInner = record.get('ipInner');
+    			var ip='';
+    			if(data == '' || data =='null'){
+    				ip = ipInner;
+    			}
+    			if(ipInner == '' || ipInner =='null'){
+    				ip = data;
+    			}
+    			if(data != '' && ipInner != ''&&  data != null && ipInner != null){
+    				ip = ipInner +',' + data;
+    			}
+    			var vmShowIpData = [];
+    			vmShowIpData = ip.split(",");
+    			renderText = "";
+    			var index1 = Math.floor(vmShowIpData.length / 5)
+//    			alert("index1: "+index1);
+    			var index2 = vmShowIpData.length % 5
+//    			alert("index2: "+index2);
+    			if (index1 > 0){
+    				for(i=0;i<index1;i++){
+    					for(j=i*5;j<(i+1)*5;j++){
+    						renderText += vmShowIpData[j]+',';	
+    					}
+    					if(renderText != ""){
+    						renderText +=  '<br/>';
+    					}
+    				}
+    				if(index2>0){
+    					for(i=0;i<index2;i++){
+    						renderText +=  vmShowIpData[vmShowIpData.length-(i+1)]+ ',';
+    					}
+    				}
+    				
+    			}else{
+    				renderText = ip;
+    			}
+    			metadata.tdAttr = 'data-qtip="' + renderText + '"';
+    		    return ip;							
+    		},
+            sortable: false
+        },{
+            text: i18n._('applayTime'),
+            dataIndex: 'applyTime',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+            flex: 0.35,
+            sortable: false
+        },
+        {
+            text: i18n._('ProvisionTime'),
+            dataIndex: 'createTime',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+            flex: 0.35,
+            sortable: false
+        },{
+            text: i18n._('ExpiredTime'),
+            dataIndex: 'expireTime',
+            renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+            flex: 0.35,
+            sortable: false
+        },{
+            text: i18n._('Owner'),
+            dataIndex: 'userName',
+            flex: 0.3,
+            sortable: false
+        },{
+            text: i18n._('serviceStatus'),
+            dataIndex: 'vmStatus_buss',
+            flex: 0.2,
+            sortable: false,
+            renderer: function(value){
+            	return i18n._(value);
+            }
+            /* renderer: function(value){
+            	switch(value){
+			    	case '0': return i18n._('TryWaitApprove');break;//试用申请中
+			    	case '1': return i18n._('TrialIn');break;//试用中
+			    	case '2': return i18n._('DelayWaitApprove');break;//延期待审核
+			    	case '3': return i18n._('delayed');break;//已延期
+			    	case '5': return i18n._('Canceled');break;//已取消
+			    	default:return i18n._(value);
+            	}
+             } */
+        },{
+            text: i18n._('machineNum'),
+            dataIndex: 'vmId',
+            flex: 0.4,
+            renderer :function(data, metadata, record, rowIndex, columnIndex, store){
+    			metadata.tdAttr = 'data-qtip="' + data + '"';
+    		    return data;							
+    		},
+            sortable: false
+        }
+        ],
+        columnLines: true,
+		bbar: Ext.create('Ext.PagingToolbar', {
+            store: store,
+			pageSize: 0,
+			displayInfo: true
+			//,plugins: Ext.create('Ext.ux.ProgressBarPager', {})
+        }),
+        listeners:{
+        	"itemdblclick":{
+        		fn:function(){
+        			viewDetail();
+        		}
+        	}
+        },
+        dockedItems: [ {
+            xtype: 'toolbar',
+            cls: 'toolbarCSS',
+            //style:'background-color:#4c4c4c; background-image:url();',
+            items: [  
+                	{
+        				xtype:'button',//审核
+        			    text:'<font id="vmToAudit" color="white">'+i18n._('toAudit')+'</font>',
+        			    listeners: {
+        					 "mouseout" : function() {
+        						 document.getElementById("vmToAudit").style.color = "white";
+        					 },
+        					 "mouseover" : function() {
+        						 document.getElementById("vmToAudit").style.color = "black";
+        					 }						
+        				},
+        			    tooltip:i18n._('toAudit'),
+        			    shadow:false,
+        			    icon:'images/toAudit.png',
+        			    handler:function(){
+        			    	getSessionUser();
+        			    	var row = grid.getSelectionModel().getSelection();
+        					if (row.length == 0) {
+        						Ext.MessageBox.show({
+        							title : i18n._('notice'),
+        							msg : i18n._('selectOne'),
+        							icon : Ext.MessageBox.INFO,
+        							buttons : Ext.MessageBox.OK
+        						});
+        						return;
+        					}
+        					refundReferenceId = row[0].get('referenceId');
+        					var status = row[0].get('vmStatus_buss');
+        					if(status == 'TRYWAIT'){
+        						vmAudit(refundReferenceId);
+        					}else{
+        						showMessage('vmApproveTip');
+        						return;
+        					}
+        				}
+        			},
+			{
+				xtype:'button',//延期
+			    text:'<font id="vmToDelay" color="white">'+i18n._('toDelay')+'</font>',
+			    listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("vmToDelay").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("vmToDelay").style.color = "black";
+					 }
+						
+				},
+			    tooltip:i18n._('toDelay'),
+			    shadow:false,
+			    icon:'images/toDelay.png',
+			    handler:function(){
+			    	getSessionUser();
+			    	var row = grid.getSelectionModel().getSelection();
+					if (row.length == 0) {
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('selectOne'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK
+						});
+						return;
+					}
+					refundReferenceId = row[0].get('referenceId');
+					var status = row[0].get('vmStatus_buss');
+					if(status == 'DELAYWAIT'||status=='EXPIRE_TRY'){
+						vmDelayWin.show();
+					}else{
+						showMessage('vmDelayTip');
+						return;
+					}			    	
+				}
+			},
+			{
+				xtype:'button',
+				id:'additionalDelayButton',
+				width:80,
+			    text:'<font id="additionalDelay" color="white">'+i18n._('additionalDelay')+'</font>',
+			    listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("additionalDelay").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("additionalDelay").style.color = "black";
+					 }
+						
+				},
+			    tooltip:i18n._('additionalDelay'),
+			    shadow:false,
+			    icon:'images/additionalDelay.png',
+			    handler:function(){
+			    	getSessionUser();
+			    	var row = grid.getSelectionModel().getSelection();
+					if (row.length == 0) {
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('selectOne'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK
+						});
+						return;
+					}
+					refundReferenceId = row[0].get('referenceId');
+					var status = row[0].get('vmStatus_buss');
+					if(status == 'DELAY'||status=='EXPIRE_DELAY'){
+						var createTime=row[0].get('createTime');
+						var expireTime=row[0].get('expireTime');
+						var tryDuration=(expireTime.getTime()-createTime.getTime())/(24*60*60*1000);
+						tryDuration=90-tryDuration;
+						if(tryDuration==0){
+							showMessage('vmDelayExceedTip');
+							return;
+						}
+						vmAdditionalDelayField.setMaxValue(tryDuration);
+						vmAdditionalDelayWin.show();
+					}else{
+						showMessage('vmAdditionalDelayTip');
+						return;
+					}	
+				}
+			}
+			,'-',{
+            	xtype:'button',
+                text:'<font id="scModify" color="white">'+i18n._('scModify')+'</font>',
+                listeners: {
+    				 "mouseout" : function() {
+    					 document.getElementById("scModify").style.color = "white";
+    				 },
+    				 "mouseover" : function() {
+    					 document.getElementById("scModify").style.color = "black";
+    				 }
+    					
+    			},
+                tooltip:i18n._('scModify'),
+                shadow:false,
+                icon:'images/changeSC.png',
+                handler:function(){
+                	VMModifySC();
+            	}},
+            	{
+                	xtype:'button',
+                    text:'<font id="reSendOpenEmail" color="white">'+i18n._('reSendOpenEmail')+'</font>',
+                    listeners: {
+        				 "mouseout" : function() {
+        					 document.getElementById("reSendOpenEmail").style.color = "white";
+        				 },
+        				 "mouseover" : function() {
+        					 document.getElementById("reSendOpenEmail").style.color = "black";
+        				 }
+        					
+        			},
+                    tooltip:i18n._('reSendOpenEmail'),
+                    shadow:false,
+                    icon:'../../images/reActivation.png',
+                    handler:function(){
+                    	getSessionUser();
+                    	var row = grid.getSelectionModel().getSelection();
+    					if (row.length == 0) {
+    						Ext.MessageBox.show({
+    							title : i18n._('notice'),
+    							msg : i18n._('selectOne'),
+    							icon : Ext.MessageBox.INFO,
+    							buttons : Ext.MessageBox.OK
+    						});
+    						return;
+    					}
+    					var status = row[0].get('vmStatus_buss');
+    					if(status != 'TRYWAIT'){
+    						Ext.MessageBox.show({
+    						    title: i18n._('notice'),
+    							msg:i18n._('reSendOpenEmailConfirm'),
+    		                   buttons: Ext.MessageBox.YESNO,
+    		                   icon: Ext.MessageBox.QUESTION,
+    		                   fn:function(e){
+    		                	   if(e=="no"){
+    		                		   return;
+    		                	   }else if(e=='yes'){
+    		                			var vmName = row[0].get('vmName');
+    		        					var email=row[0].get("userName");
+    		        					var ipOuter=row[0].get("ipOuter");
+    		        					var vmId=row[0].get("vmId");
+    		        					Ext.Ajax.request({
+    		                	    		url : path + '/../ops/ops!reSendOpenEmail.action',
+    		                	    		method : 'POST',
+    		                	    		params : {
+    		                	    			'name' : vmName,
+    		                	    			'email':email,
+    		                	    			'newIP':ipOuter,
+    		                	    			'vmId':vmId
+    		                	    		},				
+    		                	    		success : function(form, action) {
+    		                	    			var obj = Ext.decode(form.responseText);
+    		                	    			if (!obj.success) {
+    		                	    				Ext.MessageBox.show({
+    		                	    					title : i18n._('errorNotice'),
+    		                	    					msg : obj.resultMsg,
+    		                	    					buttons : Ext.MessageBox.OK,
+    		                	    					icon : Ext.MessageBox.WARNING
+    		                	    				});
+    		                	    				return;
+    		                	    			}
+    		                	    			Ext.MessageBox.show({
+    		                	    				title : i18n._('notice'),
+    		                	    				msg : i18n._('Operating')+i18n._('Successful'),
+    		                	    				icon : Ext.MessageBox.INFO,
+    		                	    				buttons : Ext.MessageBox.OK
+    		                	    			});					
+    		                	    		},
+    		                	    		failure : function(form, action) {
+    		                	    			Ext.MessageBox.show({
+    		                	    				title : i18n._('errorNotice'),
+    		                	    				msg : i18n._('operateFail'),
+    		                	    				buttons : Ext.MessageBox.OK,
+    		                	    				icon : Ext.MessageBox.WARNING
+    		                	    			});
+    		                	    		}
+    		                	    	});	
+    		                	   }
+    		                	}
+    		    		});	
+    					}else{
+    						showMessage('reSendOpenEmailTip');
+    						return;
+    					}	
+                	}},'-',
+            			{
+                        	xtype:'button',
+                            text:'<font id="orderDetail" color="white">'+i18n._('Details')+'</font>',
+                            listeners: {
+            					 "mouseout" : function() {
+            						 document.getElementById("orderDetail").style.color = "white";
+            					 },
+            					 "mouseover" : function() {
+            						 document.getElementById("orderDetail").style.color = "black";
+            					 }						
+            				},
+                            tooltip:i18n._('Details'),
+                            shadow:false,
+                            icon:'../../images/detail.png',
+                            handler:function(){
+                            	viewDetail();
+                        	}},
+            {xtype:'tbfill'},            
+            {
+                xtype:'splitbutton',
+                id:'descSortButton',
+                text:'<font color="#ffffff" id="tryVmSortSplit">' + i18n._('descSort')+':' + '</font>', 
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("tryVmSortSplit").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("tryVmSortSplit").style.color = "black";
+					 }
+						
+				},
+                menu: new Ext.menu.Menu({
+                    items: [
+						{
+						    text: i18n._('openTime'),//开通时间
+						    handler: function(){
+						        Ext.getCmp('descSortButton').setText('<font color="#ffffff" id="tryVmSortSplit">' + i18n._('openTime') + '</font>');
+						        var instanceStoreProxy=store.getProxy();
+                            	instanceStoreProxy.setExtraParam('sort','0'); 
+						        store.loadPage(1,null);
+						    }
+						},
+                        {
+                            text: i18n._('expireTime'),//到期时间
+                            handler: function(){
+                            	Ext.getCmp('descSortButton').setText('<font color="#ffffff" id="tryVmSortSplit">' + i18n._('expireTime') + '</font>');
+                            	var instanceStoreProxy=store.getProxy();
+                            	instanceStoreProxy.setExtraParam('sort','1');  
+                            	store.loadPage(1,null);
+                            }
+                        },
+                        {
+                            text: i18n._('applayTime'),//申请时间
+                            handler: function(){
+                            	Ext.getCmp('descSortButton').setText('<font color="#ffffff" id="tryVmSortSplit">' + i18n._('applayTime') + '</font>');
+                            	var tryVmStoreProxy=store.getProxy();
+                            	tryVmStoreProxy.setExtraParam('sort','2');
+                            	store.loadPage(1,null);
+                            }
+                        }
+                     ]
+                })
+            },
+            {
+                xtype:'splitbutton',
+                id:'tryVmSplitbutton',
+                text:'<font color="#ffffff" id="tryVmSplit">' + i18n._('serviceStatus')+':' + '</font>', 
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("tryVmSplit").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("tryVmSplit").style.color = "black";
+					 }
+						
+				},
+                menu: new Ext.menu.Menu({
+                    items: [
+						{
+						    text: i18n._('All'),//全部
+						    handler: function(){
+						        Ext.getCmp('tryVmSplitbutton').setText('<font color="#ffffff" id="tryVmSplit">' + i18n._('All') + '</font>');
+						        var instanceStoreProxy=store.getProxy();
+                            	instanceStoreProxy.setExtraParam('status_buss',''); 
+						        store.loadPage(1,null);
+						    }
+						},
+                        {
+                            text: i18n._('TryWaitApprove'),//试用申请中
+                            handler: function(){
+                            	Ext.getCmp('tryVmSplitbutton').setText('<font color="#ffffff" id="tryVmSplit">' + i18n._('TryWaitApprove') + '</font>');
+                            	var instanceStoreProxy=store.getProxy();
+                            	instanceStoreProxy.setExtraParam('status_buss','0');  
+                            	store.loadPage(1,null);
+                            }
+                        },
+                        {
+                            text: i18n._('TrialIn'),//试用中
+                            handler: function(){
+                            	Ext.getCmp('tryVmSplitbutton').setText('<font color="#ffffff" id="tryVmSplit">' + i18n._('TrialIn') + '</font>');
+                            	var tryVmStoreProxy=store.getProxy();
+                            	tryVmStoreProxy.setExtraParam('status_buss','1');
+                            	store.loadPage(1,null);
+                            }
+                        },
+                        {
+                            text: i18n._('DelayWaitApprove'),//延期待审核
+                            handler: function(){
+                                Ext.getCmp('tryVmSplitbutton').setText('<font color="#ffffff" id="tryVmSplit">' + i18n._('DelayWaitApprove') + '</font>');
+                                var tryVmStoreProxy=store.getProxy();
+                                tryVmStoreProxy.setExtraParam('status_buss','2');
+                                store.loadPage(1,null);
+                            }
+                        },
+                        {
+                            text: i18n._('delayed'),//已延期
+                            handler: function(){
+                                Ext.getCmp('tryVmSplitbutton').setText('<font color="#ffffff" id="tryVmSplit">' + i18n._('delayed') + '</font>');
+                                var tryVmStoreProxy=store.getProxy();
+                                tryVmStoreProxy.setExtraParam('status_buss','3');
+                                store.loadPage(1,null);
+                            }
+                        }
+                        ,
+                        {
+                            text: i18n._('Canceled'),//已延期
+                            handler: function(){
+                                Ext.getCmp('tryVmSplitbutton').setText('<font color="#ffffff" id="tryVmSplit">' + i18n._('Canceled') + '</font>');
+                                var tryVmStoreProxy=store.getProxy();
+                                tryVmStoreProxy.setExtraParam('status_buss','5');
+                                store.loadPage(1,null);
+                            }
+                        }
+                     ]
+                })
+            },
+            {
+                xtype:'splitbutton',
+                id:'tryVmSearchSplitbutton',
+                text:'<font color="#ffffff" id="tryVMSearchSplit">' + i18n._('Filtered')+':' + '</font>', 
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("tryVMSearchSplit").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("tryVMSearchSplit").style.color = "black";
+					 }
+						
+				},
+                menu: new Ext.menu.Menu({
+                    items: [
+                        {
+                            text: i18n._('ipOuter'),
+                            handler: function(){
+                                Ext.getCmp('tryVmSearchSplitbutton').setText('<font color="#ffffff" id="tryVMSearchSplit">' + i18n._('ipOuter') + '</font>');
+                                var instanceStoreProxy=store.getProxy();
+                                instanceStoreProxy.setExtraParam('type','ipOuter');
+                                checkFlag=true;
+                            }
+                     	},
+						 {
+                                text: i18n._('ipInner'),
+                                handler: function(){
+                                    Ext.getCmp('tryVmSearchSplitbutton').setText('<font color="#ffffff" id="tryVMSearchSplit">' + i18n._('ipInner') + '</font>');
+                                    var instanceStoreProxy=store.getProxy();
+                                    instanceStoreProxy.setExtraParam('type','ipInner');
+                                    checkFlag=true;
+                                }
+                         },
+						 {
+                             text: i18n._('VMSearchTip'),//按照主机名查询
+                             handler: function(){
+                             	Ext.getCmp('tryVmSearchSplitbutton').setText('<font color="#ffffff" id="tryVMSearchSplit">' + i18n._('VMSearchTip') + '</font>');
+                             	var instanceStoreProxy=store.getProxy();
+                             	instanceStoreProxy.setExtraParam('type','vmName');
+                             	checkFlag=true;
+                             }
+                         },
+                         {
+						    text: i18n._('machineNum'),//按照机器号查询
+						    handler: function(){
+						    	Ext.getCmp('tryVmSearchSplitbutton').setText('<font color="#ffffff" id="tryVMSearchSplit">' + i18n._('machineNum') + '</font>');
+						    	var instanceStoreProxy=store.getProxy();
+						    	instanceStoreProxy.setExtraParam('type','vmId');  
+						    	checkFlag=true;
+						    }
+						}
+                     ]
+                })
+            },
+	        {
+                xtype: 'searchfield',
+                hideLabel:true,
+                hasSearch:false,
+                store: store,
+        		onTrigger1Click : function() {
+					var me = this, store = me.store, proxy = store
+							.getProxy(), val;
+					if (me.hasSearch) {
+						me.setValue('');
+						proxy.extraParams[me.paramName] = '';
+						proxy.extraParams.start = 0;
+						store.loadPage(1,null);
+						me.hasSearch = false;
+						me.triggerEl.item(0).setDisplayed('none');
+						me.doComponentLayout();
+					}
+				},
+				onTrigger2Click : function() {// 点击查询按钮或回车调用该方法
+					var me = this, store = me.store, proxy = store
+							.getProxy(), value = me
+							.getValue();
+					if(!checkFlag){
+						Ext.MessageBox.show({
+							title : i18n._('notice'),
+							msg : i18n._('searchCriteria'),
+							icon : Ext.MessageBox.INFO,
+							buttons : Ext.MessageBox.OK
+						});
+						return;
+					}
+					store = me.store;
+					proxy = store.getProxy();
+					proxy.extraParams['query'] = value;										
+					proxy.extraParams.start = 0;
+					store.loadPage(1,null);
+					this.hasSearch = true;
+					me.triggerEl.item(0).setDisplayed('block');
+					me.doComponentLayout();
+				}
+			 }
+            ]
+        }]
+    });
+    
+   
+function setUrl(rightUrl, url) {
+	if(rightUrl == '') {
+		rightUrl = url;
+	}
+	return rightUrl;
+};//变更套餐
+function VMModifySC(){
+	var rows = grid.getSelectionModel().getSelection();
+	
+	if(rows.length > 0){
+		var referenceId = rows[0].get('referenceId');
+		var scId=rows[0].get('scId');
+		var userEmailField = Ext.create('Ext.form.field.Display', {
+			width : 300,//200
+			labelWidth : 90,//80
+			fieldLabel : i18n._('email')
+		});
+		var userNameField = Ext.create('Ext.form.field.Display', {
+			width : 300,//200
+			labelWidth : 90,//80
+			fieldLabel : i18n._('username')
+		});
+		var userBrandField = Ext.create('Ext.form.field.Display', {
+			width : 300,//200
+			labelWidth : 90,//80
+			fieldLabel : i18n._('brand')
+		});
+		
+		var userBrandSCStore = Ext.create('Ext.data.Store',{
+			model : 'ServiceCatalog',
+			proxy : {
+				type : 'ajax',
+				url : path+ '/../sc/sc!getRelatedScByReferenceId.action',
+				reader : {
+					type : 'json',
+					root : 'resultObject',
+					totalProperty : 'resultObject.totalCount'
+				}
+			},
+			autoLoad : false
+		});
+		
+		var userBrandSC= Ext.create('Ext.form.ComboBox',{
+			fieldLabel : i18n._('serviceCatalog'),
+			width : 150,
+			labelWidth : 90,
+			margin:'10 0 0 0',
+			emptyText:i18n._('Please Select'),
+			store : userBrandSCStore,
+			editable : false,
+			allowBlank: false,
+			queryMode : 'local',
+			displayField : 'scName',
+			valueField : 'id'
+		})
+		
+		//变更套餐Form
+		var scModifyForm = Ext.create('Ext.form.Panel', {
+			frame : true,
+			autoScroll:true,
+			bodyPadding : 15,
+			fieldDefaults : {
+				labelAlign : 'left',
+				labelWidth : 60,
+				anchor : '100%'
+			},
+			items : [ userEmailField,userNameField, 
+			          userBrandField, userBrandSC
+					],
+			buttons:[{
+				text:i18n._('OK'),
+				margin:'0 50 0 5',			
+				handler:function(){
+					var newScId=userBrandSC.getValue();
+					if(userBrandSC.isValid()&&scId!=newScId){
+					Ext.Ajax.request({
+						url:path+ '/../ops/ops!changeVMSC.action',
+						method:'POST',
+						params:{
+							'referenceId':referenceId,
+							'scId':newScId
+						},
+						success:function(response){
+							var result=Ext.JSON.decode(response.responseText);
+	           					if(result.success==false){
+	           						Ext.MessageBox.show({
+                                      title:i18n._('notice'),
+	 	                               msg: result.resultMsg,
+	 	                               icon:Ext.MessageBox.INFO,	 	           		  
+	 	                               buttons: Ext.MessageBox.OK	 	                      
+	 	           				    });
+	           					}else{
+	           						scModifyWin.hide();
+		        	    			Ext.MessageBox.show({
+		        	    				title : i18n._('notice'),
+		        	    				msg : i18n._('changeVMSCSuccess'),
+		        	    				icon : Ext.MessageBox.INFO,
+		        	    				buttons : Ext.MessageBox.OK,
+		        	    			});											
+	           						store.load();
+	           					}
+						}
+					});
+					}
+				}
+			},{
+				text:i18n._('Cancel'),
+				margin:'0 60 0 7',	
+				handler:function(){
+					scModifyWin.getComponent(0).getForm().reset();
+					scModifyWin.remove(scModifyWin.getComponent(0),false);
+					scModifyWin.hide();
+				}
+			}]
+		});
+		//所有弹出窗
+		var scModifyWin = Ext.create('Ext.window.Window', {
+			title:i18n._('scModify'), 
+			width : 350,// 400
+			height : 210,
+			//autoDestroy : true,
+			closable : false,
+			constrain : true,
+			modal : true,
+			tools : [ {
+				type : 'close',
+				handler : function() {
+					scModifyWin.getComponent(0).getForm().reset();
+					scModifyWin.remove(scModifyWin.getComponent(0),false);
+					scModifyWin.hide();
+				}
+			} ],
+			layout : 'fit',
+			defaults : {
+				split : false
+			},
+			items : [scModifyForm],
+		});
+		
+		
+		
+		var userUserBrandModel = Ext.define('userUserBrandModel', {
+			extend : 'Ext.data.Model',
+			fields : [ 'userName','userEmail','userBrandName'
+			]
+		});
+		var userUserBrandStore = Ext.create('Ext.data.Store',{
+			model : 'userUserBrandModel',
+			proxy : {
+				type : 'ajax',
+				url : path+ '/../brand/userBrand!getUserUserBrandInfo.action',
+				reader : {
+					type : 'json',
+					root : 'resultObject'//,
+					//totalProperty : 'resultObject.totalCount'
+				}
+			},
+			autoLoad : false,//true
+			listeners : {
+				load : function(userUserBrandStore, records, successful, eOpts ) {			
+					if (successful && userUserBrandStore.getCount() > 0) {
+						userEmailField.setValue(userUserBrandStore.getAt(0).get("userEmail"));
+						userNameField.setValue(userUserBrandStore.getAt(0).get("userName"));
+						userBrandField.setValue(userUserBrandStore.getAt(0).get("userBrandName"));
+						scModifyWin.setTitle(i18n._('scModify'));//详情
+						scModifyWin.add(scModifyForm);
+						scModifyWin.showAt(300,77);
+					}else{
+						scModifyWin.hide();
+					}
+				}
+			}
+		});
+		
+		var proxy=userUserBrandStore.getProxy();
+		proxy.setExtraParam('referenceId',referenceId) ;
+		userUserBrandStore.load(); 
+		
+		var proxyBrandSC=userBrandSCStore.getProxy();
+		proxyBrandSC.setExtraParam('referenceId',referenceId);
+		userBrandSCStore.load();
+		userBrandSC.setValue(scId);
+		
+		
+	}else{
+		Ext.MessageBox.show({
+	           title: i18n._('Prompt'),
+	           msg: i18n._('selectOne'),
+		           icon:Ext.MessageBox.WARNING,
+		           buttons: Ext.MessageBox.OK    		           
+		       }); 
+	}
+};
+
+
+
+    
+    function viewDetail(){
+    	// VM详细
+    	//虚拟机名称
+    	var vmNameDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('vm_name')//主机名称
+    	});
+    	//machineNum
+    	var machineNumDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('machineNum')//主机名称
+    	});
+    	//CPU信息
+    	var vmCPUDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('CPU')
+    	});
+    	//Memory信息
+    	var vmMEMDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('MEM')
+    	});
+    	//Disk信息
+    	var vmDiskDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('DISK')
+    	});
+    	//扩展盘信息
+    	var vmExtDiskDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('extDisk')
+    	});
+    	//Network信息
+    	var vmNeworkDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('Network')
+    	});
+    	//IP信息
+    	var vmIPDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('IP')
+    	});
+    	//OS信息
+    	var vmOSDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('OS')
+    	});
+    	//套餐名称
+    	var taocanNameDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('ServiceCatalog_name')//套餐名
+    	});
+    	
+    	//套餐已使用天数
+    	var taocanUsedDetailField = Ext.create('Ext.form.field.Display', {//
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('used')//已使用
+    	});
+    	//所有者
+    	var ownerEmailField = Ext.create('Ext.form.field.Display',{
+    		width : 300,//200
+    		labelWidth : 150,//80
+    		fieldLabel : i18n._('Owner')//价格
+    	});
+    	//虚拟机详细信息Form
+    	var detailVMForm = Ext.create('Ext.form.Panel', {
+    		frame : true,
+    		autoScroll:true,
+    		// title: 'Form Fields',
+    		// width: 250,
+    		bodyPadding : 5,
+    		fieldDefaults : {
+    			labelAlign : 'left',
+    			labelWidth : 60,
+    			anchor : '100%'
+    		},
+    		items : [ vmNameDetailField, machineNumDetailField,ownerEmailField,vmCPUDetailField, vmMEMDetailField,
+    				vmDiskDetailField, vmExtDiskDetailField,vmNeworkDetailField, vmIPDetailField,
+    				vmOSDetailField, taocanNameDetailField,
+    				taocanUsedDetailField]
+    	});
+    	//所有弹出窗
+    	var detailVMWin = Ext.create('Ext.window.Window', {
+    		title:i18n._('Details'), 
+    		width : 500,// 400
+    		height : 330,
+    		//autoDestroy : true,
+    		closable : false,
+    		constrain : true,
+    		modal : true,
+    		tools : [ {
+    			type : 'close',
+    			handler : function() {
+    				detailVMWin.getComponent(0).getForm().reset();
+    				detailVMWin.remove(detailVMWin.getComponent(0),false);
+    				detailVMWin.hide();
+    			}
+    		} ],
+    		layout : 'fit',
+    		defaults : {
+    			split : false
+    		},
+    		items : [detailVMForm]
+    	});
+    	var rows = grid.getSelectionModel().getSelection();
+    	if(rows.length > 0){
+    		var referenceId = rows[0].get('referenceId');
+    		//虚拟机详情模板
+    		var vmDetailModel = Ext.define('vmDetailModel', {
+    			extend : 'Ext.data.Model',
+    			fields : [ 'vmId','vmName','cpuName','cpu', 'memory','disk',
+    			           'network','ip','os','scname',
+    			          'runTime','extdisks']
+    		});
+    		ownerEmailField.setValue(rows[0].get('userName'));
+    		var vmDetailStore = Ext.create('Ext.data.Store',{
+    			model : 'vmDetailModel',
+    			proxy : {
+    				type : 'ajax',
+    				url : path+ '/../ops/ops!getTryVmInfo.action',
+    				reader : {
+    					type : 'json',
+    					root : 'resultObject',
+    					totalProperty : 'resultObject.totalCount'
+    				}
+    			},
+    			autoLoad : false,//true
+    			listeners : {
+    				load : function(vmDetailStore, records, successful, eOpts ) {			
+    					if (successful && vmDetailStore.getCount() > 0) {
+    						var catalogName = vmDetailStore.getAt(0).get('scname');	
+    						var taocanUsed=getUseFreeLong(vmDetailStore.getAt(0).get('runTime'));
+    						var cpuDetail = '';
+    						//alert(orderDate);
+    						vmNameDetailField.setValue(vmDetailStore.getAt(0).get('vmName'));
+    						machineNumDetailField.setValue(vmDetailStore.getAt(0).get('vmId'));
+    						if(vmDetailStore.getAt(0).get('cpuName')==null || vmDetailStore.getAt(0).get('cpuName')==''){
+    							cpuDetail = vmDetailStore.getAt(0).get('cpu')+i18n._('core');
+    						}else{
+    							cpuDetail = vmDetailStore.getAt(0).get('cpuName')+'×'+vmDetailStore.getAt(0).get('cpu')+i18n._('core');
+    						}
+    						vmCPUDetailField.setValue(cpuDetail);
+    						vmMEMDetailField.setValue(vmDetailStore.getAt(0).get('memory')+ 'M');
+    						vmDiskDetailField.setValue(vmDetailStore.getAt(0).get('disk')+ 'G');
+    						var extDisk = vmDetailStore.getAt(0).get('extdisks');
+    						var extDiskCapacity='';
+    						if(extDisk!=null){
+	    						for(var i=0;i<extDisk.length;i++){
+	    							extDiskCapacity=extDiskCapacity+extDisk[i].ed_capacity+'G/';
+	    						}
+	    						extDiskCapacity = extDiskCapacity.substring(0,extDiskCapacity.length-1);
+    						}
+    						vmExtDiskDetailField.setValue(extDiskCapacity);
+    						if(vmDetailStore.getAt(0).get('network')!=null && vmDetailStore.getAt(0).get('network')!=''&& vmDetailStore.getAt(0).get('network')!=0){
+    							vmNeworkDetailField.setValue(vmDetailStore.getAt(0).get('network')+'M');
+    						}
+    						if(vmDetailStore.getAt(0).get('ip')!=''){
+    							vmIPDetailField.setValue(vmDetailStore.getAt(0).get('ip'));
+    						}
+    						
+    						vmOSDetailField.setValue(vmDetailStore.getAt(0).get('os'));
+    						taocanNameDetailField.setValue(catalogName);																		
+    						taocanUsedDetailField.setValue(taocanUsed);
+    						detailVMWin.setTitle(i18n._('Details'));//详情
+    						detailVMWin.add(detailVMForm);
+    						detailVMWin.show();
+    					}else{
+    						detailVMWin.hide();
+    					}
+    				}
+    			}
+    		});
+    		var proxy=vmDetailStore.getProxy();
+			proxy.setExtraParam('referenceId',referenceId) ;
+			vmDetailStore.load();    		
+    	}else{
+    		Ext.MessageBox.show({
+    	           title: i18n._('Prompt'),
+    	           msg: i18n._('selectOne'),
+    		           icon:Ext.MessageBox.WARNING,
+    		           buttons: Ext.MessageBox.OK    		           
+    		       }); 
+    	}
+    }
+Ext.create('Ext.Viewport',{
+	 layout:'fit',
+	 title:i18n._('Order management')+'&nbsp;&nbsp;>&nbsp;&nbsp;'+i18n._('Try Order List'),
+	 items: grid
+	});
+		var new_params={vmType:0};//试用云主机
+		Ext.apply(store.proxy.extraParams,new_params);
+		store.load();
+		
+		//操作完成后点确认刷新数据操作
+	    function reLoadData(btn){
+	    	store.load();
+	    };
+	    //审核试用申请的Vm
+	    function vmAudit(referenceId){
+	    	
+	    	// VM详细
+	    	//虚拟机名称
+	    	var vmNameDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 400,//200
+	    		labelWidth : 80,//80
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('vm_name')//主机名称
+	    	});
+	    	
+	    	//CPU信息
+	    	var vmCPUDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 300,//200
+	    		labelWidth : 80,//80
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('CPU')
+	    	});
+	    	//Memory信息
+	    	var vmMEMDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 300,//200
+	    		labelWidth : 80,//80
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('MEM')
+	    	});
+	    	//Disk信息
+	    	var vmDiskDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 300,//200
+	    		labelWidth : 80,
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('DISK')
+	    	});
+	    	//扩展盘信息
+	    	var vmExtDiskDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 300,//200
+	    		labelWidth : 80,
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('extDisk')
+	    	});
+	    	//Network信息
+	    	var vmNeworkDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 300,//200
+	    		labelWidth : 80,
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('Network')
+	    	});
+	    	
+	    	//OS信息
+	    	var vmOSDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 300,//200
+	    		labelWidth : 80,
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('OS')
+	    	});
+	    	//套餐名称
+	    	var taocanNameDetailField = Ext.create('Ext.form.field.Display', {//
+	    		width : 300,//200
+	    		labelWidth : 80,
+	    		style:{
+	    			marginLeft:"30px"
+	    		},
+	    		fieldLabel : i18n._('ServiceCatalog_name')//套餐名
+	    	});
+	    	
+	    	var vmDetailModel = Ext.define('vmDetailModel', {
+    			extend : 'Ext.data.Model',
+    			fields : [ 'vmId','vmName','cpuName','cpu', 'memory','disk',
+    			           'network','ip','os','scname',
+    			          'runTime','extdisks']
+    		});
+    		var vmDetailStore = Ext.create('Ext.data.Store',{
+    			model : 'vmDetailModel',
+    			proxy : {
+    				type : 'ajax',
+    				url : path+ '/../ops/ops!getTryVmInfo.action',
+    				reader : {
+    					type : 'json',
+    					root : 'resultObject',
+    					totalProperty : 'resultObject.totalCount'
+    				}
+    			},
+    			autoLoad : false,//true
+    			listeners : {
+    				load : function(vmDetailStore, records, successful, eOpts ) {			
+    					if (successful && vmDetailStore.getCount() > 0) {
+    						var catalogName = vmDetailStore.getAt(0).get('scname');	
+    						var cpuDetail = '';
+    						//alert(orderDate);
+    						vmNameDetailField.setValue(vmDetailStore.getAt(0).get('vmName'));
+    						if(vmDetailStore.getAt(0).get('cpuName')==null || vmDetailStore.getAt(0).get('cpuName')==''){
+    							cpuDetail = vmDetailStore.getAt(0).get('cpu')+i18n._('core');
+    						}else{
+    							cpuDetail = vmDetailStore.getAt(0).get('cpuName')+'×'+vmDetailStore.getAt(0).get('cpu')+i18n._('core');
+    						}
+    						vmCPUDetailField.setValue(cpuDetail);
+    						vmMEMDetailField.setValue(vmDetailStore.getAt(0).get('memory')+ 'M');
+    						vmDiskDetailField.setValue(vmDetailStore.getAt(0).get('disk')+ 'G');
+    						var extDisk = vmDetailStore.getAt(0).get('extdisks');
+    						var extDiskCapacity='';
+    						if(extDisk!=null){
+	    						for(var i=0;i<extDisk.length;i++){
+	    							extDiskCapacity=extDiskCapacity+extDisk[i].ed_capacity+'G;';
+	    						}
+    						}
+    						vmExtDiskDetailField.setValue(extDiskCapacity);
+    						if(vmDetailStore.getAt(0).get('network')!=null && vmDetailStore.getAt(0).get('network')!=''&& vmDetailStore.getAt(0).get('network')!=0){
+    							vmNeworkDetailField.setValue(vmDetailStore.getAt(0).get('network')+'M');
+    						}
+    						
+    						vmOSDetailField.setValue(vmDetailStore.getAt(0).get('os'));
+    						taocanNameDetailField.setValue(catalogName);																		
+    					}
+    				}
+    			}
+    		});
+    		var proxy=vmDetailStore.getProxy();
+			proxy.setExtraParam('referenceId',referenceId) ;
+			vmDetailStore.load(); 
+			
+// 			var zoneArr=[];
+// 			$.ajax({
+// 			    url:path+'/../sc/zone!getZoneByAdmin.action',
+// 			    async:false,
+// 			    dataType:'json',
+// 			    type:'POST',
+// 			    success:function(zoneObj){
+// 			        if(zoneObj.success){
+// 			            var zoneArrTemp=zoneObj.resultObject;
+// 			            for(var i=0;i<zoneArrTemp.length;i++){
+// 			            	zoneArr.push(zoneArrTemp[i]);
+// 			            }
+// 			        }else{
+// 			            alert("load domain failure");
+// 			        }
+// 			    },
+// 			    failure:function(){
+// 			        alert("load domain failure");
+// 			    }
+// 			});
+
+// 			//定义Zone
+// 			Ext.define('Zone',{
+// 						 extend: 'Ext.data.Model',
+// 						 fields:[
+// 						 {name:'zoneCode',type:'string'},
+// 						 {name:'zoneName',type:'string'}
+// 						 ]
+// 			});       
+// 			var zoneArrStore = Ext.create("Ext.data.Store",{
+// 			    model:"Zone",
+// 			    data:zoneArr
+// 			});
+			
+// 			var zoneCombo=Ext.create('Ext.form.ComboBox',{
+// 				margin:'0 5 5 30',
+// 				width:280,
+// 				fieldLabel:i18n._('zone'),
+// 				labelWidth:80,
+// 				store: zoneArrStore,
+// 				displayField: 'zoneName',
+// 				emptyText:i18n._('Please Select'),
+// 				editable:false,
+// 				queryMode: 'local',
+// 				valueField: 'zoneCode'
+// 			});
+	    	
+	    	var tryApproveWin=Ext.create('Ext.window.Window', {
+			   	title:i18n._('TryApproveWin'),
+				layout:'fit',
+			    height: 400,
+				modal:true,
+			    width: 500,
+				closable:false,
+				tools:[{
+				  type:'close',
+				  handler:function(){
+					  tryApproveWin.destroy();
+				  }
+				}],						
+			    items: {  
+			        xtype: 'form',
+					height:'100%',
+					width:'100%',
+					id:'tryApproveForm',
+					fieldDefaults:{
+						msgTarget:'side',
+						autoFitErrors:false
+					},
+			        border: false,
+			        dockedItems: [{
+			            xtype: 'toolbar',
+			            dock: 'bottom',
+			            ui: 'footer',
+			            layout: {
+			                pack: 'left'
+			            },
+			            items: [{
+							margin:'0 0 0 108',
+			                minWidth: 80,
+						    text: i18n._('pass'),
+			                handler:function(){
+			                	var remark=Ext.getCmp("tryApproveRemark").getValue();
+			                	Ext.Ajax.request({
+			        	    		url : path + '/../ops/ops!verifyForTryVm.action',
+			        	    		method : 'POST',
+			        	    		params : {
+			        	    			'referenceId' : referenceId,
+			        	    			//'zoneCode':zoneCombo.getValue(),
+			        	    			'remark':remark
+			        	    		},				
+			        	    		success : function(form, action) {
+			        	    			var obj = Ext.decode(form.responseText);
+			        	    			tryApproveWin.destroy();
+			        	    			if (!obj.success) {
+			        	    				Ext.MessageBox.show({
+			        	    					title : i18n._('errorNotice'),
+			        	    					msg : obj.resultMsg,
+			        	    					buttons : Ext.MessageBox.OK,
+			        	    					icon : Ext.MessageBox.WARNING
+			        	    				});
+			        	    				return;
+			        	    			}
+			        	    			store.load();
+			        	    			Ext.MessageBox.show({
+			        	    				title : i18n._('notice'),
+			        	    				msg : i18n._('Operating')+i18n._('Successful'),
+			        	    				icon : Ext.MessageBox.INFO,
+			        	    				buttons : Ext.MessageBox.OK,
+			        	    				fn: reLoadData
+			        	    			});					
+			        	    		},
+			        	    		failure : function(form, action) {
+			        	    			Ext.MessageBox.show({
+			        	    				title : i18n._('errorNotice'),
+			        	    				msg : i18n._('operateFail'),
+			        	    				buttons : Ext.MessageBox.OK,
+			        	    				icon : Ext.MessageBox.WARNING
+			        	    			});
+			        	    		}
+			        	    	});	
+			                }
+			           },{
+							margin:'0 0 0 30',
+			                minWidth: 80,
+						    text: i18n._('notPass'),
+						    handler:function(){
+						    	//不通过
+						    	var notPassRemark=Ext.getCmp("tryApproveRemark").getValue();
+						    	if(notPassRemark==''||notPassRemark==null){
+						    		Ext.MessageBox.show({
+		        	    				title : i18n._('notice'),
+		        	    				msg : i18n._('审批不通过，请填写备注。'),
+		        	    				buttons : Ext.MessageBox.OK,
+		        	    				icon : Ext.MessageBox.WARNING
+		        	    			});
+						    		return;
+						    	}
+						    	Ext.Ajax.request({
+			        	    		url : path + '/../ops/ops!cancelApplyTryVm.action',
+			        	    		method : 'POST',
+			        	    		params : {
+			        	    			'referenceId' : referenceId,
+			        	    			'comments':notPassRemark
+			        	    		},				
+			        	    		success : function(form, action) {
+			        	    			var obj = Ext.decode(form.responseText);
+			        	    			tryApproveWin.destroy();
+			        	    			if (!obj.success) {
+			        	    				Ext.MessageBox.show({
+			        	    					title : i18n._('errorNotice'),
+			        	    					msg : obj.resultMsg,
+			        	    					buttons : Ext.MessageBox.OK,
+			        	    					icon : Ext.MessageBox.WARNING
+			        	    				});
+			        	    				return;
+			        	    			}
+			        	    			Ext.MessageBox.show({
+			        	    				title : i18n._('notice'),
+			        	    				msg : i18n._('Operating')+i18n._('Successful'),
+			        	    				icon : Ext.MessageBox.INFO,
+			        	    				buttons : Ext.MessageBox.OK,
+			        	    				fn: reLoadData
+			        	    			});	
+			        	    			store.load();
+			        	    		},
+			        	    		failure : function(form, action) {
+			        	    			Ext.MessageBox.show({
+			        	    				title : i18n._('errorNotice'),
+			        	    				msg : i18n._('operateFail'),
+			        	    				buttons : Ext.MessageBox.OK,
+			        	    				icon : Ext.MessageBox.WARNING
+			        	    			});
+			        	    		}
+			        	    	});	
+						    	tryApproveWin.destroy();
+							}
+				          }					           
+			           ]
+			        }],
+			        items:[
+					vmNameDetailField,taocanNameDetailField,vmCPUDetailField, vmMEMDetailField,
+					vmDiskDetailField, vmExtDiskDetailField,vmNeworkDetailField,
+					vmOSDetailField,
+					//,
+					//zoneCombo,
+			        {
+				      xtype:'textarea',
+				      id:'tryApproveRemark',
+				      margin:'10 50 10 30',
+				      
+				      width:380,
+				      maxLength:250,
+				      enforceMaxLength:true,
+				      labelWidth:80,
+				      fieldLabel: i18n._('remark')	
+		            }							
+					]
+			    }
+			});
+	    	
+	    	tryApproveWin.show();
+	    };
+	    
+	    
+	    
+		
+            }
+        };
+    })();
+
+    MultiLang.init();
+      
+});
+
+
+
+
+
+function splitExtDisk(addDisk){
+	if(addDisk){
+		var extDiskNameArr=addDisk.split(",");
+		for(var i in extDiskNameArr){
+			extDiskNameArr[i]=extDiskNameArr[i]+'G';
+		}
+		return extDiskNameArr.join(',');
+		}else{
+			return '';
+		}
+}
+function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+ 
+function getUseFreeLong(second){
+	var d = 0;
+	var h = 0;
+	var m = 0;
+	var remainder = 0;
+	d = parseInt(second / (60 * 60 * 24));
+	remainder = second % (60 * 60 * 24);
+	h = parseInt(remainder / (60 * 60));
+	remainder = remainder % (60 * 60);
+	m = Math.round(remainder/60);
+	return d+i18n._('Day')+h+i18n._('Hour')+m+i18n._('minute');
+};
+
+function showMessage(message){
+	Ext.MessageBox.show({
+		title : i18n._('notice'),
+		msg : i18n._(message),
+		icon : Ext.MessageBox.INFO,
+		buttons : Ext.MessageBox.OK
+	});
+}
+
+
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

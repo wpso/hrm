@@ -1,0 +1,341 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title>用户信息修改 </title>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
+<link rel="stylesheet" type="text/css" href="../extjs-4.1.0/resources/css/ext-all.css" />
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+
+
+<script type="text/javascript">
+
+
+Ext.Loader.setConfig({
+    enabled: true
+});
+Ext.Loader.setPath('Ext.ux', '../js/ux');
+
+Ext.require([
+    'Ext.grid.*',
+    'Ext.data.*',
+	//'Ext.form.field.ComboBox',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+    //'Ext.selection.CheckboxModel'
+]);
+//var sm = Ext.create('Ext.selection.CheckboxModel');
+Ext.onReady(function(){
+var pwd=Ext.create('Ext.window.Window', {
+    title: '密码重置',
+	layout:'fit',
+    height: 160,
+	modal:true,
+    width: 290,
+	closable:false,
+	tools:[{
+	  type:'close',
+	  handler:function(){
+	    pwd.hide();
+	  }
+	}],
+
+	dockedItems: [{
+            xtype: 'toolbar',
+            dock: 'bottom',
+            ui: 'footer',
+            layout: {
+                pack: 'left'
+            },
+            items: [{
+				margin:'0 0 0 55',
+                minWidth: 80,
+                text: '提交'
+				
+           },{
+				margin:'0 0 0 7',
+                minWidth: 80,
+                text: '重置'
+				
+		
+            }]
+        }],
+    items: {  
+        xtype: 'form',
+		height:160,
+		width:240,
+		//style:'margin-top:0px;margin-left:0px;',
+        border: false,
+        items:[
+		{
+		xtype:'textfield',
+		name:'password',
+		margin:'10 0 5 17',
+		//labelAlign:'right',
+		//style:'margin-top:10px;margin-left:0px;',
+		fieldLabel:'原密码',
+		allowBlank: false 
+		},
+		{
+		xtype:'textfield',
+		name:'password',
+		margin:'0 0 5 17',
+		//labelAlign:'right',
+		style:'margin-left:0px',
+		fieldLabel: '新密码',
+		allowBlank: false
+		},
+		{
+		xtype:'textfield',
+		name:'password',
+		//labelAlign:'right',
+		margin:'0 0 5 17',
+		fieldLabel:'确认密码',
+		style:'margin-left:0px',
+		allowBlank: false
+		}/*,
+		{
+		style:'margin-left:100px;margin-top:40px;',
+		xtype:'button',
+		text:'提交',handler:function(){
+		Ext.MessageBox.confirm('请确认','是否真的要提交');
+	
+		}
+		
+		},
+		{
+		xtype:'button',
+		text:'重置',
+		style:'margin-top:40px;margin-left:5px;',
+		handler:function(){
+			this.up('form').getForm().reset();
+		}
+		
+
+		}*/
+
+		]
+    }
+});
+
+Ext.create('Ext.Viewport',{
+layout:'fit',
+ width:'100%',
+ 
+ items:[{
+   xtype:'panel',
+   title:'用户信息',
+   bodyPadding: 10,
+   width:'100%',
+   tools:[{
+		    type:'pin',
+			handler:function(){
+			  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_welcome.html';
+			}
+		  },{
+		    type:'refresh',
+			handler:function(){
+			  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_update.html';
+			}
+		  },{
+		    type:'left',
+			handler:function(){
+			  history.go(-1);
+			}
+		  }],
+   items: [
+	{
+	xtype: 'fieldset',
+    title: '基本信息',
+    //layout: 'anchor',
+	width:350,
+	
+	style:'margin-left:150px;',
+    //defaults: {anchor: '20%'},
+	items:[
+	{
+	xtype:'textfield',
+	fieldLabel:'用户名',
+	
+	style:'margin-left:20px;',
+	name:'用户名',
+	emptyText:'张三'
+	},
+	{
+	xtype:'radiogroup',
+	fieldLabel:'性别',
+	
+	style:'margin-left:20px;',
+	columns: 2,
+    vertical: true,
+    items: [
+    { boxLabel: '男', name: 'rb', inputValue: '1', checked: true },
+    { boxLabel: '女', name: 'rb', inputValue: '2'}
+    ]
+	},
+	{
+	xtype:'textfield',
+	fieldLabel:'身份证号',
+	name:'身份证号',
+	
+	style:'margin-left:20px;',
+	emptyText:'41092849555525'
+	},
+	{
+	xtype: 'textfield',
+	
+	style:'margin-left:20px;',
+	fieldLabel:'联系电话',
+	name:'联系电话',
+	emptyText:'5369-584522555'
+	},
+	{
+	xtype: 'textfield',
+	
+	style:'margin-left:20px;',
+	fieldLabel:'工作职位',
+	name:'工作职位',
+	emptyText:'项目经理'
+	}
+	]
+	//
+},
+{
+xtype: 'fieldset',
+    title: '住址信息',
+    //layout: 'anchor',
+	width:350,
+	
+	style:'margin-left:150px;',
+   // defaults: {anchor: '30%'},
+	items:[
+	{
+	
+	style:'margin-left:20px;',
+    fieldLabel: '所在国家',
+    name: '所在国家',
+	xtype:'combo',
+	name:'address',
+	allowBlank: false,
+	mode: 'local',
+    emptyText:'中国',
+    triggerAction:  'all',
+    forceSelection: true,
+    editable: false,
+    displayField: 'name',
+    valueField: 'value',
+	queryMode: 'local',
+	store:Ext.create('Ext.data.Store', {
+	fields : ['name', 'value'],
+	data: [
+	{name : '中国',   value: '中国'},
+	{name : '美国',  value: '美国'},
+	{name : '法国', value: '法国'}
+    ]
+    })
+		
+	},
+	{
+	xtype:'textfield',
+	
+	style:'margin-left:20px;',
+	fieldLabel:'详细地址',
+	name:'详细地址',
+	emptyText:'无锡国家软件园白羊座B座'
+	},
+	
+	{
+	 style:'margin-left:20px;',
+	 
+	 emptyText:'2-12-2011',
+	 fieldLabel:'上次登录时间',
+	 xtype: 'datefield',
+     allowBlank: false,
+     format: 'd-m-Y'
+     //minText: 'Cannot have a start date before the company existed!',
+     //maxValue: Ext.Date.format(new Date(), 'm/d/Y')
+            //}
+	},
+	{
+	style:'margin-left:20px;',
+	
+	emptyText:'2-12-2010',
+	fieldLabel:'创建时间',
+	xtype: 'datefield',
+    allowBlank: false,
+    format: 'd-m-Y'
+	},
+	{
+	style:'margin-left:20px;margin-top:2px;',
+	
+    fieldLabel: '记录版本号',
+    name: '记录版本号',
+	xtype:'combo',
+	name:'address',
+	allowBlank: false,
+	mode: 'local',
+    emptyText:'1.1',
+    triggerAction:  'all',
+    forceSelection: true,
+    editable: false,
+    displayField: 'name',
+    valueField: 'value',
+	queryMode: 'local',
+	store:Ext.create('Ext.data.Store', {
+	fields : ['name', 'value'],
+	data: [
+	{name : '1.1',   value: '1.1'},
+	{name : '1.2',  value: '1.2'},
+	{name : '1.3', value: '1.3'}
+    ]
+    })
+	}
+	]
+},
+{
+xtype:'button',
+text:'信息重置',
+
+style:'margin-left:200px;margin-top:10px;'
+},
+{
+xtype:'button',
+
+style:'margin-left:10px;margin-top:10px;',
+text:'信息保存',
+handler:function(){
+	Ext.MessageBox.confirm('请确认','是否真的要保存');	
+}
+},
+{
+xtype:'button',
+text:'密码重置',
+
+style:'margin-left:10px;margin-top:10px;',
+handler:function(){
+pwd.show();
+}
+}/*,
+{
+xtype:'button',
+text:'返回',
+
+style:'margin-left:10px;margin-top:15px;',
+handler:function(){
+history.go(-1);
+}
+}*/
+
+]	
+}]
+
+});
+///////////////////////////////////////////////
+});
+
+</script>
+ </head>
+
+ <body>
+  
+ </body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>VNC远程控制</title>
+        <meta http-equiv="X-UA-Compatible" content="chrome=1">
+        <link rel="stylesheet" href="include/plain.css" title="plain">
+        <link rel="shortcut icon" href="../../images/shared/favicon.ico" >
+		<link rel='stylesheet' type='text/css'
+			href='../../../extjs-4.1.0/resources/css/ext-all-gray.css' /><!--  ext-all-gray.css-->
+		<script language="JavaScript" src="../../../js/jquery-1.7.2.min.js"></script>
+		<script language="JavaScript" src="../../../js/head.js"></script>
+		<script type='text/javascript' src='../../../extjs-4.1.0/ext-all.js'></script>
+		<script type="text/javascript" charset="utf-8" src="../../../js/i18n.js"></script>
+        <script src="include/vnc.js"></script>
+        <script src="include/rfb.js"></script>
+		<style type="text/css">
+		a:link {
+			text-decoration: none;
+		}
+		</style>
+    </head>
+
+    <body style="margin: 0px;">
+    <header>
+		<div class="head_topLine"></div>
+	</header>
+	
+	<table cellpadding="0" cellspacing="0" border="0"
+		style="margin: 0 auto; width: 100%; height: 100%;">
+		<tr style="background: #2c2c2c;width:100%;height:58px;border:none">
+			<td width="170" align="right" valign="bottom">
+			 	<img id="vnc_logo" src="../../../images/logo/PH/logo.png" style="height:58px;width:128px;">
+			</td>
+			<td align="right">
+			<img id="sendCtrlAltDelButton" src="images/ctrl_alt_del.png" onMouseOver="overImg(this)" onMouseOut="outImg(this)" style="cursor: pointer;"/>
+			</td>
+			<td width="80" align="right" >
+			<img id="refresh" src="images/refresh.png" onMouseOver="overImg(this)" onMouseOut="outImg(this)" style="cursor: pointer;" onClick="refreshVNC()"/>
+			</td>
+			<td width="80" align="right" >
+			<img id="reboot" src="images/reboot.png" onMouseOver="overImg(this)" onMouseOut="outImg(this)" style="cursor: pointer;" onClick="rebootVNC()"/>
+			</td>
+			<td width="130" align="center">
+			<!-- <img id="maxiid" src="images/maximize.png" onMouseOver="overImg(this)" onMouseOut="outImg(this)" style="cursor: pointer" onClick="maximize()"/> -->
+			<!-- <img id="closeid" src="images/close.png" onMouseOver="overImg(this)" onMouseOut="outImg(this)" style="cursor: pointer;display:none" onClick="closeVNCWin()"/> -->
+			</td>
+		</tr>
+		<tr>
+			<td colspan="5" align="center" valign="middle">
+				<div id="VNC_screen">
+		            <div id="VNC_status_bar" class="VNC_status_bar" style="margin-top: 0px;display:none">
+		                <table border="0" width="100%"><tr>
+		                    <td><div id="VNC_status">Loading</div></td>
+		                    <td width="1%"><div id="VNC_buttons">
+		                        <input type=button value="Send CtrlAltDel">
+		                            </div></td>
+		                </tr></table>
+		            </div>
+		            <canvas id="VNC_canvas" width="640px" height="20px">
+		                Canvas not supported.
+		            </canvas>
+          		</div>
+			</td>
+		</tr>
+	</table>
+        <script>
+        /*jslint white: false */
+        /*global window, $, Util, RFB, */
+        "use strict";
+
+        var rfb;
+
+        function passwordRequired(rfb) {
+            var msg;
+            msg = '<form onsubmit="return setPassword();"';
+            msg += '  style="margin-bottom: 0px">';
+            msg += 'Password Required: ';
+            msg += '<input type=password size=10 id="password_input" class="VNC_status">';
+            msg += '<\/form>';
+            $D('VNC_status_bar').setAttribute("class", "VNC_status_warn");
+            $D('VNC_status').innerHTML = msg;
+        }
+        function setPassword() {
+            rfb.sendPassword($D('password_input').value);
+            return false;
+        }
+        function sendCtrlAltDel() {
+            rfb.sendCtrlAltDel();
+            return false;
+        }
+        function updateState(rfb, state, oldstate, msg) {
+            var s, sb, cad, level;
+            s = $D('VNC_status');
+            sb = $D('VNC_status_bar');
+            cad = $D('sendCtrlAltDelButton');
+            switch (state) {
+                case 'failed':       level = "error";  break;
+                case 'fatal':        level = "error";  break;
+                case 'normal':       level = "normal"; break;
+                case 'disconnected': level = "normal"; break;
+                case 'loaded':       level = "normal"; break;
+                default:             level = "warn";   break;
+            }
+
+            if (state === "normal") { cad.disabled = false; }
+            else                    { cad.disabled = true; }
+
+            if (typeof(msg) !== 'undefined') {
+                sb.setAttribute("class", "VNC_status_" + level);
+                s.innerHTML = msg;
+            }
+        }
+
+        window.onload = function () {
+            var host, port, password, token;
+
+            $D('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
+
+            document.title = unescape(WebUtil.getQueryVar('title', 'VNC远程控制'));
+            //vncURL["host"]=decode(WebUtil.getQueryVar('key'));
+        	//token = WebUtil.getQueryVar('token');
+            host = window.location.hostname;
+            port = window.location.port;
+            if(port==""){
+            	port=80;
+            }
+            password = WebUtil.getQueryVar('password', '');
+            if ((!host) || (!port)) {
+                updateState('failed',
+                    "Must specify host and port in URL");
+                return;
+            }
+
+            rfb = new RFB({'target':       $D('VNC_canvas'),
+                           'encrypt':      WebUtil.getQueryVar('encrypt', false),
+                           'true_color':   WebUtil.getQueryVar('true_color', true),
+                           'local_cursor': WebUtil.getQueryVar('cursor', true),
+                           'shared':       WebUtil.getQueryVar('shared', true),
+                           'updateState':  updateState,
+                           'onPasswordRequired':  passwordRequired});
+            //WebUtil.createCookie('token', token, 1)
+            rfb.connect(host, port, password);
+        };
+        </script>
+    <iframe id="remote_vnc" style="display: none" src=""></iframe>
+    <script type="text/javascript">load_remoteVNC();</script>
+	<div class="bottom_Line"></div>
+    </body>
+</html>
+

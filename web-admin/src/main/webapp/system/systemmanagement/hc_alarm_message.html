@@ -1,0 +1,347 @@
+<html>
+<head>
+<title>hc_alarm_message</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type='text/css'
+    href='../../extjs-4.1.0/resources/css/ext-all-gray.css' />
+<script type='text/javascript' src='../../extjs-4.1.0/ext-all.js'></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/data/PagingMemoryProxy.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../systemmanagement/common.js"></script>
+
+<script>
+Ext.Loader.setConfig({enabled: true});
+//Ext.Loader.setPath('Ext.ux', '../ext-4.0.7-gpl/examples/ux');
+Ext.require([       
+    'Ext.data.*',
+    'Ext.form.*',
+    'Ext.panel.Panel',
+    'Ext.view.View',
+    'Ext.layout.container.Fit',
+    'Ext.toolbar.Paging',
+    'Ext.selection.CheckboxModel',
+    'Ext.tip.QuickTipManager',
+    'Ext.ux.data.PagingMemoryProxy',
+    'Ext.ux.form.SearchField'
+]);
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+} 
+
+Ext.onReady(function() {    
+    Ext.QuickTips.init();
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+                  lang: params, 
+                  path: '../../resources'
+                });
+                if (params) {
+                    var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+            },
+            setup: function() { 
+            	var v_mask = null;
+            	//告警信息列表Model
+            	var alarmMessageModel = Ext.define('alarmMessageModel', {
+            		extend : 'Ext.data.Model',
+            		fields : [
+							   {name:'id'},
+							   {name:'alarm_time',mapping: 'alarm_time', type: 'date', dateFormat: 'time'},
+							   {name:'alarm_type'},	   
+							   {name:'alarm_content'},	   
+							   {name:'alarm_level'},	   
+							   {name:'alarm_receiver'},	   
+							   {name:'is_readed'}            		
+            		          ]
+            	});
+            	//告警信息列表Store
+            	var alarmMessageStore = Ext.create('Ext.data.Store', {
+            		model : 'alarmMessageModel',
+            		autoLoad : true,//true
+            		pageSize : pageSize,//每页显示16条数据
+            		sorters : [ {
+            			property : 'id',
+            			direction : 'DESC'
+            		} ],
+            		//remoteSort : true,
+            		proxy : new Ext.data.proxy.Ajax({
+            			//type : 'ajax',
+            			url : path + '/../monitoring/monitor!findAlarmMessagePage.action',
+            			reader : {
+            				type : 'json',
+            				root : 'resultObject.result',
+            				totalProperty : 'resultObject.totalCount'
+            			},
+            			listeners:{
+            				exception:function(reader, response, error, eOpts){
+            					ajaxException(reader, response, error, eOpts );
+            				}
+            			}
+            		}),	
+            		listeners : {
+            			beforeload : function(store,operation, eOpts ){	
+            				//遮罩层
+            				v_mask = new Ext.LoadMask(Ext.getBody(), {
+            					msg : i18n._('please wait'),
+            					removeMask : true			
+            				});
+            				v_mask.show();
+            			},
+            			load : function(store, records, successful, eOpts ){
+            				v_mask.hide();
+            			}
+            		}
+            	});
+            	//分页序号
+            	Ext.grid.PageRowNumberer = Ext.extend(Ext.grid.RowNumberer, { 
+            		baseCls:Ext.baseCSSPrefix + 'column-header ' + Ext.baseCSSPrefix + 'unselectable',
+            		cls:Ext.baseCSSPrefix + 'row-numberer',
+            		tdCls:Ext.baseCSSPrefix+"grid-cell-special",
+            	    renderer:function(value, cellmeta, record, rowIndex, columnIndex, store){   
+            	        return (store.currentPage - 1) * store.pageSize + rowIndex + 1;  
+            	    }       
+            	});
+            	
+            	//删除后刷新页面
+            	function afterDelete() {
+            	    var count = alarmMessageStore.data.length;
+            	    var total = alarmMessageStore.getTotalCount();
+            	    if(total != 1 && count == 1) {
+            	    	alarmMessageStore.previousPage();
+            	    } else {
+            	    	alarmMessageStore.load();
+            	    }
+            	}
+            	
+            	var alertGrid=Ext.create('Ext.grid.Panel', {
+            	    layout:'fit',            		
+            	    store:alarmMessageStore,
+            		simpleSelect:true,
+            		selModel: Ext.create('Ext.selection.RowModel'),
+            	    columns: [
+								Ext.create('Ext.grid.PageRowNumberer',{flex : 0.1}),
+								{
+									header: i18n._('Id'),
+									dataIndex:'id',
+									flex:0.1,
+									hidden:true
+								},
+								{
+									header: i18n._('alarm_time'),
+									dataIndex:'alarm_time',
+									flex:0.4,
+									renderer: Ext.util.Format.dateRenderer("Y-m-d H:i:s")
+								},
+								{
+									header: i18n._('alarm_type'), //告警类型
+									dataIndex: 'alarm_type',
+									flex:0.6,
+									renderer:function(value){
+										if(value== '1'){
+											return i18n._('ip_resource_is_not_enough');
+										}else if(value== '2'){
+											return i18n._('cpu_resource_is_not_enough');
+										}else if(value== '3'){
+											return i18n._('memory_resource_is_not_enough');
+										}else if(value== '4'){
+											return i18n._('store_resource_is_not_enough');
+										}
+									}
+								},
+								{
+									header: i18n._('alarm_content'), //告警内容
+									dataIndex: 'alarm_content',
+									flex:1.0
+								}
+            		],
+            		bbar: Ext.create('Ext.toolbar.Paging', {
+            	          store:alarmMessageStore,
+            	          displayInfo: true,
+            	          beforePageText:i18n._('beforePageText'),//"第"
+            	          firstText: i18n._('firstText'),//"第一页"
+            	          prevText: i18n._('prevText'),//"上一页"
+            	          nextText: i18n._('nextText'),//"下一页"
+            	          lastText: i18n._('lastText'),//"最后页"
+            	          refreshText: i18n._('refreshText')//"刷新"
+            	    }),           	
+            	    viewConfig: {
+            	    	stripeRows: true
+            	    },            		
+            		dockedItems:[
+            		{
+            			xtype:'toolbar',
+            			cls: 'toolbarCSS',
+            			dock: 'top',			
+            			items:[
+		            			{                				   
+		            				xtype : 'button',									
+		        					text: '<font id="set_as_read" color="#ffffff" >' + i18n._('set_as_read') + '</font>',//设为已读
+		        					listeners: {
+		        						 "mouseout" : function() {
+		        							 document.getElementById("set_as_read").style.color = "white";
+		        						 },
+		        						 "mouseover" : function() {
+		        							 document.getElementById("set_as_read").style.color = "black";
+		        						 }
+		        							
+		        					},
+		        					icon : 'images/del.png',
+		            				handler:function(){
+		            					getSessionUser();
+		            					// 删除告警
+		        						var rows = alertGrid.getSelectionModel().getSelection();
+		        						var Id;
+		        						if (rows.length > 0) {
+		        							Id = rows[0].get('id');
+                                            Ext.Ajax.request({
+      											url: path + '/../monitoring/monitor!setAlarmMessageAsRead.action',
+      											method: 'POST',
+      											params:{
+      												'id': Id
+      											},
+      											success: function (response) {
+      												var result=Ext.JSON.decode(response.responseText);
+      												if(result.success==true){　　　　　　　
+      													Ext.MessageBox.show({
+      														title : i18n._('notice'),
+      														msg : i18n._('Operating')+i18n._('Successful'),
+      														icon : Ext.MessageBox.INFO,
+      														buttons : Ext.MessageBox.OK,
+      														fn: afterDelete
+      													});																							
+      												}else{
+      													Ext.MessageBox.show({
+      														title : i18n._('notice'),
+      														msg : result.resultMsg,
+      														icon : Ext.MessageBox.INFO,
+      														buttons : Ext.MessageBox.OK
+      													});
+      													return;
+      												}
+      											//	alertStore.load();
+      											}
+      										});
+		        						} else {
+		        							Ext.MessageBox.show({
+		        								title : i18n._('Prompt'),
+		        								msg : i18n._('selectOne'),
+		        								icon : Ext.MessageBox.INFO,
+		        								buttons : Ext.MessageBox.OK
+		        							});
+		        							return;
+		        						}		
+		            				}            	   
+		            			},            			
+            					{xtype:'tbfill'}
+            				]
+            		}]
+            	});
+            	function reLoadData(){
+            		alarmMessageStore.load();
+            	}
+            	
+			      //添加资源警告类型，没有数据库加载
+		          Ext.data.t = [[1,i18n._('ip_resource_is_not_enough')],
+		                        [2,i18n._('cpu_resource_is_not_enough')],
+		                        [3,i18n._('memory_resource_is_not_enough')],
+		                        [4,i18n._('store_resource_is_not_enough')]];
+	              var alarm_type_store = new Ext.data.SimpleStore({ 
+	                  fields: ['id', 'name'],
+	                  data:Ext.data.t 
+	              });			      		      
+            	
+            	Ext.create('Ext.Viewport',{//Ext.Viewport
+                    layout:'border',
+                    width:'100%',                   
+                    items:[
+                        {
+                            region:'center',
+                            xtype:'panel',
+                            id:'panel_one',
+                            title:i18n._('Alarm-message'),
+                            width:'60%',
+                            layout:'fit',
+                            autoScroll:true,
+                            items:[
+                                {
+                                    xtype:'panel',
+                                    layout:'fit',
+                                    autoScroll:true,
+                                    items:alertGrid
+                                }
+                            ]
+                        }
+                    ]//panel
+                });         
+                
+            }
+        };
+    })();
+
+    MultiLang.init();
+});
+function getCookie(name){
+     var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+     if(arr != null) return unescape(arr[2]);
+     return null;
+};
+ 
+</script>
+</head>
+<body>
+</body>
+</html>

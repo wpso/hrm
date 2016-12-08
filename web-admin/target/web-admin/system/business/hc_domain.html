@@ -1,0 +1,1370 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> ttcloud </title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css" />
+  <link rel="stylesheet" type="text/css" href="../../css/example.css" />
+  <link rel='stylesheet' type='text/css'
+    href='../../js/ux/css/CheckHeader.css' />
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/ux/CheckColumn.js"></script>
+  <script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript" src="../business/common.js"></script>
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+            padding:0 0 0 0;
+        }
+        .x-tree-checked .x-grid-cell-inner {
+            font-style: italic;
+            color: #777;
+        }
+        .x-grid-row-selected .x-grid-cell {
+            background-color: #efefef !important;
+        }
+        .fontWhite{  
+            color: #ffffff;  
+        }
+    </style>
+  <script type="text/javascript">
+Ext.Loader.setConfig({
+    enabled: true
+});
+
+Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+    'Ext.ux.form.SearchField',
+    'Ext.ux.CheckColumn'
+]);
+
+//去掉字符串左边的空格 
+function ltrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(0)) != -1) {
+        var j = 0, i = str.length;
+        while (j < i && whitespace.indexOf(str.charAt(j)) != -1) {
+            j++;
+        }
+        str = str.substring(j, i);
+    }
+    return str;
+}
+
+//去掉字符串右边的空格 
+function rtrim(s) {
+    if (s == null) return "";
+    var whitespace = new String(" \t\n\r");
+    var str = new String(s);
+    if (whitespace.indexOf(str.charAt(str.length - 1)) != -1) {
+        var i = str.length - 1;
+        while (i >= 0 && whitespace.indexOf(str.charAt(i)) != -1) {
+            i--;
+        }
+        str = str.substring(0, i + 1);
+    }
+    return str;
+} 
+ 
+function isURL(str)
+{
+	var strRegex = "^((https|http|ftp|rtsp|mms)?://)"
+		+ "?(([0-9a-z_!~*'().&=+$%-]+: )?[0-9a-z_!~*'().&=+$%-]+@)?" // ftp的user@
+		+ "(([0-9]{1,3}\.){3}[0-9]{1,3}" // IP形式的URL- 199.194.52.184
+		+ "|" // 允许IP和DOMAIN（域名）
+		+ "([0-9a-z_!~*'()-]+\.)*" // 域名- www.
+		+ "([0-9a-z][0-9a-z-]{0,61})?[0-9a-z]\." // 二级域名
+		+ "[a-z]{2,6})" // first level domain- .com or .museum
+		+ "(:[0-9]{1,4})?" // 端口- :80
+		+ "((/?)|" // a slash isn't required if there is no file name
+		+ "(/[0-9a-z_!~*'().;?:@&=+$,%#-]+)+/?)$";
+		var re = new RegExp(strRegex);
+		return re.test(str_url);
+}
+
+Ext.onReady(function(){
+    var params;
+    
+    
+    MultiLang = (function() {
+    return {
+        init: function() {
+            params = getCookie("lang");
+            i18n.set({
+               lang: params, 
+               path: '../../resources'
+            });
+            if (params) {
+                 var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                 Ext.Ajax.request({
+                     url: url,
+                     success: this.onLoadExtLocaleSuccess,
+                     failure: this.onLoadExtLocaleFailure,
+                     scope: this
+                 });
+            } else {
+                 this.setup();
+            }
+        },
+        onLoadExtLocaleSuccess: function(response) {
+             try {
+                 eval(response.responseText);
+             } catch (e) {
+                 //Ext.Msg.alert('Failure', e.toString());
+             }
+             this.setup();
+        },
+        onLoadExtLocaleFailure: function() {
+             //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+             this.setup();
+        },
+        setup: function() {
+        	//var domainId = 0;
+            function vd(text){
+                if(ltrim(rtrim(text)) == '') {
+                    return i18n._('cannotBeNull');
+                } else {
+                    return true;
+                }
+            };
+            
+            //编码验证
+            function codeCheck(value) {
+            	var reg=/(^[a-zA-Z]{1,8}$)/; 
+                if(!reg.test(value)) {
+                    return i18n._("codeCheck");
+                }
+                return true;
+            }
+            
+            //电话验证
+            function phonecheck(value) {
+                var reg=/(^[0-9]{3,4}\-[0-9]{7,8}$)|(^[0-9]{7,8}$)|(^0{0,1}1[0-9]{10}$)/; 
+                if(!reg.test(value)) {
+                    return i18n._("telephoneCheck");
+                }
+                return true;
+            }
+            
+            function serviceHotlineCheck(value) {
+            	var reg=/(^[0-9]{3,4}\-[0-9]{7,8}$)|(^[0-9]{7,8}$)|(^0{0,1}1[0-9]{10}$)/; 
+                if(!reg.test(value)) {
+                    return i18n._("serviceHotlineCheck");
+                }
+                return true;
+            }
+            
+            //卡号验证
+            function cardNoCheck(value) {
+            	var reg=/(^[0-9]+$)/; 
+                if(!reg.test(value)) {
+                    return i18n._("cardNoCheck");
+                }
+                return true;
+            }
+            
+            function urlCheck(value) {
+            	var reg = /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z0-9]{2,6}$/;
+            	reg="^((https|http|ftp|rtsp|mms)://)?[a-z0-9A-Z]{3}\.[a-z0-9A-Z][a-z0-9A-Z]{0,61}?[a-z0-9A-Z]\.com|net|cn|cc (:s[0-9]{1-4})?/$";
+            	
+            	var strRegex = '^((https|http|ftp|rtsp|mms)?://)' 
+            		+ '?(([0-9a-z_!~*\'().&=+$%-]+: )?[0-9a-z_!~*\'().&=+$%-]+@)?' //ftp的user@ 
+            		+ '(([0-9]{1,3}.){3}[0-9]{1,3}' // IP形式的URL- 199.194.52.184 
+            		+ '|' // 允许IP和DOMAIN（域名） 
+            		+ '([0-9a-z_!~*\'()-]+.)*' // 域名- www. 
+            		+ '([0-9a-z][0-9a-z-]{0,61})?[0-9a-z].' // 二级域名 
+            		+ '[a-z]{2,6})' // first level domain- .com or .museum 
+            		+ '(:[0-9]{1,4})?' // 端口- :80 
+            		+ '((/?)|' // a slash isn't required if there is no file name 
+            		+ '(/[0-9a-z_!~*\'().;?:@&=+$,%#-]+)+/?)$'; 
+            	var re=new RegExp(strRegex); 
+            	if(!re.test(value)) {
+                    return i18n._("urlCheck");
+                }
+                return true;
+            }
+            
+            var domainForm=Ext.create('Ext.form.FormPanel', {
+                width: '440',
+                height: '420',
+                border:false,
+                bodyPadding : 10,
+                autoScroll:true,
+                fieldDefaults : {
+                    labelAlign : 'right',
+                    labelWidth : 80,
+                    anchor : '100%'
+                },  
+                items: [
+                {
+                    fieldLabel:i18n._('fullName'),
+                    name:"name",
+                    id:'name',
+                    width:400,
+                    xtype:"textfield",
+                    validator : vd,
+                    maxLength:50
+                }, {
+                    fieldLabel:i18n._('abbreviation'),
+                    id:'abbreviation',
+                    name:"abbreviation",
+                    width:400,
+                    xtype:"textfield",
+                    validator : vd,
+                    maxLength:10
+                },{
+                    fieldLabel:i18n._('domainCode'),
+                    name:"code",
+                    id:'code',
+                    width:400,
+                    xtype:"textfield",
+                    validator : codeCheck,
+                    maxLength:8
+                },{
+                    fieldLabel:i18n._('domainCode'),
+                    name:"codeText",
+                    id:'codeText',
+                    width:400,
+                    hidden: true,
+                    xtype:"displayfield"
+                }, {
+                    fieldLabel:i18n._('address'),
+                    id:'address',
+                    name:"address",
+                    width:400,
+                    xtype:"textfield",
+                    validator : vd,
+                    maxLength:100
+                },{
+                    fieldLabel:i18n._('url'),
+                    name:"url",
+                    id:'url',
+                    width:400,
+                    xtype:"textfield",
+                    validator : urlCheck,
+                    maxLength:500
+                }, {
+                    fieldLabel:i18n._('telephone'),
+                    id:'telephone',
+                    name:"telephone",
+                    width:400,
+                    xtype:"textfield",
+                    validator : phonecheck,
+                    maxLength:20
+                },{
+                    fieldLabel:i18n._('bank'),
+                    name:"bank",
+                    id:'bank',
+                    width:400,
+                    xtype:"textfield",
+                    validator : vd,
+                    maxLength:20
+                }, {
+                    fieldLabel:i18n._('cardNo'),
+                    id:'cardNo',
+                    name:"cardNo",
+                    width:400,
+                    xtype:"textfield",
+                    validator : cardNoCheck,
+                    maxLength:50
+                },{
+                    fieldLabel:i18n._('serviceHotline'),
+                    name:"serviceHotline",
+                    id:'serviceHotline',
+                    width:400,
+                    xtype:"textfield",
+                    validator : serviceHotlineCheck,
+                    maxLength:20
+                }, {
+                    fieldLabel:i18n._('publishingAddress'),
+                    id:'publishingAddress',
+                    name:"publishingAddress",
+                    width:400,
+                    xtype:"textfield",
+                    validator : vd,
+                    maxLength:100
+                },  {
+                    fieldLabel:i18n._('publishing_address_cp'),
+                    id:'publishing_address_cp',
+                    name:"publishing_address_cp",
+                    width:400,
+                    xtype:"textfield",
+                    //validator : vd,
+                    validator : urlCheck,
+                    maxLength:500
+                },  {
+                    fieldLabel:i18n._('copyright_cn'),
+                    id:'copyright_cn',
+                    name:"copyright_cn",
+                    width:400,
+                    xtype:"textfield",
+                     validator : vd, 
+                     maxLength:100 
+                },  {
+                    fieldLabel:i18n._('copyright_en'),
+                    id:'copyright_en',
+                    name:"copyright_en",
+                    width:400,
+                    xtype:"textfield",
+                     validator : vd, 
+                     maxLength:100 
+                }, {
+                    xtype:'radiogroup',
+                    margin:'10 0 0 0',
+                    columns:2,
+                    id:'type',
+                    fieldLabel:i18n._('onlinePayment'),
+                    width:300,
+                    items:[
+                        {name:"onlinePayFlag",inputValue:"true",boxLabel:i18n._('available'),checked:true},
+                        {name:"onlinePayFlag",inputValue:"false",boxLabel:i18n._('unavailable')}
+                    ]
+                },{
+                    fieldLabel:i18n._('domainDescription'),
+                    id:'description',
+                    name:"description",
+                    width:400,
+                    height:80,
+                    xtype:"textarea",
+                    maxLength:100
+                },{
+                    xtype:'textfield',
+                    id:'id',
+                    hidden: true,
+                    hideLabel: true
+                }],
+                buttons:[
+                    {text:i18n._('OK'), handler:clickSubmit},
+                    {text:i18n._('Cancel'), handler:cancelMethod}
+                ]
+                
+            });
+            
+            function clickSubmit() {
+                var name = Ext.getCmp('name').getValue();
+                var abbreviation = Ext.getCmp('abbreviation').getValue();
+                var code = Ext.getCmp('code').getValue();
+                var address = Ext.getCmp('address').getValue();
+                var url = Ext.getCmp('url').getValue();
+                var telephone = Ext.getCmp('telephone').getValue();
+                var bank = Ext.getCmp('bank').getValue();
+                var cardNo = Ext.getCmp('cardNo').getValue();
+                var description = Ext.getCmp('description').getValue();
+                var serviceHotline = Ext.getCmp('serviceHotline').getValue();
+                var publishingAddress = Ext.getCmp('publishingAddress').getValue();
+                var publishing_address_cp = Ext.getCmp('publishing_address_cp').getValue();
+                var copyright_cn = Ext.getCmp('copyright_cn').getValue();
+                var copyright_en = Ext.getCmp('copyright_en').getValue();
+                var id = Ext.getCmp('id').getValue();
+                var onlinePayFlag = domainForm.getForm().getValues()["onlinePayFlag"];
+                
+                if(!Ext.getCmp('name').isValid() 
+                		|| !Ext.getCmp('abbreviation').isValid()
+                		|| !Ext.getCmp('code').isValid()
+                		|| !Ext.getCmp('address').isValid()
+                		|| !Ext.getCmp('url').isValid()
+                		|| !Ext.getCmp('telephone').isValid()
+                		|| !Ext.getCmp('bank').isValid()
+                		|| !Ext.getCmp('cardNo').isValid()
+                		|| !Ext.getCmp('serviceHotline').isValid()
+                        || !Ext.getCmp('publishingAddress').isValid()
+                        || !Ext.getCmp('publishing_address_cp').isValid()
+                        || !Ext.getCmp('copyright_cn').isValid()
+                        || !Ext.getCmp('copyright_en').isValid()
+                        || !Ext.getCmp('description').isValid()
+                	    ){
+                    return;
+                }
+                
+                var progress=Ext.Ajax.request({
+                    url:path+'/../admin_mgmt/domain!editDomain.action',
+                    method:'POST',
+                    params:{
+                        'domainVO.id': id,
+                        'domainVO.name': name,
+                        'domainVO.abbreviation': abbreviation,
+                        'domainVO.code': code,
+                        'domainVO.address': address,
+                        'domainVO.url': url,
+                        'domainVO.telephone': telephone,
+                        'domainVO.bank': bank,
+                        'domainVO.cardNo': cardNo,
+                        'domainVO.serviceHotline': serviceHotline,
+                        'domainVO.publishingAddress': publishingAddress,
+                        'domainVO.publishing_address_cp': publishing_address_cp,
+                        'domainVO.copyright_zh_CN': copyright_cn,
+                        'domainVO.copyright_en_US': copyright_en,
+                        'domainVO.onlinePayFlag': onlinePayFlag,
+                        'domainVO.description': description
+                    },
+                    success:function(form,action){
+                        var obj = Ext.decode(form.responseText);
+                            if(obj==null || obj.success==null){
+                                Ext.MessageBox.show({
+                                   title: i18n._('errorNotice'),
+                                   msg: i18n._('returnNull'),
+                                   buttons: Ext.MessageBox.OK,
+                                   icon: Ext.MessageBox.ERROR
+                                });//INFO,QUESTION,WARNING,ERROR
+                                return;
+                            }
+                            if(!obj.success){
+                                Ext.MessageBox.show({
+                                   title: i18n._('notice'),
+                                   msg: obj.resultMsg,
+                                   buttons: Ext.MessageBox.OK,
+                                   icon: Ext.MessageBox.WARNING
+                                });
+                                return;
+                            }
+                            var message;
+                            if(id == '') {
+                            	message = i18n._('addDomainSuccess');
+                            } else {
+                            	message = i18n._('modifyDomainSuccess');
+                            }
+                            if(obj.resultObject != 'success') {
+                            	if(obj.resultObject == 'D00006') {
+                            		message = i18n._('codeexist')
+                            	} else if(obj.resultObject == 'D00007') {
+                                    message = i18n._('nameexist')
+                                } else {
+                                    message = i18n._('abbreviationexist')
+                                }
+                            	
+                            	Ext.MessageBox.show({
+                                    title: i18n._('notice'),
+                                    msg: message,
+                                    buttons: Ext.MessageBox.OK,
+                                    icon: Ext.MessageBox.INFO
+                                });
+                            	return;
+                            }
+                            Ext.MessageBox.show({
+                                title: i18n._('notice'),
+                                msg: message,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.INFO,
+                                fn: reLoadData
+                            });
+                            domainForm.getForm().reset();
+                            domainWin.hide();
+                    },   
+                    failure:function(form,action){   
+                        Ext.MessageBox.show({
+                            title: i18n._('errorNotice'),
+                            msg: i18n._('operateFail'),
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
+                        });  
+                    }
+                });
+            }
+            
+            //取消操作
+            function cancelMethod() {
+            	domainForm.getForm().reset();
+            	domainWin.hide();
+            }
+            
+            //重新加载
+            function reLoadData(){
+                store.load();
+            };
+            
+            //状态转换
+            function transferStatus(value) {
+            	if(value == '1') {
+            		return i18n._('Enable');
+            	} else {
+            		return i18n._('Disable');
+            	}
+            }
+            
+            var detailForm=Ext.create('Ext.form.FormPanel', {
+                width: '440',
+                height: '380',
+                border:false,
+                bodyPadding : 10,
+                autoScroll:true,
+                fieldDefaults : {
+                    labelAlign : 'right',
+                    labelWidth : 80,
+                    anchor : '100%'
+                },  
+                items: [
+                {
+                    fieldLabel:i18n._('fullName'),
+                    name:"name",
+                    id:'nameD',
+                    xtype:"displayfield",
+                    maxLength:50
+                }, {
+                    fieldLabel:i18n._('abbreviation'),
+                    id:'abbreviationD',
+                    name:"abbreviation",
+                    xtype:"displayfield",
+                    maxLength:10
+                },{
+                    fieldLabel:i18n._('domainCode'),
+                    name:"code",
+                    id:'codeD',
+                    xtype:"displayfield",
+                    maxLength:8
+                },{
+                    fieldLabel:i18n._('address'),
+                    id:'addressD',
+                    name:"address",
+                    xtype:"displayfield",
+                    maxLength:100
+                },{
+                    fieldLabel:i18n._('url'),
+                    name:"url",
+                    id:'urlD',
+                    xtype:"displayfield",
+                    maxLength:50
+                }, {
+                    fieldLabel:i18n._('telephone'),
+                    id:'telephoneD',
+                    name:"telephone",
+                    xtype:"displayfield",
+                    maxLength:20
+                },{
+                    fieldLabel:i18n._('bank'),
+                    name:"bank",
+                    id:'bankD',
+                    xtype:"displayfield",
+                    maxLength:20
+                }, {
+                    fieldLabel:i18n._('cardNo'),
+                    id:'cardNoD',
+                    name:"cardNo",
+                    xtype:"displayfield",
+                    maxLength:50
+                },{
+                    fieldLabel:i18n._('serviceHotline'),
+                    name:"serviceHotline",
+                    id:'serviceHotlineD',
+                    xtype:"displayfield",
+                    maxLength:20
+                },{
+                    fieldLabel:i18n._('publishingAddress'),
+                    id:'publishingAddressD',
+                    name:"publishingAddress",
+                    xtype:"displayfield",
+                    maxLength:100
+                },{
+                    fieldLabel:i18n._('publishing_address_cp'),
+                    id:'publishing_address_cpD',
+                    name:"publishing_address_cp",
+                    xtype:"displayfield",
+                    maxLength:100
+                },{
+                    fieldLabel:i18n._('copyright_cn'),
+                    id:'copyright_cnD',
+                    name:"copyright_cn",
+                    xtype:"displayfield",
+                    maxLength:100
+                },{
+                    fieldLabel:i18n._('copyright_en'),
+                    id:'copyright_enD',
+                    name:"copyright_en",
+                    xtype:"displayfield",
+                    maxLength:100
+                },{
+                    fieldLabel:i18n._('onlinePayment'),
+                    id:'onlinePaymentD',
+                    name:"onlinePayment",
+                    xtype:"displayfield",
+                    maxLength:100
+                },{
+                    fieldLabel:i18n._('domainDescription'),
+                    id:'descriptionD',
+                    name:"description",
+                    xtype:"displayfield",
+                    style:'word-break: break-all; word-wrap:break-word;'
+                }]
+            });
+            
+            //所有弹出窗
+            var domainWin = Ext.create('Ext.window.Window', {
+                width : 440,// 400
+                height : 470,
+                closable : false,
+                constrain : true,
+                modal : true,
+                tools : [ {
+                    type : 'close',
+                    handler : function() {
+                        domainForm.getForm().reset();
+                        domainWin.hide();
+                    }
+                } ],
+                layout : 'fit',
+                defaults : {
+                    split : false
+                },
+                items : [domainForm]
+            });
+            
+            //所有弹出窗
+            var detailWin = Ext.create('Ext.window.Window', {
+                width : 440,// 400
+                height : 380,
+                closable : false,
+                constrain : true,
+                modal : true,
+                tools : [ {
+                    type : 'close',
+                    handler : function() {
+                        detailWin.hide();
+                    }
+                } ],
+                layout : 'fit',
+                defaults : {
+                    split : false
+                },
+                items : [detailForm]
+            });
+            
+            //删除分平台
+            function statusMethod(flag) {
+                var rows = Ext.getCmp('domainGrid').getSelectionModel().getSelection();
+                if(rows.length > 0){
+                    var record = rows[0];
+                    var status = record.get('status');
+                    var message = '';
+                    
+                    if(status == flag) {
+                    	if(flag == '1') {
+                    		message = i18n._('enabledError');
+                    	} else {
+                    		message = i18n._('disabledError');
+                    	}
+                    	Ext.MessageBox.show({
+                            title:i18n._('notice'),
+                            msg: message,
+                            icon:Ext.MessageBox.INFO,
+                            buttons: Ext.MessageBox.OK
+                        }); 
+                    	return;
+                    }
+                    
+                    var url = '';
+                    var returnMsg = '';
+                    if(flag == '1') {
+                        message = i18n._('whetherEnable');
+                        url = path+'/../admin_mgmt/domain!enableDomain.action';
+                        returnMsg = i18n._('enableSuccess');
+                    } else {
+                    	message = i18n._('whetherDisable');
+                        url = path+'/../admin_mgmt/domain!disableDomain.action';
+                        returnMsg = i18n._('disableSuccess');
+                    }
+                    
+                       Ext.Msg.confirm(i18n._('confirm'),message, function(btn) {  
+                            if (btn == 'yes') {  
+                                Ext.Ajax.request({  
+                                    url : url,
+                                    jsonData:{
+                                        id: record.get('id')
+                                    },      
+                                    success : function(response) {
+                                        var obj = Ext.decode(response.responseText);
+                                        if(obj.success){
+                                        	Ext.MessageBox.show({
+                                                //title: '提示',msg: '删除成功',
+                                                title:i18n._('notice'),
+                                                msg:returnMsg,
+                                                icon:Ext.MessageBox.INFO,
+                                                buttons: Ext.MessageBox.OK
+                                                
+                                            }); 
+                                            store.load();
+                                        } else {
+                                        	Ext.MessageBox.show({
+                                                //title: '提示',msg: '删除成功',
+                                                title:i18n._('notice'),
+                                                msg:obj.resultMsg,
+                                                icon:Ext.MessageBox.INFO,
+                                                buttons: Ext.MessageBox.OK
+                                                
+                                            }); 
+                                        }
+                                    },  
+                                    failure : function(res) {  
+                                        Ext.MessageBox.show({
+                                              // title: '提示',msg: '网络错误',
+                                               title:i18n._('notice'),
+                                               msg:i18n._('Internet Error'),
+                                               icon:Ext.MessageBox.INFO,
+                                               buttons: Ext.MessageBox.OK
+                                               
+                                           }); 
+                                    },  
+                                    scope : this  
+                                  });  
+                            }  
+                          }, this);  
+                }else{
+                    Ext.MessageBox.show({
+                        //title: '提示', msg: '请选择一个用户',
+                        title:i18n._('notice'),
+                        msg:i18n._('selectOne'),
+                        icon:Ext.MessageBox.INFO,
+                        buttons: Ext.MessageBox.OK
+                    }); 
+                    return;
+                }   
+            }
+            
+            
+            Ext.define('DomainVO',{
+                extend: 'Ext.data.Model',
+                fields:[              
+                     {name:'id',type:'string'},
+                     {name:'code',type:'string'},
+                     {name:'name',type:'string'},
+                     {name:'abbreviation',type:'string'},
+                     {name:'address',type:'string'},
+                     {name:'url',type:'string'},
+                     {name:'telephone',type:'string'},
+                     {name:'bank', type:'string'},
+                     {name:'cardNo', type:'string'},
+                     {name:'serviceHotline', type:'string'},
+                     {name:'publishingAddress', type:'string'},
+                     {name:'publishing_address_cp', type:'string'},
+                     {name:'copyright_zh_CN', type:'string'},
+                     {name:'copyright_en_US', type:'string'},
+                     {name:'description',type:'string'},
+                     {name:'onlinePayFlag',type:'string'},
+                     {name:'status', type:'string'}
+                     ]
+            });
+            var store=Ext.create('Ext.data.Store', {
+                pageSize: pageSize,
+                autoLoad:true,
+                storeId:'loadInvoiceVOlist',
+                width:'100%',
+                model: 'DomainVO',
+                remoteSort:true,
+                proxy: {
+                    type: 'ajax',
+                    url : path+'/../admin_mgmt/domain!findDomainPage.action',
+                    reader: {
+                        type: 'json',    
+                        root: 'resultObject.result',
+                        totalProperty: 'resultObject.totalCount'
+                    },
+                    listeners:{
+            			exception:function(reader, response, error, eOpts){
+            				ajaxException(reader, response, error, eOpts );
+            			}
+            		}
+                }
+            });
+            
+            var invoiceGrid = Ext.create('Ext.grid.Panel', {
+                id:'domainGrid',
+                height:900,
+                //layout:'fit',
+                width:'100%',
+                title: i18n._('BusinessManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('domainManagement'),
+                store: store,
+                dockedItems:[{
+                    xtype:'toolbar',
+                    cls: 'toolbarCSS',
+                    dock: 'top',
+                    items:[
+                        {
+                            xtype:'button',
+                            text:'<font id="addButtonId" color="white">'+i18n._('add')+'</font>',
+                            listeners: {
+                                "mouseout" : function() {
+                                    document.getElementById("addButtonId").style.color = "white";
+                                },
+                                "mouseover" : function() {
+                                    document.getElementById("addButtonId").style.color = "black";
+                                }
+                            },
+                            tooltip:i18n._('add'),
+                            shadow:false,
+                            icon:'../../images/add_new.png',
+                            handler:function(){
+                            	getSessionUser();
+                            	Ext.getCmp('code').show();
+                                Ext.getCmp('codeText').hide();
+                            	domainWin.setTitle(i18n._('addDomain'));
+                            	domainWin.show();
+                            }
+                        },
+                        {
+                            xtype:'button',
+                            text:'<font id="modifyButtonId" color="white">'+i18n._('modify')+'</font>',
+                            listeners: {
+                                "mouseout" : function() {
+                                    document.getElementById("modifyButtonId").style.color = "white";
+                                },
+                                "mouseover" : function() {
+                                    document.getElementById("modifyButtonId").style.color = "black";
+                                }
+                            },
+                            tooltip:i18n._('modify'),
+                            shadow:false,
+                            icon:'../../images/edit_new.png',
+                            handler:function(){
+                            	getSessionUser();
+                                var rows = Ext.getCmp('domainGrid').getSelectionModel().getSelection();
+                                if(rows.length > 0){
+                                    var record = rows[0];
+                                    Ext.getCmp('code').hide();
+                                    Ext.getCmp('codeText').show();
+                                    Ext.getCmp('abbreviation').setValue(record.get('abbreviation'));
+                                    Ext.getCmp('code').setValue(record.get('code'));
+                                    Ext.getCmp('codeText').setValue(record.get('code'));
+                                    Ext.getCmp('address').setValue(record.get('address'));
+                                    Ext.getCmp('url').setValue(record.get('url'));
+                                    Ext.getCmp('telephone').setValue(record.get('telephone'));
+                                    Ext.getCmp('bank').setValue(record.get('bank'));
+                                    Ext.getCmp('cardNo').setValue(record.get('cardNo'));
+                                    Ext.getCmp('serviceHotline').setValue(record.get('serviceHotline'));
+                                    Ext.getCmp('publishingAddress').setValue(record.get('publishingAddress'));
+                                    Ext.getCmp('publishing_address_cp').setValue(record.get('publishing_address_cp'));
+                                    Ext.getCmp('copyright_cn').setValue(record.get('copyright_zh_CN'));
+                                    Ext.getCmp('copyright_en').setValue(record.get('copyright_en_US'));
+                                    Ext.getCmp('description').setValue(record.get('description'));
+                                    Ext.getCmp('id').setValue(record.get('id'));
+                                    Ext.getCmp('name').setValue(record.get('name'));
+                                    Ext.getCmp('type').setValue({'onlinePayFlag':record.get('onlinePayFlag')});
+                                    
+                                    domainWin.setTitle(i18n._('modifyDomain'));
+                                    domainWin.show();
+                                }else{
+                                    Ext.MessageBox.show({
+                                        //title: '提示', msg: '请选择一个用户',
+                                        title:i18n._('notice'),
+                                        msg:i18n._('selectOne'),
+                                        icon:Ext.MessageBox.INFO,
+                                        buttons: Ext.MessageBox.OK
+                                    }); 
+                                    return;
+                                }
+                            }
+                        },
+                        {
+                            xtype:'button',
+                            text:'<font id="detailButtonId" color="white">'+i18n._('Details')+'</font>',
+                            listeners: {
+                                "mouseout" : function() {
+                                    document.getElementById("detailButtonId").style.color = "white";
+                                },
+                                "mouseover" : function() {
+                                    document.getElementById("detailButtonId").style.color = "black";
+                                }
+                            },
+                            tooltip:i18n._('Details'),
+                            shadow:false,
+                            icon:'../../images/detail.png',
+                            handler:function(){
+                            	var rows = Ext.getCmp('domainGrid').getSelectionModel().getSelection();
+                                if(rows.length > 0){
+                                    var record = rows[0];
+                                    Ext.getCmp('abbreviationD').setValue(record.get('abbreviation'));
+                                    Ext.getCmp('codeD').setValue(record.get('code'));
+                                    Ext.getCmp('addressD').setValue(record.get('address'));
+                                    Ext.getCmp('urlD').setValue(record.get('url'));
+                                    Ext.getCmp('telephoneD').setValue(record.get('telephone'));
+                                    Ext.getCmp('bankD').setValue(record.get('bank'));
+                                    Ext.getCmp('cardNoD').setValue(record.get('cardNo'));
+                                    Ext.getCmp('serviceHotlineD').setValue(record.get('serviceHotline'));
+                                    Ext.getCmp('publishing_address_cpD').setValue(record.get('publishing_address_cp'));
+                                    Ext.getCmp('copyright_cnD').setValue(record.get('copyright_zh_CN'));
+                                    Ext.getCmp('copyright_enD').setValue(record.get('copyright_en_US'));
+                                    Ext.getCmp('publishingAddressD').setValue(record.get('publishingAddress'));
+                                    
+                                    var text = record.get('onlinePayFlag') == 'true' ? i18n._('available') : i18n._('unavailable');
+                                    Ext.getCmp('onlinePaymentD').setValue(text);
+                                    
+                                    var description = (record.get('description')).replace(/\n/g, '<br>');
+                                    Ext.getCmp('descriptionD').setValue(description);
+                                    Ext.getCmp('nameD').setValue(record.get('name'));
+                                    detailWin.setTitle(i18n._('domainDetail'));
+                                    detailWin.show();
+                                }else{
+                                    Ext.MessageBox.show({
+                                        //title: '提示', msg: '请选择一个用户',
+                                        title:i18n._('notice'),
+                                        msg:i18n._('selectOne'),
+                                        icon:Ext.MessageBox.INFO,
+                                        buttons: Ext.MessageBox.OK
+                                    }); 
+                                    return;
+                                }
+                            }
+                        },
+                        {
+                            xtype:'button',
+                            text:'<font id="enableButtonId" color="white">'+i18n._('Enable')+'</font>',
+                            listeners: {
+                                "mouseout" : function() {
+                                    document.getElementById("enableButtonId").style.color = "white";
+                                },
+                                "mouseover" : function() {
+                                    document.getElementById("enableButtonId").style.color = "black";
+                                }
+                            },
+                            tooltip:i18n._('Enable'),
+                            shadow:false,
+                            icon:'images/enableButton.png',
+                            handler:function(){
+                            	getSessionUser();
+                            	statusMethod('1'); 
+                            }
+                        },
+                        {
+                            xtype:'button',
+                            text:'<font id="disableButtonId" color="white">'+i18n._('Disable')+'</font>',
+                            listeners: {
+                                "mouseout" : function() {
+                                    document.getElementById("disableButtonId").style.color = "white";
+                                },
+                                "mouseover" : function() {
+                                    document.getElementById("disableButtonId").style.color = "black";
+                                }
+                            },
+                            tooltip:i18n._('Disable'),
+                            shadow:false,
+                            icon:'images/disableButton.png',
+                            handler:function(){
+                            	getSessionUser();
+                            	statusMethod('0'); 
+                            }
+                        },{
+                     	   xtype:'button',
+                    	   text: '<font id="relatedDomainid" color="#ffffff";>' + i18n._('brandRelated') + '</font>',                                        
+                    	   icon: 'images/relatedDomain.png',
+                    	   listeners: {                                            
+                    		   "mouseout" : function() {
+                    			   document.getElementById("relatedDomainid").style.color = "#ffffff";
+                    		   },
+                    		   "mouseover" : function() {
+                    			   document.getElementById("relatedDomainid").style.color = "#000000";
+                    		   },
+                    		   "click" : function() {
+                    			   //getSessionUser();
+                    			   var row = invoiceGrid.getSelectionModel().getSelection();
+                    			   if (row.length == 0) {  
+                    				   Ext.MessageBox.show({                                                         
+                    					   title:i18n._('notice'),
+                    					   msg:i18n._('selectOne'),
+                    					   icon:Ext.MessageBox.WARNING,
+                    					   buttons: Ext.MessageBox.OK                                                          
+                    				   });
+                    				   return;
+                    			   } 
+                    			   var id = row[0].get('id');
+                    			   var record = invoiceGrid.getStore().getById(id);
+                    			   var domainName = record.get('name');
+                    			   var domainCode = record.get('code');
+                    			   var isEnable = record.get('status');
+                    			   if(isEnable==0){
+                    				   Ext.MessageBox.show({                                                         
+                    					   title:i18n._('notice'),
+                    					   msg:i18n._('This domain is not available, can not be set!'),//此域不可用，无法设置为主区域！
+                    					   icon:Ext.MessageBox.WARNING,
+                    					   buttons: Ext.MessageBox.OK                                                          
+                    				   });
+                    				   return;
+        							}												                                                
+        							showRelatedBrandWin(id,domainName);
+                    		   }
+                    	   }
+                       },
+                        {xtype:'tbfill'},
+                        {
+                            xtype:'label',
+                            text:i18n._('quickQuery') + "：",
+                            cls: 'fontWhite'
+                        },
+                        {
+                            labelWidth : 50,
+                            width:150,
+                            xtype : 'searchfield',
+                            store : store,
+                            emptyText: i18n._('fullName') + '/' + i18n._('domainCode'),
+                            id : 'vmSearchfield',
+                            onTrigger1Click : function() {
+                                 var me = this, store = me.store, proxy = invoiceGrid
+                                         .getProxy(), val;
+                                 if (me.hasSearch) {
+                                     me.setValue('');
+                                     var proxy=store.getProxy();
+                                     proxy.setExtraParam('query', this.getValue());
+                                     //store.load();
+                                     store.loadPage(1,null);
+                                     me.hasSearch = false;
+                                     me.triggerEl.item(0).setDisplayed('none');
+                                     me.doComponentLayout();
+                                 }
+                             },
+                             onTrigger2Click : function() {// 点击查询按钮或回车调用该方法
+                                 var value = this.getValue();
+                                 if (value.length < 1) {
+                                     this.onTrigger1Click();
+                                     return;
+                                 }
+                                 
+                                 var proxy=store.getProxy();
+                                 proxy.setExtraParam('query',value);
+                                 store.loadPage(1,null);
+                                 this.hasSearch = true;
+                                 this.triggerEl.item(0).setDisplayed('block');
+                                 this.doComponentLayout();
+                             }
+                         }
+                     ]
+                }],
+                columns: [
+                    {header: i18n._('domainId'),  dataIndex: 'id',flex:1, sortable: false},
+                    {header: i18n._('fullName'),  dataIndex: 'name',flex:1, sortable: false},
+                    {header: i18n._('abbreviation'),  dataIndex: 'abbreviation', flex:1,sortable: false},
+                    {header: i18n._('domainCode'),  dataIndex: 'code', flex:1, sortable: false},
+                    {header: i18n._('url'),  dataIndex: 'url',flex:1, sortable: false},
+                    {header: i18n._('telephone'),  dataIndex: 'telephone', flex:1,sortable: false},
+                    {header: i18n._('status'),  dataIndex: 'status', flex:1,sortable: false, renderer:transferStatus}
+                ],
+                bbar: Ext.create('Ext.toolbar.Paging', {
+                    store: store,
+                    displayInfo: true                   
+                }),
+                listeners:{
+                    "itemdblclick":{
+                        fn:function(){
+                        	var rows = Ext.getCmp('domainGrid').getSelectionModel().getSelection();
+                            if(rows.length > 0){
+                                var record = rows[0];
+                                Ext.getCmp('abbreviationD').setValue(record.get('abbreviation'));
+                                Ext.getCmp('codeD').setValue(record.get('code'));
+                                Ext.getCmp('addressD').setValue(record.get('address'));
+                                Ext.getCmp('urlD').setValue(record.get('url'));
+                                Ext.getCmp('telephoneD').setValue(record.get('telephone'));
+                                Ext.getCmp('bankD').setValue(record.get('bank'));
+                                Ext.getCmp('cardNoD').setValue(record.get('cardNo'));
+                                Ext.getCmp('serviceHotlineD').setValue(record.get('serviceHotline'));
+                                Ext.getCmp('publishing_address_cpD').setValue(record.get('publishing_address_cp'));
+                                Ext.getCmp('copyright_cnD').setValue(record.get('copyright_zh_CN'));
+                                Ext.getCmp('copyright_enD').setValue(record.get('copyright_en_US'));
+                                Ext.getCmp('publishingAddressD').setValue(record.get('publishingAddress'));
+                                
+                                var text = record.get('onlinePayFlag') == 'true' ? i18n._('available') : i18n._('unavailable');
+                                Ext.getCmp('onlinePaymentD').setValue(text);
+                                
+                                var description = (record.get('description')).replace(/\n/g, '<br>');
+                                Ext.getCmp('descriptionD').setValue(description);
+                                Ext.getCmp('nameD').setValue(record.get('name'));
+                                detailWin.setTitle(i18n._('domainDetail'));
+                                detailWin.show();
+                            }else{
+                                Ext.MessageBox.show({
+                                    //title: '提示', msg: '请选择一行',
+                                    title:i18n._('notice'),
+                                    msg:i18n._('selectOne'),
+                                    icon:Ext.MessageBox.INFO,
+                                    buttons: Ext.MessageBox.OK
+                                }); 
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+            
+            Ext.create('Ext.Viewport',{
+                layout:'fit',
+                width:'100%',
+                items: invoiceGrid
+            });
+            var brandModel=Ext.define('brandModel', {
+            	extend: 'Ext.data.Model',
+            	fields: ['brandId', 'brandName'],                  
+            	idProperty: 'brandId'
+            });
+            function showRelatedBrandWin(domainId,domainName){
+            	var unRelatedBrandStore=Ext.create('Ext.data.Store',{
+            		  pageSize: pageSize,
+            	      model: 'brandModel',
+            	      proxy: new Ext.data.proxy.Ajax({
+            	      	url: path+'/../admin_mgmt/domain!findUnRelatedBrandByPage.action?domainId='+domainId,
+            			reader: {
+            	              type: 'json',
+            	              root: 'resultObject.result',
+            	              totalProperty: 'resultObject.totalCount'
+            	        }
+            	      }),
+            	      listeners:{
+            	    	  'load':function(){
+            	    		  unRelatedBrandGrid.reconfigure(unRelatedBrandStore);
+            	    	  }
+            	      }
+            	});
+            	unRelatedBrandStore.loadPage(1,null);
+            	
+            	var relatedBrandStore=Ext.create('Ext.data.Store',{
+            		  pageSize: pageSize,
+            	      model: 'brandModel',
+            	      proxy: new Ext.data.proxy.Ajax({
+            	      	url: path+'/../admin_mgmt/domain!findRelatedBrandByPage.action?domainId='+domainId,
+            			reader: {
+            	              type: 'json',
+            	              root: 'resultObject.result',
+            	              totalProperty: 'resultObject.totalCount'
+            	        }
+            	      }),
+            	      listeners:{
+            	    	  'load':function(){
+            	    		  relatedBrandGrid.reconfigure(relatedBrandStore);
+            	    	  }
+            	      }
+            	});
+            	relatedBrandStore.loadPage(1,null);
+            	
+            	var unRelatedBrandGridSm = Ext.create('Ext.selection.CheckboxModel');
+            	var unRelatedBrandGrid=Ext.create('Ext.grid.Panel', {
+            		layout:'fit',
+                    store: unRelatedBrandStore,
+                    title:i18n._('unRelatedBrand'),
+            		sortableColumns:false,
+            		border:false,
+            		simpleSelect :true,
+                 	selModel:unRelatedBrandGridSm,
+                    columns:[
+            		{xtype: 'rownumberer',flex:0.1},
+                    {
+                        text: i18n._('brandName'),
+                        dataIndex: 'brandName',
+                        flex: 0.5
+                    }],
+                    columnLines: true,
+            		bbar: Ext.create('Ext.PagingToolbar', {
+                        store: unRelatedBrandStore,
+            			pageSize: 16,
+            			displayInfo: true
+                    }),
+                    dockedItems: [ {
+                        xtype: 'toolbar',
+                        items: [
+                        {xtype:'tbfill'},
+                        {
+            				xtype:'displayfield',
+            				hideLabel:true,
+            				value:'<span style="bottom:3px;position:relative;">'+i18n._('QuickSearch')+':'+'</span>'
+            			},
+            	        {
+                            xtype: 'searchfield',
+                            hideLabel:true,
+            				hasSearch:true,
+            				emptyText:i18n._('brandName'),
+                            store: unRelatedBrandStore				
+            			 }
+                       ]
+                    }]
+                });
+            	var relatedBrandGridSm = Ext.create('Ext.selection.CheckboxModel');
+                var relatedBrandGrid=Ext.create('Ext.grid.Panel',{
+                    store: relatedBrandStore,
+                    title:i18n._('relatedBrand'),
+             		layout:'fit',
+             		sortableColumns:false,
+             		border:false,
+             		simpleSelect :true,
+                  	selModel:relatedBrandGridSm,
+                    columns:[
+             		{xtype: 'rownumberer',flex:0.1},
+                     {
+                         text: i18n._('brandName'),
+                         dataIndex: 'brandName',
+                         flex: 0.5
+                     }],
+                    columnLines: true,
+             		bbar: Ext.create('Ext.PagingToolbar', {
+                         store: relatedBrandStore,
+             			pageSize: 16,
+             			displayInfo: true
+                    }),
+                    dockedItems: [ {
+                         xtype: 'toolbar',
+                         items: [
+                         {xtype:'tbfill'},
+                         {
+             				xtype:'displayfield',
+             				hideLabel:true,
+             				value:'<span style="bottom:3px;position:relative;">'+i18n._('QuickSearch')+':'+'</span>'
+             			},
+             	        {
+                             xtype: 'searchfield',
+                             hideLabel:true,
+             				hasSearch:true,
+             				emptyText:i18n._('brandName'),
+                             store: relatedBrandStore
+             				
+             			 }
+                        ]
+                     }]
+            	});
+                
+                var buttonLeft=Ext.create("Ext.button.Button",{
+                   text:'<span style="bottom:3px;position:relative;font-size:18px;font-weight:bold;"> << </span>',
+                   width:40,
+                   margin:'25 5 50 5',
+                   height:30,
+                   handler:function(){
+                	   var rows=relatedBrandGrid.getSelectionModel().getSelection();
+                       if(rows.length>0){
+                    	   var idArr=[];
+                    	   for(var i=0;i<rows.length;i++){
+                    		   idArr.push(rows[i].get("brandId"));
+                    	   }
+                    	   Ext.Ajax.request({
+            				  url: path+'/../admin_mgmt/domain!disAssociateBrandAndDomain.action',
+            				  method: 'POST',
+            				  params:{
+            				    'domainId':domainId,
+            				    'brandIds':idArr
+            				  },
+            				  success: function (response) {
+            						var obj = Ext.decode(response.responseText);
+            	           	    	if(obj.success){　　　
+            	           	    		unRelatedBrandStore.loadPage(1,null);
+            	           	    		relatedBrandStore.loadPage(1,null);
+            	           	    		relatedBrandGridSm.deselectAll(true);
+            	           	    		unRelatedBrandGridSm.deselectAll(true);
+            						}else{
+            							showMsg(obj.resultMsg);   
+            				  		}
+            				  }
+            		      }); 
+                       }else{
+                    	   Ext.MessageBox.show({
+            					    title: i18n._('notice'),
+            					    msg:i18n._('select one associated brand'),
+                                 icon:Ext.MessageBox.WARNING,
+                                 buttons: Ext.MessageBox.OK
+            				}); 
+            				return;
+                       }
+                   }
+                });
+                var buttonRight=Ext.create("Ext.button.Button",{
+                	text:'<span style="bottom:3px;position:relative;font-size:18px;font-weight:bold;"> >> </span>',
+                	margin:'80 5 25 5',
+                    width:40,
+                    height:30,
+                    handler:function(){
+                       var rows=unRelatedBrandGrid.getSelectionModel().getSelection();
+                       if(rows.length>0){
+                    	   var idArr=[];
+                    	   for(var i=0;i<rows.length;i++){
+                    		   idArr.push(rows[i].get("brandId"));
+                    	   }
+                    	   Ext.Ajax.request({
+                    		   url: path+'/../admin_mgmt/domain!associateBrandAndDomain.action',
+                    		   method: 'POST',
+                    		   params:{
+                    			   'domainId':domainId,
+                    			   'brandIds':idArr
+                    		   },
+            					  success: function (response) {
+            							var obj = Ext.decode(response.responseText);
+            		           	    	if(obj.success){　　　
+            		           	    		unRelatedBrandStore.loadPage(1,null);
+            		           	    		relatedBrandStore.loadPage(1,null);
+             		           	    	relatedBrandGridSm.deselectAll(true);
+            	           	    		unRelatedBrandGridSm.deselectAll(true);
+            							}else{
+            								Ext.MessageBox.show({
+            									title : i18n._('notice'),
+            									msg : obj.resultMsg,
+            									icon : Ext.MessageBox.INFO,
+            									buttons : Ext.MessageBox.OK
+            								});
+            								return;
+            					  		}
+            					  }
+            			      }); 
+                       }else{
+                    	   Ext.MessageBox.show({
+            					    title: i18n._('notice'),
+            					    msg:i18n._('select one unassociated brand'),
+                                 icon:Ext.MessageBox.WARNING,
+                                 buttons: Ext.MessageBox.OK
+            				}); 
+            				return;
+                       }
+                    }
+                })
+                
+            	var relatedBrandWin=Ext.create('Ext.window.Window', {
+            	    title:i18n._('brandRelated')+'-'+domainName,
+            	    layout:'border',
+            	    height: 300,
+            		modal:true,
+            		constrain:true,
+            	    width: 620,
+            		closable:false,
+            		tools:[{
+            		  type:'close',
+            		  handler:function(){
+            			  relatedBrandWin.destroy();
+            		  }
+            		}],
+            	    items:[{
+            	    	region:'west',
+            	    	width:'45%',
+            	    	layout:'fit',
+            	    	items:[unRelatedBrandGrid]
+            	    },{
+            	    	region:'center',
+            	    	frame:true,
+            	    	width:'10%',
+            	    	items:[buttonRight,buttonLeft]
+            	    },{
+            	    	region:'east',
+            	    	width:'45%',
+            	    	layout:'fit',
+            	    	items:[relatedBrandGrid]
+            	    }]
+            	});
+            	
+            	relatedBrandWin.show();
+            }; 
+            
+        }
+    }})(); //MultiLang end
+    
+    MultiLang.init();
+    
+}); //Ext.onReady
+
+
+function getCookie(name){
+    var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+    if(arr != null) return unescape(arr[2]);
+    return null;
+}
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

@@ -1,0 +1,52 @@
+#content_title {
+    position:absolute;
+    margin-left:50px;
+    margin-top:15px;
+    width:680px;
+    height:35px;
+    z-index:11;
+    font-size:12px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+#form {
+    position: absolute;
+    height: 350px;
+    margin-left: 50px;
+    margin-top: 50px;
+    width: 700px;
+    z-index: 4;
+}
+
+.searchDiv{
+	float:left;display:none;
+}
+
+#pager{
+    width:50%;height:50px;bottom:0;align:center;float:left;margin-top: 2px;
+}
+
+#Pagination_Class {
+    text-align: center;
+    top: 0px;
+}
+#Pagination_Class ul{
+    padding:0px;
+    margin:0px;
+    width:100%;
+}
+#Pagination_Class li{
+    float: none;
+    display: inline-block;
+}
+
+.bottom {
+    position: absolute;
+    height: 50px;
+    margin-left: 50px;
+    margin-top: 400px;
+    width: 700px;
+    z-index: 4;
+    align:center;
+    text-align: center;
+}

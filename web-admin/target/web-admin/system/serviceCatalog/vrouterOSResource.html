@@ -1,0 +1,1099 @@
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="sccommon.js"></script>
+<style type="text/css">
+ #ext-quicktips-tip-body{
+ word-break:break-all;
+ word-wrap:break-word;
+ }
+</style>
+<script>
+    Ext.onReady(function() {
+                var params;
+                MultiLang = (function() {
+                    return {
+                        init : function() {
+                            params = getCookie("lang");
+                            i18n.set({
+                                lang : params,
+                                path : '../../resources'
+                            });
+                            if (params) {
+                                var url = Ext.util.Format
+                                        .format(
+                                                '../../extjs-4.1.0/locale/ext-lang-{0}.js',
+                                                params);
+                                Ext.Ajax.request({
+                                    url : url,
+                                    success : this.onLoadExtLocaleSuccess,
+                                    failure : this.onLoadExtLocaleFailure,
+                                    scope : this
+                                });
+                            } else {
+                                this.setup();
+                            }
+                        },
+                        onLoadExtLocaleSuccess : function(response) {
+                            try {
+                                eval(response.responseText);
+                            } catch (e) {}
+                            this.setup();
+                        },
+                        onLoadExtLocaleFailure : function() {
+                            this.setup();
+                        },
+                        setup : function() {
+/*********************************************页面渲染开始******************************************************************/
+
+Ext.define('ServiceItem', {
+    extend: 'Ext.data.Model',
+    fields: [
+    {name: 'id',  type: 'int'},
+    {name: 'name',  type: 'string'},
+    {name: 'serviceType',  type: 'int'},
+    {name: 'createDate',  type: 'date',dateFormat : 'time'},
+    {name: 'updateDate',  type: 'date',dateFormat : 'time'},
+    {name: 'description',  type: 'string'}
+    ]
+});
+
+
+var softwareModel=Ext.define('Software', {
+  extend: 'ServiceItem',
+  fields: [
+    {name: 'id',  type: 'int'},
+    {name: 'version',  type: 'string'},
+    {name: 'arch',  type: 'string'},
+    {name: 'imageType',  type: 'string'},
+    {name: 'language',  type: 'string'},
+    {name: 'platform',  type: 'string'},
+    {name: 'vendor',  type: 'string'},
+    {name: 'type',  type: 'string'}
+    ]
+});
+
+var osModel=Ext.define('Os', {
+  extend: 'Software',
+  fields: [
+    {name: 'family',  type: 'string'},
+    {name: 'imageId',  type: 'string'},
+    {name: 'port',  type: 'string'},
+    {name: 'imageSize',  type: 'string'}
+    ]
+});
+
+
+var imageArr=[];
+
+$.ajax({
+        url: path+'/../sc/serviceItem!getImagesForVRouter.action',
+        async:false,
+        dataType:'json',
+        type:'POST',
+        success:function(imageObj){
+            if(imageObj.success){
+                imageArr=[];
+                var imageArrTemp=imageObj.resultObject;
+                for(var i=0;i<imageArrTemp.length;i++){
+                    var item={imageId:imageArrTemp[i].id,imageName:imageArrTemp[i].metadata.distro,imageSize:imageArrTemp[i].metadata.default_size};
+                    imageArr.push(item);
+                }
+            }else{
+                showMsg(imageObj.resultMsg);
+            }
+        },
+        failure:function(){
+            showMsg("load Iamge failure");
+        }
+    });
+
+var imageStore=Ext.create("Ext.data.Store",{
+    //model:'NovaImage',
+    fields:['imageId','imageName','imageSize'],
+    data:imageArr
+});
+
+function tooltipRenderer(value,metedata,record,rowIndex,colIndex,store){
+     metedata.tdAttr = 'data-qtip="' + value + '"';
+     return value;
+}
+
+var os_columns=[{xtype:'rownumberer', flex:0.1},
+                {"text":i18n._('ID'),"dataIndex":"id",flex:0.15},
+                {"text":i18n._('name'),"dataIndex":"name",flex:0.32,renderer:tooltipRenderer},
+                {"text":i18n._('version'),"dataIndex":"version",flex:0.2,renderer:tooltipRenderer},
+                {"text":i18n._('arch'),"dataIndex":"arch",flex:0.2,renderer:archRenderer},
+                {"text":i18n._('family'),"dataIndex":"family",flex:0.2,renderer:tooltipRenderer},
+                {"text":i18n._('language'),"dataIndex":"language",flex:0.2},
+                {text:i18n._('IMAGE'),dataIndex:'imageId',flex:0.25,renderer:imageRenderer},
+                {"text":i18n._('createTime'),"dataIndex":"createDate",flex:0.34,"xtype":"datecolumn","format":"Y-m-d H:i:s"}
+                ];
+ 
+ var v_archStore = Ext.create('Ext.data.Store', {
+     fields: ['id', 'name'],
+     data : [
+             {"id":"1", "name":"x86_32"},
+             {"id":"2", "name":"x86_64"}
+     ]
+});
+ 
+ var v_languageStore = Ext.create('Ext.data.Store', {
+     fields: ['key', 'code'],
+     data : [
+             {"key":"CN", "code":"CN"},
+             {"key":"EN", "code":"EN"}
+     ]
+});
+ 
+var v_measureTypeStore = Ext.create('Ext.data.Store', {
+     fields: ['id', 'name'],
+     data : [
+             {"id":"1", "name":i18n._('Hour')},
+             {"id":"2", "name":i18n._('times')}
+     ]
+});
+
+var v_proxy=new Ext.create('Ext.data.proxy.Ajax',
+         {
+                 type: 'ajax',
+                 url : path+'/../sc/serviceItem!pageServiceItem.action',
+                reader: {
+                     type: 'json',
+                    root:'resultObject.result',
+                    totalProperty: 'resultObject.totalCount'
+                 }
+             }
+         );
+
+         var v_store=Ext.create('Ext.data.Store', {
+             pageSize:pageSize,
+            width:'100%',
+            sorters: [
+                      {
+                          property : 'createDate',
+                          direction: 'DESC'
+                      }
+                  ],
+            remoteSort:true,
+            proxy:v_proxy
+         });
+         v_proxy.setModel(osModel);
+         v_proxy.setExtraParam('serviceType',9);
+         v_store.load();
+         
+
+ 
+ function archRenderer(value){
+     if(value==1){
+         return 'x86_32';
+     }else if(value==2){
+         return 'x86_64';
+     }else{
+         return '未知';
+     }
+ }
+ 
+ function showMsg(msg){
+     Ext.MessageBox.show({
+         title: i18n._('Prompt'),
+          msg: msg==null?i18n._('Input error'):msg,
+        icon:Ext.MessageBox.INFO,
+       buttons: Ext.MessageBox.OK
+       });
+}
+ 
+ 
+ var v_height = 23;
+ var v_width = 290;
+ var v_margin = '4px';
+ Ext.define('textPanel',{
+    extend:'Ext.panel.Panel',
+    height:v_height,
+    width:v_width,
+    border:false,
+    //layout:'hbox',
+    style:{
+        marginTop:v_margin
+    },
+    items:[
+        {
+        xtype:'textfield',
+        enforceMaxLength:true,
+        width:235,
+        maxLength:50,
+        fieldLabel:''
+        }]
+    
+ });
+ 
+ var uploadFilePanel=Ext.create('Ext.form.Panel',{
+        width:400,
+        border:false,
+        height:100,
+        layout:'hbox',
+        defaults: {
+                border: false,
+                xtype: 'panel',
+                flex: 1,
+                layout: 'anchor'
+            },
+        items:[
+        {
+             xtype:'displayfield',
+             anchor:'20',
+             fieldLabel: i18n._('icon'),
+             value:'<image src="images/defaultOs.png"></image>'
+        },
+        {
+             xtype: 'filefield',
+             anchor: '%65',
+             style:{
+                 marginTop:'70px'
+             },
+             hideLabel:true,
+             name: 'image',
+             buttonText: i18n._('browse')
+        },{
+            xtype:'textfield',
+            hidden:true,
+            name:'resourceType',
+            value:'os'
+        }
+        ]
+    });
+ 
+ Ext.define('descPanel',{
+    extend:'Ext.panel.Panel',
+    height:40,
+    width:450,
+    border:false,
+    layout:'hbox',
+    style:{
+        marginTop:v_margin
+    },
+    items:[
+        {
+        height:30,
+        width:360,
+        xtype:'textarea',
+        enforceMaxLength:true,
+        maxLength:200,
+        fieldLabel:i18n._('ExpensesDesc')
+        }]
+    
+ });
+ Ext.define('pricePanel',{
+    extend:'Ext.panel.Panel',
+    height:v_height,
+    border:false,
+    layout:'hbox',
+    style:{
+        marginTop:v_margin
+    },
+    items:[     
+        {
+        xtype: 'numberfield',
+        fieldLabel:i18n._('Price'),
+        width:235,
+        enforceMaxLength:true,
+        maxLength:9,
+        maxValue: 1000000,
+        minValue: 0,
+        allowBlank: false
+        },
+        {
+        xtype: 'displayfield',
+        margin:'0 0 0 10',
+        value:i18n._('RMB/hour')
+        }
+        ]
+    
+ });
+ Ext.define('numberPanel',{
+    extend:'Ext.panel.Panel',
+    height:v_height,
+    border:false,
+    layout:'hbox',
+    style:{
+        marginTop:v_margin
+    },
+    items:[     
+        {
+        xtype: 'numberfield',
+        fieldLabel:'',
+        width:235,
+        maxValue: 1000000,
+        enforceMaxLength:true,
+        maxLength:9,
+        minValue: 0,
+        allowBlank: false
+        },
+        {
+        xtype: 'displayfield',
+        margin:'0 0 0 10',
+        value:''
+        }
+        ],
+    setLabel:function(value){
+        this.getComponent(0).setFieldLabel(value);
+    },
+    setExt:function(value){
+        this.getComponent(1).setValue(value);
+    }
+    
+ });
+
+ Ext.define('archPanel',{
+ extend:'Ext.form.ComboBox',
+                height:v_height,
+                width:235,
+                editable:false,
+                fieldLabel: i18n._('arch'),
+                store: v_archStore,
+                displayField: 'name',
+                value:v_archStore.getAt(0),
+                 valueField: 'id',
+                forceSelection:true
+ });
+ 
+ Ext.define('imageField',{
+     extend:'Ext.form.ComboBox',
+     //id:'imageCombo',
+     height:v_height,
+     width:235,
+     fieldLabel:"Image",
+     store: imageStore,
+     displayField: 'imageName',
+     value:imageStore.getAt(0),
+     emptyText:'请选择',
+     valueField: 'imageId',
+     forceSelection:true
+ });
+ 
+ Ext.define('languageField',{
+     extend:'Ext.form.ComboBox',
+                height:v_height,
+                width:235,
+                editable:false,
+                fieldLabel: i18n._('language'),
+                store: v_languageStore,
+                displayField: 'code',
+                value:v_languageStore.getAt(0),
+                 valueField: 'key',
+                forceSelection:true
+ })
+
+
+ Ext.define('commonForm',{ 
+ extend:'Ext.form.Panel',   
+                     border: false,
+                     items: [{
+                    xtype:"fieldset",
+                    border:true,
+                    anchor:'100% 100%',
+                     style:{
+                     marginLeft:"5px",
+                     marginRight:"5px",
+                      marginTop:"5px"
+                    }
+                    }]
+
+                    });
+                   
+ Ext.define('commonWindow',{                   
+            extend:'Ext.window.Window',
+             title: i18n._('add resource'),
+            modal:'true',
+            height:470,
+           constrain:true,
+             width: 550,
+             //autoHeight:true,
+             layout: 'anchor',
+             closable:false});
+ 
+ 
+ var os_name=Ext.create('textPanel');
+ os_name.getComponent(0).setFieldLabel(i18n._('name'));
+ var os_version=Ext.create('textPanel');
+ os_version.getComponent(0).setFieldLabel(i18n._('version'));
+ var os_arch=Ext.create('archPanel');
+ var os_lang=Ext.create('languageField');
+ //os_lang.getComponent(0).setFieldLabel(i18n._('language'));
+ var os_family=Ext.create('textPanel');
+ os_family.getComponent(0).setFieldLabel(i18n._('family'));
+ var os_vendor=Ext.create('textPanel');
+ os_vendor.getComponent(0).setFieldLabel(i18n._('vendor'));
+ var os_port=Ext.create('textPanel');
+ os_port.getComponent(0).setFieldLabel(i18n._('port'));
+ var os_image=Ext.create('imageField');
+ var os_desc= Ext.create('descPanel');
+
+ var osForm = Ext.create('commonForm');     
+ osForm.getComponent(0).setTitle(i18n._('os info'));
+ osForm.getComponent(0).add([os_name,os_version,os_arch,uploadFilePanel,os_lang,os_family,os_vendor,os_port,os_image,os_desc]);
+ 
+ var addButton=Ext.create('Ext.button.Button',{
+             style:'margin-right:5',
+             text: i18n._('Add')
+ });    
+
+var commonWindow=Ext.create('commonWindow', {
+                               //  items: cpuForm,
+                               constrain:true,
+                                tools:[{
+                                type:'close',
+                                handler:function(){                 
+                                commonWindow.getComponent(0).getForm().reset();
+                                commonWindow.hide();
+                                }
+                                }],               
+                                 buttons: [
+                                addButton,
+                                {   
+                                    style:'margin-right:5',
+                                     text: i18n._('reset'),
+                                    handler:function(){
+                                        commonWindow.getComponent(0).getForm().reset();
+                                        //commonWindow.hide();
+                                    }
+                                 }]
+});
+
+function setRecord(record){
+    os_name.getComponent(0).setValue(record.get('name'));
+    os_version.getComponent(0).setValue(record.get('version')); 
+    os_arch.setValue(record.get('arch'));
+    if(record.get('imageType')){
+        var imageSrc=path+"/../sc/upload!getIcon.action?siId="+record.get("id")+"&time="+new Date().getTime();
+        //uploadFilePanel.getComponent(0).setValue("<image src='../../"+record.get('icon')+"'></image>");
+        uploadFilePanel.getComponent(0).setValue("<image src='"+imageSrc+"'></image>");
+    }else{
+        uploadFilePanel.getComponent(0).setValue("<image src='images/defaultOs.png'></image>");
+    }
+    
+    os_lang.setValue(record.get('language'));
+    os_family.getComponent(0).setValue(record.get('family'));
+    os_vendor.getComponent(0).setValue(record.get('vendor'));
+    os_port.getComponent(0).setValue(record.get('port'));
+    os_desc.getComponent(0).setValue(record.get('description'));
+    os_image.setValue(record.get('imageId'));
+}
+
+function checkOsAddField(oldName){
+    var osName=os_name.getComponent(0).getValue();
+    var port =os_port.getComponent(0).getValue();
+    if(osName.length==0||osName.length>50){
+        showMsg(i18n._("osNameTip"));
+        return false;
+    }
+    if(!/^\S+$/g.test(osName)){
+        showMsg(i18n._("The name can not contain blank characters"));
+        return false;
+    }
+    if(!checkResourceNameRepeat(osName,4,oldName)){
+        showMsg(i18n._('sirepeat'));
+        return false;
+    }
+    
+    if(port==null||!/^\d+$/.test(port)){
+        showMsg(i18n._("portTip"));
+        return false;
+    }
+}
+
+function ajax_request(v_serviceType,v_json){
+    var v_mask = new Ext.LoadMask(Ext.getBody(), {
+                            msg: i18n._('saving'),
+                            msg:i18n._('ServiceCatalog is saving,please wait!'),
+                            removeMask: true //完成后移除
+                        });
+                    v_mask.show();                  
+                    Ext.Ajax.request({
+                        url: path+'/../sc/serviceItem!saveOSOrSoftware.action',
+                        params:{serviceType:v_serviceType},
+                        jsonData:v_json,
+                        success:function(response){
+                            v_mask.hide();
+                            commonWindow.hide();
+                            commonWindow.removeAll(false);
+                            var result=Ext.JSON.decode(response.responseText);
+                            if(result.success==false){
+                                Ext.MessageBox.show({
+                                    title:i18n._('notice'),
+                                   msg: result.resultMsg,
+                                   icon:Ext.MessageBox.INFO,                          
+                                   buttons: Ext.MessageBox.OK                             
+                                });
+                            }else{
+                                v_store.load();
+                            }
+                        }   
+                    }); 
+                    commonWindow.getComponent(0).getForm().reset();
+};
+
+function getImageSizeById(imageId){
+    if(imageArr.length>0){
+        for(var i=0;i<imageArr.length;i++){
+            if(imageId==imageArr[i].imageId){
+                return imageArr[i].imageSize;
+            }
+        }
+    }
+}
+
+function imageRenderer(value){
+    if(imageArr.length>0){
+        for(var i=0;i<imageArr.length;i++){
+            if(value==imageArr[i].imageId){
+                return imageArr[i].imageName;
+            }
+        }
+    }
+}
+
+function showWindow(){
+    addButton.setText(i18n._('Add'));
+    commonWindow.setTitle(i18n._('add resource'));
+    commonWindow.removeAll(false);                  
+        //commonWindow.add(osForm);
+                        commonWindow.add(osForm);
+                        addButton.setHandler(
+                        function(){
+                            //alert(os_image.getComponent(0).getValue());
+                            if(checkOsAddField()==false){return;}
+                            var filename=uploadFilePanel.getComponent(1).getValue();
+                            var fileSavePath="";
+                            if(filename!=null&&filename!=''){
+                                var dotIndex=filename.lastIndexOf(".");
+                                var appfix=filename.substring(dotIndex);
+                                var imageExtReg=/^(gif)|(png)|(bmp)|(jpg)$/gi;
+                             if(imageExtReg.test(appfix)){
+                                var uploadForm = uploadFilePanel.getForm();
+                                    uploadForm.submit({
+                                          url: path+"/../sc/upload!uploadFile.action",
+                                          success: function(form,action) {
+                                             var result=Ext.JSON.decode(action.response.responseText);
+                                              if(result.success=="true"){
+                                                  var siId=result.id;
+                                                  var v_json={
+                                                        id:siId,
+                                                        serviceType:9,
+                                                        name:os_name.getComponent(0).getValue(),
+                                                        version:os_version.getComponent(0).getValue(),  
+                                                        arch:os_arch.getValue(),
+                                                        language:os_lang.getValue(),
+                                                        family:os_family.getComponent(0).getValue(),
+                                                        vendor:os_vendor.getComponent(0).getValue(),
+                                                        imageId:os_image.getValue(),
+                                                        imageSize:getImageSizeById(os_image.getValue()),
+                                                        port:os_port.getComponent(0).getValue(),
+                                                        description:os_desc.getComponent(0).getValue()
+                                                    };
+                                            
+                                                  ajax_request(9,v_json);   
+                                              }else{
+                                                  showMsg(result.message);
+                                                  return;
+                                              }
+                                          },
+                                          failure:function(){
+                                              showMsg(i18n._("upload icon failure"));
+                                              return; 
+                                          }
+                                      });
+                             }else{
+                                showMsg(i18n._("uploadImageTip"));
+                                  return;
+                             }
+                            }else{
+                                var v_json={
+                                        serviceType:9,
+                                        //icon:fileSavePath,
+                                        name:os_name.getComponent(0).getValue(),
+                                        version:os_version.getComponent(0).getValue(),  
+                                        arch:os_arch.getValue(),
+                                        language:os_lang.getValue(),
+                                        family:os_family.getComponent(0).getValue(),
+                                        vendor:os_vendor.getComponent(0).getValue(),
+                                        imageId:os_image.getValue(),
+                                        imageSize:getImageSizeById(os_image.getValue()),
+                                        port:os_port.getComponent(0).getValue(),
+                                        description:os_desc.getComponent(0).getValue()
+                                    };
+                             ajax_request(9,v_json); 
+                            }
+                        
+                        });     
+                        commonWindow.show();
+}
+         
+         Ext.QuickTips.init();
+         Ext.form.Field.prototype.msgTarget = 'side';
+         var pluginExpanded = true;
+         var dataGrid=Ext.create('Ext.grid.Panel', {
+             layout:'fit',
+            title:i18n._('ServiceCatalog_resource')+'&nbsp;>&nbsp;VRouterOS',
+             store: v_store,
+            simpleSelect:true,
+            //sortableColumns:false,
+             columns: os_columns,
+            selModel: Ext.create('Ext.selection.RowModel'),
+             //selType: 'rowmodel',
+            bbar: Ext.create('Ext.PagingToolbar', {
+                   store:v_store ,
+                   displayInfo: true
+             }),
+             listeners:{
+                    'itemdblclick':{
+                        fn:function(){
+                            viewDetail();
+                        }
+                    }
+                },
+             dockedItems:[
+                        {xtype:'toolbar',
+                        dock: 'top',
+                        cls: 'toolbarCSS',
+                        //style:'background-color:#4c4c4c; background-image:url();',
+                        items:[{
+                            xtype:'button',
+                            margin:'0 0 0 0',
+                            icon:'images/add_new.png',
+                            text:'<font id="AddOs" color="white" >' +i18n._("Add") + '</font>',
+                            listeners: {
+                                 "mouseout" : function() {
+                                     document.getElementById("AddOs").style.color = "white";
+                                 },
+                                 "mouseover" : function() {
+                                     document.getElementById("AddOs").style.color = "black";
+                                 }
+                                    
+                             },
+                            handler:showWindow
+                        },
+                        {    
+                            margin:'0 0 0 0',
+                            text:'<font id="EditOS" color="white" >' +i18n._("edit") + '</font>',
+                            listeners: {
+                                 "mouseout" : function() {
+                                     document.getElementById("EditOS").style.color = "white";
+                                 },
+                                 "mouseover" : function() {
+                                     document.getElementById("EditOS").style.color = "black";
+                                 }
+                                    
+                            },
+                            style:'margin-left:750px;',
+                            icon: 'images/edit_new.png',
+                            handler:function(){
+                            addButton.setText(i18n._('Save'));
+                            commonWindow.setTitle(i18n._('edit'));
+                            var rows=dataGrid.getSelectionModel().getSelection();
+                            var scId=0;
+                            if(rows.length > 0){
+                              scId=rows[0].get('id');
+                            }else{
+                                     Ext.MessageBox.show({
+                                        title:i18n._('notice'),
+                                        msg:i18n._('please choose one column'),
+                                        icon:Ext.MessageBox.WARNING,
+                                       buttons: Ext.MessageBox.OK
+                                       }); 
+                                    return;
+                            }
+                            var record= v_store.getById(scId);
+                            setRecord(record);
+                            var oldName=record.get('name');
+                            commonWindow.add(osForm);
+                            
+                            addButton.setHandler(
+                                function(){
+                                    if(checkOsAddField(oldName)==false){return;}
+                                    var filename=uploadFilePanel.getComponent(1).getValue();
+                                    var fileSavePath="";
+                                    if(filename!=null&&filename!=''){
+                                        var dotIndex=filename.lastIndexOf(".");
+                                        var appfix=filename.substring(dotIndex);
+                                        var imageExtReg=/^(gif)|(png)|(bmp)|(jpg)$/gi;
+                                     if(imageExtReg.test(appfix)){
+                                        var uploadForm = uploadFilePanel.getForm();
+                                            uploadForm.submit({
+                                                  url: path+"/../sc/upload!uploadFile.action?siId="+scId,
+                                                  success: function(form,action) {
+                                                     var result=Ext.JSON.decode(action.response.responseText);
+                                                      if(result.success=="true"){
+                                                          var retId=result.id;
+                                                          var v_json={
+                                                            id:retId,
+                                                            serviceType:9,
+                                                            name:os_name.getComponent(0).getValue(),
+                                                            version:os_version.getComponent(0).getValue(),  
+                                                            arch:os_arch.getValue(),
+                                                            language:os_lang.getValue(),
+                                                            family:os_family.getComponent(0).getValue(),
+                                                            vendor:os_vendor.getComponent(0).getValue(),
+                                                            imageId:os_image.getValue(),
+                                                            imageSize:getImageSizeById(os_image.getValue()),
+                                                            port:os_port.getComponent(0).getValue(),
+                                                            description:os_desc.getComponent(0).getValue()
+                                                            };
+                                                    
+                                                            ajax_request(9,v_json); 
+                                                            
+                                                      }else{
+                                                          showMsg(result.message);
+                                                          return;
+                                                      }
+                                                  },
+                                                  failure:function(){
+                                                      showMsg(i18n._("upload icon failure"));
+                                                      return; 
+                                                  }
+                                              });
+                                     }else{
+                                        showMsg(i18n._("uploadImageTip"));
+                                          return;  
+                                     }
+                                            
+                                            
+                                    }else{
+                                        var v_json={
+                                                  id:scId,
+                                                serviceType:9,
+                                            name:os_name.getComponent(0).getValue(),
+                                            version:os_version.getComponent(0).getValue(),  
+                                            arch:os_arch.getValue(),
+                                            language:os_lang.getValue(),
+                                            family:os_family.getComponent(0).getValue(),
+                                            vendor:os_vendor.getComponent(0).getValue(),
+                                            imageId:os_image.getValue(),//record.get('imageId'),
+                                            imageSize:getImageSizeById(os_image.getValue()),//record.get('imageSize'),
+                                            port:os_port.getComponent(0).getValue(),
+                                            description:os_desc.getComponent(0).getValue()
+                                            };
+                                     ajax_request(9,v_json); 
+                                    }
+                                });
+                            
+                            commonWindow.show();
+                          }},
+                          {
+                              xtype:'button',
+                                itemId: 'detailButton',
+                                text:'<font id="detailNetwork" color="white" >' +i18n._("detail") + '</font>',
+                                listeners: {
+                                     "mouseout" : function() {
+                                         document.getElementById("detailNetwork").style.color = "white";
+                                     },
+                                     "mouseover" : function() {
+                                         document.getElementById("detailNetwork").style.color = "black";
+                                     }
+                                        
+                                },
+                                icon: 'images/detail.png',
+                                handler:function(){
+                                    viewDetail();
+                                }
+                          },
+                        {
+                              itemId: 'removeButton',
+                              text:'<font id="deleteOS" color="white" >' +i18n._("delete") + '</font>',
+                                listeners: {
+                                     "mouseout" : function() {
+                                         document.getElementById("deleteOS").style.color = "white";
+                                     },
+                                     "mouseover" : function() {
+                                         document.getElementById("deleteOS").style.color = "black";
+                                     }
+                                        
+                                },
+                              icon: 'images/delete.png',
+                            handler:function(){
+                            var rows=dataGrid.getSelectionModel().getSelection();
+                             var scId;
+                             if(rows.length > 0){
+                             scId=rows[0].get('id');
+                             
+                             Ext.MessageBox.show({
+                                            title: i18n._('notice'),
+                                            msg:i18n._('Are you sure to delete'),
+                                           buttons: Ext.MessageBox.YESNO,
+                                           icon: Ext.MessageBox.QUESTION,
+                                           fn:function(e){
+                                               if(e=="no"){
+                                                   return;
+                                               }else if(e=='yes'){
+                                                   Ext.Ajax.request({
+                                                        url: path+'/../sc/serviceItem!delete.action',
+                                                        method: 'POST',
+                                                        params:{
+                                                        'serviceItem.id':scId
+                                                        },
+                                                        success:function(response){
+                                                            var result=Ext.JSON.decode(response.responseText);
+                                                            if(result.success==false){
+                                                                Ext.MessageBox.show({
+                                                                    title:i18n._('notice'),
+                                                                   msg: result.resultMsg,
+                                                                   icon:Ext.MessageBox.INFO,                          
+                                                                   buttons: Ext.MessageBox.OK                             
+                                                            });
+                                                            }else{
+                                                                Ext.MessageBox.show({
+                                                                      title: i18n._('notice'),
+                                                                     msg:i18n._('delete successfully'),
+                                                                      icon:Ext.MessageBox.INFO,
+                                                                      buttons: Ext.MessageBox.OK
+                                       
+                                                                    });
+                                                            v_store.loadPage(1,null);
+                                                            }
+                                                        }
+                                                            });
+                                               }
+                                             
+                                            }
+                                    });     
+                                }else{
+                                     Ext.MessageBox.show({
+                                            title: i18n._('notice'),
+                                            msg:i18n._('please choose one column'),
+                                              icon:Ext.MessageBox.WARNING,
+                                              buttons: Ext.MessageBox.OK
+                                    }); 
+                                    return;
+                                }                  
+                                }
+                          },
+                        {xtype:'tbfill'},
+                        {
+                            xtype:'displayfield',
+                            hideLabel:true,
+                            value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+                        },
+                        {    
+                            xtype: 'searchfield',
+                            hideLabel:true,
+                            hasSearch:true,
+                            emptyText:i18n._('name'),
+                            store: v_store
+                        }
+                        ]}],
+             width: '100%'
+             
+         });            
+         
+         function viewDetail(){
+                var rows = dataGrid.getSelectionModel().getSelection();
+                if(rows.length > 0){
+                    var record = rows[0];
+                    var info =Ext.create('Ext.window.Window', {
+                        title: i18n._('resourceDetail'),
+                        height: 430,
+                        layout:'fit',
+                        width: 550,
+                    plain:true,
+                   constrain:true,
+                        border: false,
+                        closable:false,
+                        modal:true,
+                        tools:[{
+                          type:'close',
+                          handler:function(){
+                          info.destroy();
+                          }
+                        }],
+                        items: [
+                                            {
+                            xtype: 'form',
+                            height:'100%',
+                            width:550,
+                            autoScroll:true,
+                            border: false,
+                              items: [
+                        {
+                        xtype: 'fieldset',
+                        title: i18n._("resource_info"),
+                        width:440,
+                        margin:'0 40 0 50',
+                        //style:'margin-left:50px,margin-right:50px;',
+                        items:[
+                            {
+                                xtype: 'textfield',
+                                fieldLabel: "ID",
+                                name: i18n._("name"),
+                                labelWidth:80,
+                                width:400,
+                                readOnly:true,
+                                margin:'5 5',
+                                value: record.get('id')//,
+                                },
+                                {
+                                xtype: 'textfield',
+                                fieldLabel: i18n._("name"),
+                                name: i18n._("name"),
+                                labelWidth:80,
+                                width:400,
+                                readOnly:true,
+                                margin:'5 5',
+                                value: record.get('name')//,
+                                },
+                                {
+                                xtype:'textfield',
+                                fieldLabel:i18n._("version"),
+                                //style:'margin-left:30px',
+                                width:400,
+                                labelWidth:80,
+                                readOnly:true,
+                                margin:'5 5',
+                                name:i18n._("version"),
+                                value: record.get('version')
+                                },
+                                {
+                                    xtype:'textfield',
+                                    fieldLabel:i18n._('arch'),
+                                    name:i18n._('arch'),
+                                    width:400,
+                                    labelWidth:80,
+                                    readOnly:true,
+                                    margin:'5 5',
+                                    //style:'margin-left:30px;',
+                                    value: record.get('arch')==1?'x86_32':'x86_64'
+                                },
+                                {
+                                xtype:'displayfield',
+                                fieldLabel:i18n._("icon"),
+                                //style:'margin-left:30px',
+                                name:i18n._("icon"),
+                                labelWidth:80,
+                                width:400,
+                                readOnly:true,
+                                margin:'5 5',
+                                value: (record.get('imageType')==null||record.get('imageType')=='')?("<image src='images/defaultOs.png'></image>"):("<image src='"+path+"/../sc/upload!getIcon.action?siId="+record.get("id")+"&time="+new Date().getTime()+"'></image>")
+                                },
+                                {
+                                xtype:'textfield',
+                                fieldLabel:i18n._('language'),
+                                name:i18n._('language'),
+                                width:400,
+                                labelWidth:80,
+                                readOnly:true,
+                                margin:'5 5',
+                                //style:'margin-left:30px;',
+                                value: record.get('language')
+                                },
+                                {
+                                    xtype:'textfield',
+                                    fieldLabel:i18n._('family'),
+                                    name:i18n._('family'),
+                                    width:400,
+                                    labelWidth:80,
+                                    readOnly:true,
+                                    margin:'5 5',
+                                    //style:'margin-left:30px;',
+                                    value: record.get('family')
+                                    }
+                                ,
+                                {
+                                    xtype:'textfield',
+                                    fieldLabel:i18n._('vendor'),
+                                    name:i18n._('vendor'),
+                                    width:400,
+                                    labelWidth:80,
+                                    readOnly:true,
+                                    margin:'5 5',
+                                    //style:'margin-left:30px;',
+                                    value: record.get('vendor')
+                                    }
+                                ,
+                                {
+                                    xtype:'textfield',
+                                    fieldLabel:i18n._('port'),
+                                    name:i18n._('port'),
+                                    width:400,
+                                    labelWidth:80,
+                                    readOnly:true,
+                                    margin:'5 5',
+                                    //style:'margin-left:30px;',
+                                    value: record.get('port')
+                                },
+                                    {
+                                        //style:'margin-left:30px;',
+                                        fieldLabel: i18n._('IMAGE'),
+                                        name: "Image",
+                                        width:400,
+                                        labelWidth:80,
+                                        readOnly:true,
+                                        margin:'5 5',
+                                        xtype:'textfield',
+                                        value:imageRenderer(record.get('imageId'))
+                                        },
+                                    {
+                                            xtype: 'textarea',
+                                            labelWidth:80,
+                                            //style:'margin-left:30px;',
+                                            readOnly:true,
+                                            height:60,
+                                            width:400,
+                                            margin:'5 5',
+                                            fieldLabel: i18n._('ExpensesDesc'),
+                                            name: i18n._('ExpensesDesc'),
+                                            value:record.get("description")
+                                    }
+                        ]
+                    }
+                    ]
+                    }
+                    ]
+
+                    });
+                    //用户详细信息页面结束
+                    info.show();
+                }else{
+                        Ext.MessageBox.show({
+                          // title: '提示',
+                           //msg: '请选择一个用户',
+                           title:i18n._('notice'),
+                           msg:i18n._('please choose one column'),
+                           icon:Ext.MessageBox.INFO,
+                           buttons: Ext.MessageBox.OK
+                           
+                       }); 
+                    return;
+                }
+                
+            }
+         
+         Ext.create('Ext.Viewport',{
+             layout:'fit',
+             items: dataGrid
+            });
+ 
+ 
+/*********************************************页面渲染结束******************************************************************/
+
+                        }
+                    };
+                })();
+                MultiLang.init();
+});
+    
+     function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+         return null;
+     }
+</script>
+</head>
+<body>
+</body>
+</html>

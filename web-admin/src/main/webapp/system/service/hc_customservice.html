@@ -1,0 +1,593 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> ttcloud</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/MonthField.js"></script>
+  <script type="text/javascript" src="../../js/jquery-1.7.2.min.js" ></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript">
+
+     Ext.onReady(function(){
+    	 Ext.QuickTips.init(true,{dismissDelay:600000});
+    		Ext.apply(Ext.QuickTips.getQuickTip(), {
+    		    maxWidth: 1000,
+    		    trackMouse: true,
+    		    dismissDelay: 0
+    	});
+    	 var params;
+    	 MultiLang =(function(){
+            return {
+                init: function() {
+                    params = getCookie("lang");
+                    i18n.set({
+      				  lang: params, 
+      				  path: '../../resources'
+      				});
+                    if (params) {
+                        var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                        Ext.Ajax.request({
+                            url: url,
+                            success: this.onLoadExtLocaleSuccess,
+                            failure: this.onLoadExtLocaleFailure,
+                            scope: this
+                        });
+                    } else {
+                    	this.setup();
+                    }
+                },
+                onLoadExtLocaleSuccess: function(response) {
+                    try {
+                        eval(response.responseText);
+                    } catch (e) {
+                    }
+                    this.setup();
+                },
+                onLoadExtLocaleFailure: function() {
+                    this.setup();
+                },
+                setup: function() {
+    				
+//                 	Ext.define('MonthIncomingVO',{
+// 						 extend: 'Ext.data.Model',
+// 						 fields:[
+// 						 {name:'month',type:'string'},
+// 						 {name:'abbreviation',type:'string'},
+// 						 {name:'domainId',type:'Long'}
+// 						 ]
+// 			        });
+
+//                     var monthReport =Ext.create('Ext.data.Store', {
+//      					pageSize: pageSize,
+//      					autoLoad:false,
+//      					model: 'MonthIncomingVO',
+//      					sorters: [{
+//      					      property : 'month',
+//      					      direction: 'DESC'
+//      					}],
+//      					remoteSort:true,
+//      				    proxy: new Ext.data.proxy.Ajax({
+//      					     actionMethods: { read: 'POST' },
+//      					     url : '../../bss/responsibility!responsibilityMonth.action',
+//      						 reader: {
+//      					         type: 'json',    
+//      					         root: 'resultObject.result',
+//      					         totalProperty: 'resultObject.totalCount'
+//      					     }
+//      					})
+//      		        }); 
+//                      monthReport.load();
+
+
+                	Ext.define('ResponsibilityIncoming',{
+						 extend: 'Ext.data.Model',
+						 fields:[
+						 {name:'domainId',type:'Long'},
+						 {name:'yearMonth',type:'string'},
+						 {name:'abbreviation',type:'string'},
+						 {name:'prepayStr',type:'string'},
+						 {name:'consumeStr',type:'string'},
+						 {name:'refundStr',type:'string'},
+						 {name:'drawCashStr',type:'string'},
+						 {name:'machineStr',type:'string'},
+						 {name:'otherStr',type:'string'},
+						 {name:'monthResponsibilityBalanceStr',type:'string'},
+						 {name:'prepayBalanceStr',type:'string'},
+						 {name:'responsibilityStr',type:'string'}
+						 ]
+			        });
+                	
+		         	Ext.define('TranscationLog',{
+		        		extend: 'Ext.data.Model',
+		        		fields:[
+		        		        {name:'id',type:'long'},
+		        		        {name:'transcationOn',type:'date', dateFormat:'time'},
+		        		        {name:'transcationType',type:'short'},
+		        		        {name:'absTrAmount',type:'string'},
+		        		        {name:'absTrBalance',type:'string'},
+		        		        {name:'description',type:'string'},
+		        		        {name:'email',type:'string'},
+		        		        {name:'username',type:'string'},
+		        		        {name:'abbreviation',type:'string'},
+		        		        {name:'orderId',type:'Long'},
+		        		        {name:'orderNo',type:'string'},
+		        		        {name:'operator',type:'string'},
+		        		        {name:'absTrCoupons',type:'String'},
+		        		        {name:'absTrCouponsBalance',type:'String'}
+		        		       ]
+		        	});
+		         	
+		         	Ext.define('VMResponsibility',{
+		        		extend: 'Ext.data.Model',
+		        		fields:[
+		        		        {name:'id',type:'long'},
+		        		        {name:'email',type:'string'},
+		        		        {name:'orderNo',type:'string'},
+		        		        {name:'transcationType',type:'string'},
+		        		        {name:'transcationOnStr',type:'string'},
+		        		        {name:'startTimeStr',type:'string'},
+		        		        {name:'endTimeStr',type:'string'},
+		        		        {name:'usedDuration',type:'Long'},
+		        		        {name:'absAmountStr',type:'string'},
+		        		        {name:'noneventIncoming',type:'string'},
+		        		        {name:'finishedIncoming',type:'string'},
+		        		        {name:'currentIncomingStr',type:'string'},
+		        		        {name:'orderItemId',type:'string'},
+		        		        {name:'productType',type:'string'},
+		        		        {name:'description',type:'string'},
+		        		        {name:'itemAmountStr',type:'string'}
+		        		        
+		        		        
+		        		        
+		        		       ]
+		        	});
+
+                    var monthReport =Ext.create('Ext.data.Store', {
+     					pageSize: pageSize,
+     					autoLoad:false,
+     					model: 'ResponsibilityIncoming',
+     					sorters: [{
+     					      property : 'yearMonth',
+     					      direction: 'DESC'
+     					}],
+     					remoteSort:true,
+     				    proxy: new Ext.data.proxy.Ajax({
+     					     actionMethods: { read: 'POST' },
+     					     url : '../../bss/responsibility!responsibilityMonth.action',
+     						 reader: {
+     					         type: 'json',    
+     					         root: 'resultObject.result',
+     					         totalProperty: 'resultObject.totalCount'
+     					     }
+     					})
+     		        });
+     		        
+                    monthReport.load();
+                    
+
+                	//定义平台
+                  Ext.define('Domain',{
+                               extend: 'Ext.data.Model',
+                               fields:[
+                               {name:'month',type:'string'},
+                               {name:'abbreviation',type:'string'},
+                               {name:'domainId',type:'Long'}
+                               ]
+                  });
+                  var domainArr=[];
+                  $.ajax({
+                      url:'../../admin_mgmt/basicData!loadDomain.action',
+                      async:false,
+                      dataType:'json',
+                      type:'POST',
+                      success:function(domainObj){
+                          
+                          if(domainObj.success){
+                              var domainArrTemp=domainObj.resultObject;
+                              domainArr.push({id:'',abbreviation:'全部'});
+                              for(var i=0;i<domainArrTemp.length;i++){
+                              	domainArr.push(domainArrTemp[i]);
+                              }
+                          }else{
+                              alert("load domain failure");
+                          }
+                      },
+                      failure:function(){
+                          alert("load domain failure");
+                      }
+                  });
+
+                          
+                  var domainStore = Ext.create("Ext.data.Store",{
+                      model:"Domain",
+                      data:domainArr
+                  });
+                  
+        			var sm = Ext.create('Ext.selection.RowModel');
+
+        			var imgb = new Ext.Button({  
+        		        text: '<font color="#ee7700">'+i18n._('Search')+'</font>',
+        		        icon: "images/search.png",
+        		        handler :function(btn) { 
+	    	        		  var startTime=Ext.getCmp('beginDate').getValue();
+	    	        		  var t = Ext.getCmp('toDate').getValue();
+		    	        	  if(null!=startTime&&null!=t){
+		    	        		  if(t.getTime()-startTime.getTime()<0){
+		    	        			  Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : i18n._('the expiry month should be later than effective month'),
+											buttons : Ext.MessageBox.OK,
+											icon : Ext.MessageBox.ERROR
+										});
+    		    	        		  return null;
+    		    	        	  }
+    		    	          } 
+        		        	var proxy = monthReport.getProxy();
+        		        	var b = Ext.getCmp('beginDate').getValue();
+        		        	var e = Ext.getCmp('toDate').getValue();
+        		        	var domainId = Ext.getCmp('domainId').getValue();
+							proxy.setExtraParam('queryVO.startTime',b);
+							proxy.setExtraParam('queryVO.endTime',e);
+							proxy.setExtraParam('queryVO.domainId',domainId);
+							proxy.extraParams.start = 0;
+							monthReport.loadPage(1,null);
+        	            }
+        		    }); 
+        		    
+        			//日志列表
+        			Ext.create('Ext.Viewport',{
+        			    layout:'fit',
+        			    width:'100%',
+        				height:'100%',
+        			    items: Ext.create('Ext.grid.Panel', {
+            			    id:'monthReportList',
+	        				height:900,
+	        				sortableColumns:false,
+	        				width:'100%',
+	        				title: i18n._('statisticsReport') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('responsibilityReport'),
+	        			    store: monthReport,
+	        				selModel: sm,
+	        				listeners:{
+	        				},
+	        				bbar: Ext.create('Ext.toolbar.Paging', {
+	        					store: monthReport,		
+	        					pageSize:0,			
+	        					displayInfo: true					
+	        				}),
+	        				viewConfig: {
+	        					   stripeRows: true						
+	        				},
+	        				dockedItems : [ {
+	        					xtype : 'toolbar',
+	        					cls: 'toolbarCSS',
+	        					dock : 'top',
+	        					items : [{
+									xtype:'button',//导出
+								    text:'<font id="export" color="white">'+i18n._('export')+'</font>',
+								    listeners: {
+										 "mouseout" : function() {
+											 document.getElementById("export").style.color = "white";
+										 },
+										 "mouseover" : function() {
+											 document.getElementById("export").style.color = "black";
+										 }
+											
+									},
+								    tooltip:i18n._('export'),
+								    shadow:false,
+								    icon:'images/export.png',
+								    handler:function(){
+				        				var rows = Ext.getCmp('monthReportList').getSelectionModel().getSelection();
+				        				if(rows.length > 0){
+   				        				 var month = rows[0].get('yearMonth');
+   				        				 var domainId = rows[0].get('domainId');
+   				            			 var downloadForm = Ext.create('Ext.form.Panel',{
+                                                frame:true,
+                                                standardSubmit:true
+                                            });
+                                            downloadForm.getForm().submit({
+                                                url:'../../excelExport!responsibilityExcelExport.action',
+                                                method:'post',
+                                                params:{
+                                               	 'queryVO.month':month,
+                                               	 'queryVO.domainId':domainId
+                                                }
+                                            });
+				        				}else{
+			        				    	Ext.MessageBox.show({
+			          				          // title: '提示',
+			          				           //msg: '请选择一个用户',
+			          						   title:i18n._('notice'),
+			          					       msg:i18n._('selectOne'),
+			          				           icon:Ext.MessageBox.INFO,
+			          				           buttons: Ext.MessageBox.OK
+			          				           
+			          				       }); 
+			          					return;
+			          				} 
+									}
+								},{
+									icon: '../../images/detail.png', 
+							        text:'<font id="detailUser" color="white" >' + i18n._('details') + '</font>',
+									listeners: {
+										 "mouseout" : function() {
+											 document.getElementById("detailUser").style.color = "white";
+										 },
+										 "mouseover" : function() {
+											 document.getElementById("detailUser").style.color = "black";
+										 }
+											
+									 },
+									handler:function(){
+				        				var rows = Ext.getCmp('monthReportList').getSelectionModel().getSelection();
+				        				if(rows.length > 0){
+				        					var domainId = rows[0].get('domainId');
+				        					var yearMonth = rows[0].get('yearMonth');
+				        					detail(domainId,yearMonth);
+				        				}else{
+			        				    	Ext.MessageBox.show({
+			          				          // title: '提示',
+			          				           //msg: '请选择一个用户',
+			          						   title:i18n._('notice'),
+			          					       msg:i18n._('selectOne'),
+			          				           icon:Ext.MessageBox.INFO,
+			          				           buttons: Ext.MessageBox.OK
+			          				           
+			          				       }); 
+			          					return;
+			          				} 
+									
+									}},{xtype:'tbfill'},
+						            {
+										xtype:'displayfield',
+										hideLabel:true,
+										value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('search')+':'+'</font></span>'
+									},{
+							            xtype:'combobox',
+							        	margin:'0 5 5 0',
+							        	id:"domainId",
+										width:130,
+										hideLabel:true,
+							        	store: domainStore,
+							        	queryMode: 'local',
+							        	displayField: 'abbreviation',
+							        	emptyText:i18n._('Please Select'),
+							            valueField: 'id',
+										listeners : {
+											'change':function(){
+											 
+	    	        		  var startTime=Ext.getCmp('beginDate').getValue();
+	    	        		  var t = Ext.getCmp('toDate').getValue();
+		    	        	  if(null!=startTime&&null!=t){
+		    	        		  if(t.getTime()-startTime.getTime()<0){
+		    	        			  Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : i18n._('the expiry month should be later than effective month'),
+											buttons : Ext.MessageBox.OK,
+											icon : Ext.MessageBox.ERROR
+										});
+    		    	        		  return null;
+    		    	        	  }
+    		    	          } 
+        		        	var proxy = monthReport.getProxy();
+        		        	var b = Ext.getCmp('beginDate').getValue();
+        		        	var e = Ext.getCmp('toDate').getValue();
+        		        	var domainId = Ext.getCmp('domainId').getValue();
+							proxy.setExtraParam('queryVO.startTime',b);
+							proxy.setExtraParam('queryVO.endTime',e);
+							proxy.setExtraParam('queryVO.domainId',domainId);
+							proxy.extraParams.start = 0;
+							monthReport.loadPage(1,null);
+											
+											}
+										}
+									    },
+	        				    {
+	    		    				xtype:'displayfield',
+	    		    				hideLabel:true,
+	    		    				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('debtperiod')+':'+'</font></span>'
+	    		    			},
+	    		    			{
+	    		    			    xtype: 'monthfield',
+	    		    			    id: 'beginDate',
+	    		    			    width : 90,
+	    		    			    name: 'beginDate',
+	    		    			    emptyText:i18n._('beginMonth'),//结束日期
+	    		    			    maxValue: new Date(),
+	    		    			    format:'Y-m'
+	    		    			},{
+	    		    			    xtype: 'monthfield',
+	    		    			    id: 'toDate',
+	    		    			    width : 90,
+	    		    			    name: 'toDate',
+	    		    			    emptyText:i18n._('endMonth'),//结束日期
+	    		    			    maxValue: new Date(),
+	    		    			    format:'Y-m'
+	    		    			},imgb]
+	        				}],	listeners:{
+	        					'itemdblclick':{
+	        						fn:function(){
+				        				var rows = Ext.getCmp('monthReportList').getSelectionModel().getSelection();
+				        				if(rows.length > 0){
+				        					var domainId = rows[0].get('domainId');
+				        					var yearMonth = rows[0].get('yearMonth');
+				        					detail(domainId,yearMonth);
+				        				}
+	        						}
+	        					}
+	        				},
+	        			    columns: [
+	      	        			        {xtype: 'rownumberer',width:50},
+	      	        			        {header: i18n._('dividedplatform'),dataIndex: 'domainId',align:'left',hidden:true},
+	      	        			        {header: i18n._('dividedplatform'),dataIndex: 'abbreviation',align:'left', flex: .6},
+	        				      	    {header: i18n._('date'),dataIndex: 'yearMonth',align:'left', flex: .6,width:50},
+	        				      	    {header: i18n._('prepay'),dataIndex: 'prepayStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('consume'),dataIndex: 'consumeStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('refund'),dataIndex: 'refundStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('draw'),dataIndex: 'drawCashStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('prepayBalance'),dataIndex: 'prepayBalanceStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('responsibility'),dataIndex: 'responsibilityStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('vmresponsibility'),dataIndex: 'machineStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('otherresponsibility'),dataIndex: 'otherStr',align:'right', flex: 1,width:50},
+	        				      	    {header: i18n._('responsibilityBalance'),dataIndex: 'monthResponsibilityBalanceStr',align:'right', flex: 1,width:50}
+	        				]
+        			    })
+        			});
+                    
+                }
+            };
+         })();
+    	 MultiLang.init();
+    	 
+    	 function detail(domainId,yearMonth){
+		    		var log=Ext.create('Ext.data.Store', {
+					    pageSize: pageSize,
+						autoLoad:false,
+						model: 'VMResponsibility',
+						sorters: [{
+							property : 'createDate',
+							direction: 'DESC'
+					    }],
+						remoteSort:true,
+						proxy: new Ext.data.proxy.Ajax({
+							url : path+'../../../../bss/trLog!findVMResponsibility.action',
+	
+						    reader: {
+							    type: 'json',    
+							    root: 'resultObject.result',
+							    totalProperty: 'resultObject.totalCount'
+							}
+						})
+				    });
+    		        var proxy = log.getProxy();
+					proxy.setExtraParam('queryVO.platformid',domainId);
+					proxy.setExtraParam('queryVO.month',yearMonth);
+				    log.load();
+					var info =Ext.create('Ext.window.Window', {
+						title: i18n._('details'),
+						height: 457,
+					    minWidth: 900,
+					    maxHeight: 457,
+					    border: false,
+						closable:true,
+						resizable : true,
+						constrain : true,
+						//modal:true,
+						maximizable:true,
+						autoScroll:true,
+					    bbar: Ext.create('Ext.toolbar.Paging', {
+        					store: log,	
+        					displayInfo: true					
+        				}),
+        				dockedItems : [{xtype:'tbfill'},{	
+    					    labelWidth: 40,
+    					    fieldLabel:i18n._('search'),
+    					    xtype: 'searchfield',
+    					    style:'margin-left:800px;',
+    					    store: log,
+    					    emptyText:i18n._('email')+'/'+i18n._('orderNO'),
+    						id:'userEmail',	
+    						hasSearch:true,
+    						onTrigger1Click : function(){
+    							var me = this,
+    								store = me.store;
+    								proxy = store.getProxy();
+    								
+    							if (me.hasSearch) {
+    								me.setValue('');
+    								proxy.extraParams[me.paramName] = '';
+    								proxy.setExtraParam('queryVO.email',null);
+    								proxy.extraParams.start = 0;
+    								//store.load();
+    								store.loadPage(1,null);
+    								me.hasSearch = false;
+    								me.triggerEl.item(0).setDisplayed('none');
+    								me.doComponentLayout();
+    							}
+    						},    						  
+    						onTrigger2Click : function(){
+    							//点击查询按钮或回车调用该方法  
+    							var me = this,
+    							store = me.store,
+    							proxy = store.getProxy(),
+    							value = me.getValue();
+    								
+    							if (value.length < 1) {
+    								me.onTrigger1Click();
+    								return;
+    							}
+    							store = me.store,
+    							proxy = store.getProxy(),
+								proxy.extraParams['queryVO.platformid'] = domainId;
+								proxy.extraParams['queryVO.month'] =yearMonth;
+								proxy.extraParams['queryVO.email'] =value;
+    							proxy.extraParams.start = 0;
+    							store.loadPage(1,null);
+    							this.hasSearch = true;  
+    							me.triggerEl.item(0).setDisplayed('block');
+    							me.doComponentLayout();
+    						}
+							}],
+						//maximized:true,
+						//tools:[{
+						//  type:'close',
+						//  handler:function(){
+						// 	 info.destroy();
+						//  }
+						//}],
+						items:[{
+							xtype:'grid',
+							layout:'fit',
+							minWidth: 1000,
+							columnWidth:80,
+							//autoScroll:true,
+							scroll:'vertical',
+							//autoShow:true,
+							store: log,								
+							columns: [
+								{xtype: 'rownumberer',flex:0.12},
+								{header: i18n._('transcationon'),dataIndex: 'transcationOnStr',align:'left',flex:0.2},
+								{header: i18n._('orderNO'),dataIndex: 'orderNo',align:'left',flex:0.2},
+								{header: i18n._('orderstart'), dataIndex: 'startTimeStr',align:'right',flex:0.2},
+								{header: i18n._('orderend'), dataIndex: 'endTimeStr',align:'right',flex:0.2},
+								{header: i18n._('usedDuration'), dataIndex: 'usedDuration',align:'right',flex:0.2},
+								{header: i18n._('email'),dataIndex: 'email',align:'left',flex:0.2},
+								{header: i18n._('transcationType'),dataIndex: 'transcationType',align:'right',flex:0.2},
+								{header: i18n._('money'), dataIndex: 'itemAmountStr',align:'right',flex:0.2},
+								{header: i18n._('currentIncoming'), dataIndex: 'currentIncomingStr',align:'right',flex:0.2},
+								{header: i18n._('noneventIncoming'), dataIndex: 'noneventIncoming',align:'right',flex:0.2},
+								{header: i18n._('finishedIncoming'), dataIndex: 'finishedIncoming',align:'right',flex:0.2},
+								{header: i18n._('detail'), dataIndex: 'description',align:'left',flex:0.5,
+									renderer: function(value,metaData,record,colIndex,store,view) {
+										if(value!=null){
+											metaData.tdAttr = 'data-qtip="' + value + '"';
+											return value;
+										}
+									}
+								},
+								{header: 'orderItemId',dataIndex: 'orderItemId',hidden:true,flex:0.1},
+								{header: 'productType',dataIndex: 'productType',hidden:true,flex:0.1}
+							]
+						}]
+					}).show();
+    	 }
+     });
+
+	 function getCookie(name){
+	         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+	         if(arr != null) return unescape(arr[2]);
+			 return null;
+	 }
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

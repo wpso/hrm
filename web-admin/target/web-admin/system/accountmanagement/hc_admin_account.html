@@ -1,0 +1,1375 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> ttcloud</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/jquery-1.7.2.min.js" ></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript">
+
+     Ext.onReady(function(){
+    	 Ext.QuickTips.init(true,{dismissDelay:600000});
+    		Ext.apply(Ext.QuickTips.getQuickTip(), {
+    		    maxWidth: 1000,
+    		    trackMouse: true,
+    		    dismissDelay: 0
+    		});
+    	 var params;
+    	 MultiLang =(function(){
+            return {
+                init: function() {
+                    // load ExtJS locale
+                    params = getCookie("lang");
+                    i18n.set({
+      				  lang: params, 
+      				  path: '../../resources'
+      				});
+                    if (params) {
+                        var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                        Ext.Ajax.request({
+                            url: url,
+                            success: this.onLoadExtLocaleSuccess,
+                            failure: this.onLoadExtLocaleFailure,
+                            scope: this
+                        });
+                    } else {
+                    	this.setup();
+                    }
+                },
+                onLoadExtLocaleSuccess: function(response) {
+                    try {
+                        eval(response.responseText);
+                    } catch (e) {
+                        //Ext.Msg.alert('Failure', e.toString());
+                    }
+                    this.setup();
+                },
+                onLoadExtLocaleFailure: function() {
+                    //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                    this.setup();
+                },
+                setup: function() {
+              
+	        		   var type = 0;
+	        		   var st = '';
+	        		   var et = '';
+	        		  // var email = '';
+	        		   var fuzzy = '';
+	        		   var count = 0;
+	        		   var platformid='';	
+/*
+                	var dataSearchWin =Ext.create('Ext.window.Window', {
+                		title : i18n._('查询条件'),
+                		width : 300,
+                		height : 150,
+                		border : false,
+                		bodyPadding : 10,
+                		resizable : false,
+                		closable : false,
+                		collapsible:true,
+                		items:[
+                		       {
+                		    	   xtype:'combobox',
+                		    	   name: 'byType',
+                		    	   fieldLabel:'按类型',
+                		    	   labelAlign:'right',
+                		    	   width : 270,
+                		    	   labelWidth : 60,
+                		    	   emptyText:'全部'
+                		       },
+                		       {
+                		    	   xtype:'fieldcontainer',
+                		    	   layout : 'hbox',
+                		    	   width : 270,
+                		    	   items:[
+											{
+											    xtype: 'datefield',
+											    fieldLabel: '按时间段',
+											    labelAlign:'right',
+											    width : 160,
+											    labelWidth : 60,
+											    name: 'from_date',
+											    emptyText:'起始日期',
+											    maxValue: new Date(),  // limited to the current date or prior
+											    format:'Y-m-d'
+											}, 
+											{
+												xtype:'label',
+												text:'至',
+												width:20,
+												padding:'2 0 0 4'
+											},
+											{
+											    xtype: 'datefield',
+											    width : 90,
+											    name: 'to_date',
+											    emptyText:'结束日期',
+											    maxValue: new Date(),
+											    format:'Y-m-d'
+											}
+                		    	          ]
+                		       },
+                		       {
+                		    	   xtype:'textfield',
+                		    	   name: 'byAccount',
+                		    	   fieldLabel : i18n._('按账户'),
+                		    	   labelAlign:'right',
+                		    	   width : 270,
+                		    	   labelWidth : 60,
+                		    	   emptyText:'全部'
+                		       },
+                		       {
+                		    	   xtype:'fieldcontainer',
+                		    	   layout : 'hbox',
+                		    	   width : 270,
+                		    	   items:[
+                		    	          {
+                		    	        	  xtype:'button',
+                		    	        	  name: 'search',
+                		    	        	  width:80,
+                		    	        	  margin:'0 44 0 65',
+                		    	        	  text:'搜索',
+                		    	        	  handler:function(){
+                		    	        		  
+                		    	        	  }
+                		    	          },
+                		    	          {
+                		    	        	  xtype:'button',
+                		    	        	  name: 'cancel',
+                		    	        	  width:80,
+                		    	        	  text:'取消',
+                		    	        	  handler:function(){
+                		    	        		  
+                		    	        	  }
+                		    	          }
+                		    	         ]
+                		       }
+                		      ],
+                		listeners : {
+                			collapse:function(p,eOpts ){
+                				dataSearchWin.destroy();
+                			}
+                		}     
+                		//defaultAlign:'tr-b'
+                	});*/
+                	Ext.define('TranscationLog',{
+                		extend: 'Ext.data.Model',
+                		fields:[
+                		        {name:'id',type:'long'},          		        
+                		        {name:'transcationOn',type:'date', dateFormat:'time'},
+                		        {name:'transcationType',type:'short'},
+                		        {name:'absTrAmount',type:'string'},
+                		        {name:'absTrBalance',type:'string'},
+                		        {name:'description',type:'string'},
+                		        {name:'email',type:'string'},
+                		        {name:'username',type:'string'},
+                		        {name:'abbreviation',type:'string'},
+                		        {name:'orderId',type:'Long'},
+                		        {name:'orderNo',type:'string'},
+                		        {name:'operator',type:'string'},
+                		        {name:'absTrCoupons',type:'String'},
+                		        {name:'absTrCouponsBalance',type:'String'},
+                		        {name:'absTrGifts',type:'String'},
+                		        {name:'absTrGiftsBalance',type:'String'}
+                		       ]
+                	});
+
+    				//定义平台
+    				Ext.define('Domain',{
+    							 extend: 'Ext.data.Model',
+    							 fields:[
+    							 {name:'id',type:'long'},
+    							 {name:'name',type:'string'},
+    							 {name:'abbreviation',type:'string'}
+    							 ],
+    							 belongTo: 'User'
+    				});
+                    var domainArr=[];
+    				$.ajax({
+                		url:'../../admin_mgmt/basicData!loadDomain.action',
+                		async:false,
+                		dataType:'json',
+                		type:'POST',
+                		success:function(domainObj){
+                			
+                			if(domainObj.success){
+                			
+                				var domainArrTemp=domainObj.resultObject;
+                				for(var i=0;i<domainArrTemp.length;i++){
+                    				if(i==0){
+                    					var item={id:domainArrTemp[i].id,abbreviation:domainArrTemp[i].abbreviation};
+                    					var all = {id:'',abbreviation:'全部'};
+                    					domainArr.push(all);
+                    					domainArr.push(item);
+                        			}else{
+                    					var item={id:domainArrTemp[i].id,abbreviation:domainArrTemp[i].abbreviation};
+                    					domainArr.push(item);
+                            		}
+                					
+                				}
+                				
+                			}else{
+                				alert("load domain failure");
+                			}
+                		},
+                		failure:function(){
+                			alert("load domain failure");
+                		}
+                	});
+
+    				
+                	var domainStore = Ext.create("Ext.data.Store",{
+                	    model:"Domain",
+                	    data:domainArr
+                	});
+                	
+       			    //加载所有日志。
+        			/*var log=Ext.create('Ext.data.Store', {
+        					pageSize: pageSize,
+        					autoLoad:true,
+        					storeId:'trLoglist',
+        					width:'100%',
+        					requires:'TranscationLog',
+        					model: 'TranscationLog',
+        					sorters: [{
+        					            property : 'createDate',
+        					            direction: 'DESC'
+        					           }],
+        					remoteSort:true,
+        				    proxy: {
+        					     type: 'ajax',
+        					     url : path+'../../../../bss/trLog!pageLog.action',
+        						 reader: {
+        					         type: 'json',    
+        					         root: 'resultObject.result',
+        					         totalProperty: 'resultObject.totalCount'
+        					     }
+        					 }
+        		     });*/
+        		     var log=Ext.create('Ext.data.Store', {
+     					pageSize: pageSize,
+     					autoLoad:false,
+     					//storeId:'trLoglist',
+     					model: 'TranscationLog',
+     					sorters: [{
+     					            property : 'createDate',
+     					            direction: 'DESC'
+     					           }],
+     					remoteSort:true,
+     				    proxy: new Ext.data.proxy.Ajax({
+     					     //actionMethods: { read: 'POST' },//将提交方式改为post
+     					     url : path+'../../../../bss/trLog!findTransactionLog.action',
+     						 reader: {
+     					         type: 'json',    
+     					         root: 'resultObject.result',
+     					         totalProperty: 'resultObject.totalCount'
+     					     }
+     					 })
+     		     }); 
+        		     log.load();
+        			var sm = Ext.create('Ext.selection.RowModel');
+        			//日志列表
+        			Ext.create('Ext.Viewport',{
+        			    layout:'fit',
+        			    width:'100%',
+        				height:'100%',
+        			    items: Ext.create('Ext.grid.Panel', {
+	        				id:'logList',
+	        				height:900,
+	        				sortableColumns:false,
+	        				width:'100%',
+	        				title: i18n._('BusinessManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('accountManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' + i18n._('transcationLog'),
+	        			    store: log,
+	        				selModel: sm,
+	        				listeners:{
+	        					'itemdblclick':{
+	        						fn:function(){
+	        							viewDetail();
+	        						}
+	        					}
+	        				},
+	        				bbar: Ext.create('Ext.toolbar.Paging', {
+	        					store: log,		
+	        					//pageSize:0,			
+	        					displayInfo: true					
+	        				}),
+	        				viewConfig: {
+	        					   stripeRows: true						
+	        				},
+	        				dockedItems : [ {
+	        					xtype : 'toolbar',
+	        					cls: 'toolbarCSS',
+	        					dock : 'top',
+	        					items : [
+										{
+											xtype:'button',//导出
+										    text:'<font id="export" color="white">'+i18n._('export')+'</font>',
+										    listeners: {
+												 "mouseout" : function() {
+													 document.getElementById("export").style.color = "white";
+												 },
+												 "mouseover" : function() {
+													 document.getElementById("export").style.color = "black";
+												 }
+													
+											},
+										    tooltip:i18n._('export'),
+										    shadow:false,
+										    icon:'images/export.png',
+										    handler:function(){
+                                                 var downloadForm = Ext.create('Ext.form.Panel',{
+                                                     frame:true,
+                                                     standardSubmit:true
+                                                 });
+                                                 downloadForm.getForm().submit({
+                                                     url:path + '../../../../excelExport!excelExport.action',
+                                                     method:'post',
+                                                     params:{
+                                                    	 'queryVO.fuzzy':fuzzy,
+                                                    	 'queryVO.startTime':Ext.Date.format(st, 'Y-m-d H:i:s'),
+                                                    	 'queryVO.endTime':Ext.Date.format(et, 'Y-m-d H:i:s'),//Ext.Date.format(Ext.Date.add(et,Ext.Date.DAY, 1), 'Y-m-d H:i:s')
+                                                    	 'queryVO.transactionType':type,//,
+                                                    	 'queryVO.platformid':platformid
+                                                    	 //'queryVO.email':email,
+                                                 }
+                                                 });
+										    	//window.location.href = path + '../../../../excelExport!excelExport.action';  
+											}
+										},
+										{
+											icon: '../../images/detail.png', 
+									        text:'<font id="detailUser" color="white" >' + i18n._('details') + '</font>',
+											listeners: {
+												 "mouseout" : function() {
+													 document.getElementById("detailUser").style.color = "white";
+												 },
+												 "mouseover" : function() {
+													 document.getElementById("detailUser").style.color = "black";
+												 }
+													
+											 },
+											handler:function(){
+												viewDetail();
+											
+											}},
+	     	        					{xtype:'tbfill'},            
+
+
+{
+	xtype:'button',
+	iconAlign:'right',
+	text:'<font id="Search" color="white">'+i18n._('Search')+'</font>',//搜索
+    listeners: {
+		 "mouseout" : function() {
+			 document.getElementById("Search").style.color = "white";
+		 },
+		 "mouseover" : function() {
+			 document.getElementById("Search").style.color = "black";
+		 }
+			
+	},
+    tooltip:i18n._('Search'),//高级搜索
+	handler:function(){
+		if(count>0){
+			return ;
+	    }
+		var p=this.getPosition(true);
+		var xP=p[0]-270;
+		var states = Ext.create('Ext.data.Store', {
+		    fields: ['id', 'name'],
+		    data : [
+                {"id":"0","name":i18n._('All')},//全部
+				{"id":"1","name":i18n._('consume')},//消费
+		        {"id":"2","name":i18n._('deposit')},//存款
+		        {"id":"3","name":i18n._('refund')},//退款
+		        {"id":"4","name":i18n._('draw')},//,//提现
+		        {"id":"7","name":i18n._('depositcoupons')},
+		        {"id":"8","name":i18n._('drawcoupons')},
+		        {"id":"9","name":i18n._('depositgifts')},
+		        {"id":"10","name":i18n._('drawgifts')},
+		        {"id":"11","name":i18n._('rollin')},//转入
+		        {"id":"12","name":i18n._('rollout')}//转出
+		        //{"id":"5","name":i18n._('cancel')}//撤消
+    		   	
+		    ]
+		});
+		var dataSearchWin =Ext.create('Ext.window.Window', {
+    		title : i18n._('Query'),//查询条件
+    		width : 310,
+    		height : 180,
+    		border : false,
+    		bodyPadding : 10,
+    		resizable : false,
+    		closable : false,
+    		collapsible:true,
+    		items:[
+    		       {
+    		    	   xtype:'combobox',
+    		    	   id:'byType',
+    		    	   name: 'byType',
+    		    	   fieldLabel:i18n._('transcationType'),//按类型
+    		    	   labelAlign:'right',
+    		    	   width : 280,
+    		    	   labelWidth : 70,
+    		    	   emptyText:i18n._('All'),//全部
+    		    	   store:states,
+    		    	   queryMode: 'local',
+    		    	   displayField: 'name',
+    		    	   valueField: 'id'
+    		       },{
+						xtype:'combo',
+						width : 280,
+    		    	    labelWidth : 70,
+    		    	    labelAlign:'right',
+						fieldLabel: i18n._('Byplatform'),
+						name: i18n._('platform'),
+						id:'platform_combo',
+						triggerAction:  'all',
+						forceSelection: true,
+						editable: false,
+						emptyText: i18n._('Please Select'),
+						displayField: 'abbreviation',
+						valueField: 'id',
+						queryMode: 'local',
+						store: domainStore
+					},
+    		       {
+    		    	   xtype:'fieldcontainer',
+    		    	   layout : 'hbox',
+    		    	   width : 280,
+    		    	   items:[
+								{
+								    xtype: 'datefield',
+								    id: 'fromDate',
+								    fieldLabel: i18n._('ByPeriod'),//按时间段
+								    labelAlign:'right',
+								    width : 170,
+								    labelWidth : 70,
+								    name: 'from_date',
+								    emptyText:i18n._('beginDate'),//起始日期
+								    maxValue: new Date(),  // limited to the current date or prior
+								    format:'Y-m-d'
+								}, 
+								{
+									xtype:'label',
+									text:i18n._('To'),//至
+									width:20,
+									padding:'2 0 0 4'
+								},
+								{
+								    xtype: 'datefield',
+								    id: 'toDate',
+								    width : 90,
+								    name: 'to_date',
+								    emptyText:i18n._('endDate'),//结束日期
+								    maxValue: new Date(),
+								    format:'Y-m-d'
+								}
+    		    	          ]
+    		       },
+    		       {
+    		    	   xtype:'textfield',
+    		    	   id: 'fuzzy',
+    		    	   name: 'fuzzy',
+    		    	   fieldLabel : i18n._('fuzzy'),//按模糊查询
+    		    	   labelAlign:'right',
+    		    	   width : 280,
+    		    	   labelWidth : 70,
+    		    	   emptyText:i18n._('queryhint')//登录邮箱/备注
+    		       },
+    		       {
+    		    	   xtype:'fieldcontainer',
+    		    	   layout : 'hbox',
+    		    	   width : 280,
+    		    	   items:[
+    		    	          {
+    		    	        	  xtype:'button',
+    		    	        	  name: 'search',
+    		    	        	  width:80,
+    		    	        	  margin:'0 44 0 75',
+    		    	        	  text:i18n._('Search'),//搜索
+    		    	        	  handler:function(){
+    		    	        		  var transactionType=Ext.getCmp('byType').getValue();
+    		    	        		  if(null == transactionType){
+    		    	        			  transactionType = 0 ;
+        		    	        	  }
+    		    	        		  var startTime=Ext.getCmp('fromDate').getValue();
+    		    	        		  var t = Ext.getCmp('toDate').getValue();
+        		    	        	  if(null!=startTime&&null!=t){
+        		    	        		  if(t.getTime()-startTime.getTime()<0){
+        		    	        			  
+        		    	        			  //Ext.getCmp('fromDate').setValue("");
+        		    	        			  //Ext.getCmp('toDate').setValue("");
+        		    	        			  Ext.MessageBox.show({
+        											title : i18n._('notice'),
+        											msg : i18n._('the expiry date should be later than effective date'),//输入IP无效
+        											buttons : Ext.MessageBox.OK,
+        											icon : Ext.MessageBox.ERROR,
+        											fn:function(){
+        												Ext.getCmp('fromDate').focus();
+            										}
+        										});
+            		    	        		  return null;
+            		    	        	  }
+            		    	          }
+        		    	        	  var endTime;
+    		    	        		  if(t!=null){
+    		    	        			  endTime=Ext.Date.add(t,Ext.Date.DAY, 1);
+        		    	        	  }
+
+    		    	        		  
+    		    	        		  //var endTime=Ext.getCmp('toDate').getValue();
+    		    	        		  //var mail=Ext.getCmp('byEmail').getValue();
+    		    	        		  var f=Ext.getCmp('fuzzy').getValue();
+    		    	        		  var p = Ext.getCmp('platform_combo').getValue();
+    		    	        		  dataSearchWin.destroy();
+    		    	        		  //alert('transactionType:'+transactionType);
+    		    	        		  //alert('startTime:'+startTime);
+    		    	        		  //alert('endTime:'+endTime);
+    		    	        		  //alert('email:'+email);
+    		    	        		   fuzzy = '';
+    		    	        		   fuzzy  = f;
+    		    	        		   type = 0;
+    		    	        		   count = 0;
+    		    	        		   type = transactionType;
+    		    	        		   st = '';
+    		    	        		   st = startTime;
+    		    	        		   et = '';
+    		    	        		   et = endTime;
+    		    	        		   platformid = '';
+    		    	        		   platformid = p;
+    		    	        		   //alert(p);
+    		    	        		   //email = '';
+    		    	        		   //email = mail;
+									   var proxy = log.getProxy();
+									  
+										proxy.setExtraParam('queryVO.transactionType',transactionType) ;
+										proxy.setExtraParam('queryVO.startTime',startTime) ;
+										proxy.setExtraParam('queryVO.endTime',endTime) ;
+										//proxy.setExtraParam('queryVO.email',email) ;
+										proxy.setExtraParam('queryVO.fuzzy',fuzzy) ;
+										proxy.setExtraParam('queryVO.platformid',platformid) ;
+										proxy.extraParams.start = 0;
+										log.loadPage(1,null);
+    		    	        		//加载所有日志。
+    		    	        			/*var logStore=Ext.create('Ext.data.Store', {
+    		    	        					pageSize: pageSize,
+    		    	        					autoLoad:false,
+    		    	        					storeId:'trLoglist',
+    		    	        					model: 'TranscationLog',
+    		    	        					sorters: [{
+    		    	        					            property : 'createDate',
+    		    	        					            direction: 'DESC'
+    		    	        					           }],
+    		    	        					remoteSort:true,
+    		    	        				    proxy: new Ext.data.proxy.Ajax({
+    		    	        					     actionMethods: { read: 'POST' },//将提交方式改为post 
+    		    	        					     extraParams:{
+    		    	        					    	 "queryVO.transactionType":transactionType,
+    		    	        					    	 "queryVO.startTime":startTime,
+    		    	        					    	 "queryVO.endTime":endTime,
+    		    	        					    	 "queryVO.email":email
+    		    	        					     },
+    		    	        					     url : path+'../../../../bss/trLog!findTransactionLog.action',
+    		    	        						 reader: {
+    		    	        					         type: 'json',    
+    		    	        					         root: 'resultObject.result',
+    		    	        					         totalProperty: 'resultObject.totalCount'
+    		    	        					     }
+    		    	        					 })
+    		    	        		     }); */
+    		    	        			//logStore.load();
+    		    	        			//log=logStore;
+    		    	        			//log.reload();
+    		    	        	  }
+    		    	          },
+    		    	          {
+    		    	        	  xtype:'button',
+    		    	        	  name: 'cancel',
+    		    	        	  width:80,
+    		    	        	  text:i18n._('off'),//取消
+    		    	        	  handler:function(){
+    		    	        		 count = 0;
+    		    	        		 dataSearchWin.destroy();
+    		    	        		 
+    		    	        	  }
+    		    	          }
+    		    	         ]
+    		       }
+    		      ],
+    		listeners : {
+    			collapse:function(p,eOpts ){
+    				count = 0;
+    				dataSearchWin.destroy();
+    			}
+    		}     
+    		//defaultAlign:'tr-b'
+    	});
+		dataSearchWin.showAt(xP,50); 
+		//dataSearchWin.show();
+		count = count +1;
+	}
+}
+	     	        					]
+	        				}]
+        					,
+	        			    columns: [
+                                {xtype: 'rownumberer',flex:0.1},
+	        					{header: i18n._('traId'), dataIndex: 'id',align:'left', flex: 0.40},
+	        			        {header: i18n._('transcationon'),dataIndex: 'transcationOn',align:'left',renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'), flex: 0.35},
+	        					{header: i18n._('transcationType'),dataIndex: 'transcationType',align:'left', flex: 0.18,			
+		        					renderer: function(value){
+		        						//alert(value);
+	        						   if (value == 1) {
+	        							  return i18n._('consume');
+	        						   }else if(value == 2){
+	        						      return i18n._('deposit');
+	        						   }else if(value == 3){
+	        							   return i18n._('refund');
+		        					   }else if(value == 4){
+	        							   return i18n._('draw');
+		        					   }else if(value == 5){
+	        							   return i18n._('cancel');
+		        					   }else if(value == 7){
+		        						   return i18n._('depositcoupons');
+		        					   }else if(value == 8){
+		        						   return i18n._('drawcoupons');
+		        					   }else if(value == 9){
+		        						   return i18n._('depositgifts');
+		        					   }else if(value == 10){
+		        						   return i18n._('drawgifts');
+		        					   }else if(value == 11){
+		        						   return i18n._('rollin');
+		        					   }else if(value == 12){
+		        						   return i18n._('rollout');
+		        					   }
+	        					}},
+	        					{header: i18n._('trAmount'), dataIndex: 'absTrAmount',align:'right', flex: 0.25},
+	        			        {header: i18n._('consumecoupons'), dataIndex: 'absTrCoupons',align:'right', flex: 0.25},
+	        			        {header: i18n._('transcationGifts'), dataIndex: 'absTrGifts',align:'right', flex: 0.25},
+	        					{header: i18n._('account balance'), dataIndex: 'absTrBalance',align:'right', flex: 0.25},
+	        					{header: i18n._('couponsAmount'), dataIndex: 'absTrCouponsBalance',align:'right', flex: 0.25},
+	        					{header: i18n._('giftsBalance'), dataIndex: 'absTrGiftsBalance',align:'right', flex: 0.25},
+	        					{header: i18n._('platform abbreviation'), dataIndex: 'abbreviation',align:'center', flex: 0.18},
+	        					{header: i18n._('username'), dataIndex: 'username',align:'left', flex: 0.2},
+	        					{header: i18n._('email'), dataIndex: 'email',align:'left', flex: 0.35},
+	        					{text: i18n._("remark"),dataIndex: 'description',flex: 0.4,
+	        						 renderer: function(value,metaData,record,colIndex,store,view) {
+	        					        	if(value!=null){
+	        					        		
+	        					        	
+	        					        if(getCookie("lang")=="en_US"){
+	        				//	        	alert();
+	        					        	value = value.replace(/订单/g,"Orders");
+	        					        	value = value.replace(/执行/g,"execute");
+	        					        	value = value.replace(/现金消费/g,"cash consumption");
+	        					        	value = value.replace(/返点消费/g,"Consumer Rebate");
+	        					        	value = value.replace(/礼金消费/g,"Consumer gifts");
+	        					        	value = value.replace(/快递/g,"Express delivery");
+	        					        	value = value.replace(/用户/g,"User");
+	        					        	value = value.replace(/充值/g,"Recharge");
+	        					        	value = value.replace(/交易/g,"Transaction");
+	        					        	value = value.replace(/流水号为/g,"Serial Number");
+	        					        	value = value.replace(/云主机/g,"Cloud Hosting");
+	        					        	value = value.replace(/支付操作/g,"Payment operations");
+	        					        	value = value.replace(/现金消费/g,"Cash consumption");
+	        					        	value = value.replace(/转正/g,"Positive");
+	        					        	value = value.replace(/操作/g,"Operating");
+	        					        	value = value.replace(/部分/g,"Section");
+	        					        	value = value.replace(/订单号为/g,"Order No.");
+	        					        	value = value.replace(/金额为/g,"Amount of");
+	        					        	value = value.replace(/全额/g,"Full");
+	        					        	value = value.replace(/续费/g,"Renewals");
+	        					        	value = value.replace(/退款/g,"Refund");
+	        					        	value = value.replace(/于/g,"To");
+	        					        	value = value.replace(/元/g,"RMB");
+	        					        	value = value.replace(/点/g,"Point");
+	        					        	value = value.replace(/在/g,"In");
+	        					        	value = value.replace(/号/g,"Number");
+	        					        	value = value.replace(/为/g,"For");
+	        					        	
+	        					       // 	console.log(value);
+	        					        	
+	        					        	
+	        					        }
+	        						         	metaData.tdAttr = 'data-qtip="' + value + '"';
+	        						         	return value;
+	        					        	}
+	        					         }
+		        				}
+	        				]
+        			    })
+        			});
+
+        			function viewDetail(){
+        				var rows = Ext.getCmp('logList').getSelectionModel().getSelection();
+        				if(rows.length > 0){
+        					var id = rows[0].get('id');
+        					var record = log.getById(id);
+        					var refundVmNo = null;
+        					
+        					var info =Ext.create('Ext.window.Window', {
+        					    //title: '用户详情',
+        						title: i18n._('details'),
+        						height: 440,
+        						//autoHeight:true,
+        						layout:'fit',
+        					    width: 480,
+        					    border: false,
+        						closable:false,
+        						resizable : false,
+        						constrain : true,
+        						modal:true,
+        						tools:[{
+        						  type:'close',
+        						  handler:function(){
+        						  info.destroy();
+        						  }
+        						}],
+        					    items: [
+        											{
+        							xtype: 'form',
+        							height:'100%',
+        							id:'infoForm',
+        							width:470,
+        							autoScroll:true,
+        							border: false,
+        							  items: [
+        						{
+        						xtype: 'fieldset',
+        						title: i18n._("Basic information"),
+        						//layout: 'anchor',
+        						width:350,
+        						style:'margin-left:56px;',
+        						//defaults: {anchor: '20%'},
+        						items:[
+        								{
+        								xtype: 'displayfield',
+        								fieldLabel: i18n._("email"),
+        								name: i18n._("email"),
+        								value: record.get('email'),
+        								style:'margin-left:30px;'
+        								},
+        								{
+        								xtype:'displayfield',
+        								fieldLabel:i18n._("username"),
+        								style:'margin-left:30px',
+        								name:i18n._("username"),
+        								value: record.get('username')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("transcationType"),
+        									style:'margin-left:30px',
+        									name:i18n._("transcationType"),
+        									value: record.get('transcationType'),
+        									renderer: function(value){
+        		        						   if (value == 1) {
+        		        							  return i18n._('consume');
+        		        						   }else if(value == 2){
+        		        						      return i18n._('deposit');
+        		        						   }else if(value == 3){
+        		        							   return i18n._('refund');
+        			        					   }else if(value == 4){
+        		        							   return i18n._('draw');
+        			        					   }else if(value == 5){
+        		        							   return i18n._('cancel');
+        			        					   }else if(value == 7){
+        			        						   return i18n._('depositcoupons');
+        			        					   }else if(value == 8){
+        			        						   return i18n._('drawcoupons');
+        			        					   }else if(value == 9){
+        			        						   return i18n._('depositgifts');
+        			        					   }else if(value == 10){
+        			        						   return i18n._('drawgifts');
+        			        					   }else if(value == 11){
+        			        						   return i18n._('rollin');
+        			        					   }else if(value == 12){
+        			        						   return i18n._('rollout');
+        			        					   }
+        									}
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("trAmount"),
+        									style:'margin-left:30px',
+        									name:i18n._("trAmount"),
+        									value: record.get('absTrAmount')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("account balance"),
+        									style:'margin-left:30px',
+        									name:i18n._("account balance"),
+        									value: record.get('absTrBalance'),
+        									flex: 1
+        								},{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("consumecoupons"),
+        									style:'margin-left:30px',
+        									name:i18n._("account balance"),
+        									value: record.get('absTrCoupons'),
+        									flex: 1
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("couponsAmount"),
+        									style:'margin-left:30px',
+        									name:i18n._("trAmount"),
+        									value: record.get('absTrCouponsBalance')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("transcationGifts"),
+        									style:'margin-left:30px',
+        									name:i18n._("consumegifts"),
+        									value: record.get('absTrGifts'),
+        									flex: 1
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("giftsBalance"),
+        									style:'margin-left:30px',
+        									name:i18n._("giftsBalance"),
+        									value: record.get('absTrGiftsBalance')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("transcationon"),
+        									style:'margin-left:30px',
+        									name:i18n._("transcationon"),
+        									value:record.get('transcationOn'),
+        									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'), flex: 1
+        									//renderer: function(){
+        									//	if(null == record.get('transcationOn') || ""==record.get('transcationOn')){
+        									//		return "";
+        									//	}else{
+        									//		return new Date(record.get('transcationOn')).format("Y-m-d H:i:s");
+        									//	}
+        										
+        									//},
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operator"),
+        									style:'margin-left:30px',
+        									name:i18n._("operator"),
+        									value: record.get('operator')
+        								},
+        								{
+        								xtype:'displayfield',
+        								fieldLabel:i18n._("platform abbreviation"),
+        								style:'margin-left:30px',
+        								name:i18n._("platform abbreviation"),
+        								value:record.get('abbreviation')
+        								},
+        								{
+            								xtype:'displayfield',
+            								fieldLabel:i18n._("orderNO"),
+            								name:i18n._('orderNO'),
+            								style:'margin-left:30px;cursor:pointer;',
+            								hidden:(null!=record.get('orderId') && ''!=record.get('orderId'))?false:true,
+            								editable:false,
+            								readOnly:true,
+            								renderer: function(value){
+            					            	return "<a href='#'>"+record.get('orderNo')+"</a>";
+            					            },
+            							    listeners :{
+            							       render :function(){
+            							         Ext.fly(this.el).on('click',
+                                                     function(e, t) {
+                                                         orderDetail(record.get('orderId'));
+                                                       });
+            							              }
+            							        }
+            							},
+            							{
+            								xtype:'displayfield',
+            								fieldLabel:i18n._("refundVmNo"),
+            								name:i18n._('refundVmNo'),
+            								style:'margin-left:30px;cursor:pointer;',
+            								hidden:record.get('transcationType') == 3?false:true,
+            								editable:false,
+            								readOnly:true,
+            								renderer: function(value){
+            								    var description = record.get('description');
+            								    var index1 = description.indexOf("[");
+            								    var index2 = description.indexOf("]");
+            								    refundVmNo = description.substring(index1+1,index2);
+            					            	return "<a href='#'>"+refundVmNo+"</a>";
+            					            },
+            							    listeners :{
+            							       render :function(){
+            							         Ext.fly(this.el).on('click',
+                                                     function(e, t) {
+                                                         refundApplyDetail(refundVmNo);
+                                                       });
+            							              }
+            							        }
+            							},
+        								{
+        								xtype:'textarea',
+        								fieldLabel:i18n._('remark'),
+        								name:i18n._('remark'),
+        								style:'margin-left:30px;',
+        								editable:false,
+        								readOnly:true,
+        								value: record.get('description')
+        								}			
+        						]
+        					}
+        					]
+        					}
+        					]
+
+        					});
+        					//用户详细信息页面结束
+        					info.show();
+        				}else{
+        				    	Ext.MessageBox.show({
+        				          // title: '提示',
+        				           //msg: '请选择一个用户',
+        						   title:i18n._('notice'),
+        					       msg:i18n._('selectOne'),
+        				           icon:Ext.MessageBox.INFO,
+        				           buttons: Ext.MessageBox.OK
+        				           
+        				       }); 
+        					return;
+        				}
+        			}
+
+        function orderDetail(id){
+    		Ext.define('OrderItemVo', {
+    		      extend: 'Ext.data.Model',
+    		      fields: [
+    		          'id', 'serviceCatalogName','price','amount','quantity','machineNum','totalPrice','orderNo','os','cpu','memory','disk','addDisk','network','software','serviceDesc','priceType','pricePeriod','pricePeriodType','remark','pointAmount',
+    		          {name: 'createDate', mapping: 'createDate', type: 'date', dateFormat: 'time'}
+    		      ],
+    		      idProperty: 'id'
+    		  });
+
+    		  // create the Data Store
+    		  var store1 = Ext.create('Ext.data.Store', {
+    		      model: 'OrderItemVo',
+    		      remoteSort: true,
+    		      proxy: new Ext.data.proxy.Ajax({
+    		    	  url: path+'/../order/order!queryAllOrderItemsByOrder.action?order.id='+id,
+        				reader: {
+        		              type: 'json',
+        		              root: 'resultObject'
+        		        }
+    		      })
+    		  });
+              
+    		  var arr;
+    		  var orderNo='';
+    		  store1.on('load',function(){
+    	    		var total = 0;
+    	    		arr = new Array();
+    	    		orderNo=store1.getAt(0).get('orderNo');
+    	    		var orderNoField=Ext.create('Ext.form.Display',{
+    	    			fieldLabel:i18n._('order_id'),
+    	    			value:orderNo,
+    	    			margin:'10 10 10 10'
+    	    		})
+    	    	    var orderRemarkField=Ext.create('Ext.form.Display',{
+    	    	    	margin:'10 10 10 10',
+    	    	    	fieldLabel: i18n._('Remark'),
+    	    	    	value: function(){
+    	    	    		var remarkStr=store1.getAt(0).get('remark');
+    	    	    		if(remarkStr){
+    	    	    			var remarkStrArr=remarkStr.split("||");
+        	    	    		return remarkStrArr.join("<br/>");
+    	    	    		}
+    	    	    	}()
+    	    		})
+    	    		arr.push(orderNoField);
+    	    		arr.push(orderRemarkField);
+    	    		totalPoint=0;
+    	    		for(var i=0;i<store1.getCount();i++){
+    	    			total += store1.getAt(i).get('amount');
+   	    				if(store1.getAt(i).get('pointAmount')){
+    	    		      totalPoint +=	store1.getAt(i).get('pointAmount');
+    	    		    }
+
+    	    		fieldSet =  Ext.create('Ext.form.FieldSet', {
+    	    	        title: i18n._('Goods')+(i+1)+i18n._('Details'),
+    	    	        layout: 'anchor',
+    	    	        defaults: {anchor: '100%'},
+    	    				margin:'0 0 0 0',
+    	    				collapsible: true,
+    	    	        items: [
+    	    	{
+    	    	xtype: 'textfield',
+    	    	style:'margin:10 0 10 30',
+    	    	fieldLabel: i18n._('serviceCatalog'),
+    	    	labelWidth:50,
+    	    	readOnly:true,
+    	    	name: i18n._('serviceCatalog'),
+    	    	value: store1.getAt(i).get('serviceCatalogName')
+    	    	},
+    	    	{
+    	    	xtype: 'fieldset',
+    	    	width:400,
+    	    	height: 300,
+    	    	items: [
+    	    	{
+    	    	xtype: 'displayfield',
+    	        style:'margin:10 0 0 30',
+    	    	fieldLabel: 'OS',
+    	    	name: 'OS',
+    	    	value: store1.getAt(i).get('os')
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: 'CPU',
+    	    	name: 'CPU',
+    	    	value: store1.getAt(i).get('cpu')
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('Memory'),
+    	    	name: i18n._('Memory'),
+    	    	value: store1.getAt(i).get('memory')+' M'
+    	    	}, {
+    	    	xtype: 'displayfield',
+    	    	style:'margin:0 0 0 30',
+            	fieldLabel: i18n._('Disk'),
+    	    	name: i18n._('Disk'),
+    	    	value: store1.getAt(i).get('disk')+' G'
+    	    	}, 
+    	    	{
+    		    	xtype: 'displayfield',
+    		    	style:'margin:0 0 0 30',
+    	        	fieldLabel: i18n._('extDisk'),
+    		    	name: i18n._('extDisk'),
+    		    	value: splitExtDisk(store1.getAt(i).get('addDisk'))
+    		    	},
+    	    	{
+    	    	xtype: 'displayfield',
+    	    		style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('Network'),
+    	    	name: i18n._('Network'),
+    	    	value: store1.getAt(i).get('network')+' M'
+    	    	},
+//     		    	,{
+//     	    		xtype: 'displayfield',
+//     	    		style:'margin:0 0 0 30',
+//     	    	fieldLabel: i18n._('software'),
+//     	    	name: i18n._('software'),
+//     	    	value: store1.getAt(i).get('software')
+//     	    	},
+				{
+				xtype: 'displayfield',
+			    style:'margin:10 0 0 30',
+				fieldLabel: i18n._('machineNum'),
+				name: 'machineNum',
+				value: store1.getAt(i).get('machineNum')
+				}, 
+    	    	{
+    	    	xtype: 'displayfield',
+    	    	style:'margin:0 0 0 30',
+    	    	fieldLabel: i18n._('ExpensesDesc'),
+    	    	width:475,
+    	    	name: i18n._('ExpensesDesc'),
+    	    	value: store1.getAt(i).get('serviceDesc')
+    	    	}]
+    	    	},
+    	    	{
+    	    	xtype: 'displayfield',
+    	    		style:'margin:5 0 0 30',
+    	    	fieldLabel: i18n._('Quantity'),
+    	    	name: i18n._('Quantity'),
+    	    	value: store1.getAt(i).get('quantity')
+    	    	},
+    	    	{
+    	    		xtype: 'displayfield',
+    	    		name: 'price',
+    	    		fieldLabel: i18n._('Price'),
+    	    			style:'margin:5 0 0 30',  
+    	    			width: 200,
+    	    			value: store1.getAt(i).get('priceType')==1?(i18n._('One-time purchase')+store1.getAt(i).get('pricePeriod')+getPricePeriodTypeDisplayValue(store1.getAt(i).get('pricePeriodType'))+store1.getAt(i).get('price')+' RMB'):store1.getAt(i).get('priceType')==2?store1.getAt(i).get('price')+' RMB/'+i18n._('Hour'):store1.getAt(i).get('priceType')==3?store1.getAt(i).get('price')+' RMB/'+i18n._('Month'):store1.getAt(i).get('price')+' RMB/'+i18n._('Year')
+
+    	    		},{
+    	    			xtype: 'displayfield',
+    	    			name: 'price',
+    	    			fieldLabel: i18n._('totalPointAmount'),
+    	    			style:'margin:5 0 0 30',
+    	    			width: 200,
+    	    			value: function(){
+    	    				if(store1.getAt(i).get('pointAmount')){
+    	    					return store1.getAt(i).get('pointAmount')+" "+i18n._("dian");
+    	    				}else{
+    	    					return 0+i18n._("dian");
+    	    				}
+    	    				
+    	    			}()
+    	    		},
+    	    		{
+    	    			xtype: 'displayfield',
+    	    			name: 'price',
+    	    			fieldLabel: i18n._('Expenses'),
+    	    				style:'margin:5 0 0 30',
+    	    				width: 200,
+    	    				value: store1.getAt(i).get('amount')+" "+' RMB'
+
+    	    		}]
+    	    		  });
+    	    		arr.push(fieldSet);
+
+    	    	}
+
+    	    		var win = Ext.create('Ext.window.Window', {
+    	    	        title: i18n._('Order Detail'),
+    	    	        width: 570,
+    	    	        height: 430,
+    	    	        constrain:true,
+    	    	      //  minWidth: 300,
+    	    	      //  minHeight: 200,
+    	    	        layout: 'fit',
+    	    	        plain:true,
+    	    	        modal:true,
+    	    	        items: {
+    	    			    xtype: 'form',
+    						//layout:"fit",
+    	    		        height:'100%',
+    	    			    width:'80%',
+    	    				autoScroll:true,
+    	    			//	margin:10,
+    	    	            border: false,
+    	    			    items: arr
+    	    			},
+    	    		
+	    	    	        buttons: [{
+	    	    	            xtype: 'displayfield',
+	    	    	            id:"totalPriceField",
+	    	    	            name: 'price',
+	    	    				layout:{pack:'start'},
+	    	    	            fieldLabel: i18n._('Total Cost'),
+	    	    	            labelAlign:'right',
+	    	    		    	//style:'margin:5 0 0 45',
+	    	    				margin:'0 0 0 0',
+	    	    		    	width: 200
+	    	    	     },{
+	    	    	    	 xtype: 'displayfield',
+	 	    	            id:"totalPointField",
+	 	    	            name: 'price',
+	 	    				layout:{pack:'start'},
+	 	    	            fieldLabel: i18n._('totalPointAmount'),
+							labelAlign:'right',
+	 	    		    	//style:'margin:5 0 0 45',
+	 	    				margin:'0 0 0 0',
+	 	    		    	width: 200
+	    	    	     }]
+	    	    	    }).show();
+	    	    		
+	    	    		Ext.getCmp('totalPriceField').setValue(Ext.util.Format.number(total,"0.00")+' RMB');
+	    	    		Ext.getCmp('totalPointField').setValue(Ext.util.Format.number(totalPoint,"0.00")+' '+i18n._("dian"));
+	    	    		
+    	    	});
+    	    	
+    		    store1.load();
+    		    }
+                    
+                }
+            };
+         })();
+    	 MultiLang.init();
+     });
+
+// 退款申请详情
+function refundApplyDetail(refundVmNo){
+       var vmRefundLogStore = Ext.create('Ext.data.Store',{
+		    fields: [
+		        {name:'uuid',mapping:'uuid'},
+		        {name:'vmName',mapping:'vmName'},
+		        {name:'outerIp',mapping:'outerIp'},
+		        {name:'orderNo',mapping:'orderNo'},
+		        {name:'openDate', mapping: 'openDate', type: 'date', dateFormat: 'time'},
+		        {name:'expirationDate', mapping: 'expirationDate', type: 'date', dateFormat: 'time'},
+		        {name:'applyDate', mapping: 'applyDate', type: 'date', dateFormat: 'time'},
+		        {name:'refundDate', mapping: 'refundDate', type: 'date', dateFormat: 'time'},
+		        {name:'refundAmount',mapping:'refundAmount'},
+		        {name:'operator', mapping: 'operator'},
+		        {name:'ownerEmail', mapping: 'ownerEmail'},
+		        {name:'refundType', mapping: 'refundType'},
+		        {name:'applyRefundReason', mapping: 'applyRefundReason'}
+		    ],
+			remoteSort: true,
+	 		proxy: new Ext.data.proxy.Ajax({
+	 		 url: path+'/../order/refundManagement!getVmRefundLogByUuid.action?uuid='+refundVmNo,
+	     		reader: {
+	     		      type: 'json',
+	     		      root: 'resultObject'
+	     		}
+	 		}),
+			listeners:{
+				'load':function(store){
+					// 加载vmRefundLogStore的数据到窗体
+					var refundDetailWindow =Ext.create('Ext.window.Window', {
+						title: i18n._('refundDetail'),
+						height: 430,
+						layout:'fit',
+					    width: 500,
+					    border: false,
+						closable:false,
+						resizable : false,
+						constrain : true,
+						modal:true,
+						tools:[{
+						  type:'close',
+						  handler:function(){
+						  refundDetailWindow.destroy();
+						  }
+						}],
+					    items: [
+							   {
+							xtype: 'form',
+							height:'100%',
+							width:470,
+							autoScroll:true,
+							border: false,
+							  items: [
+						{
+						xtype: 'fieldset',
+						title: i18n._("Basic information"),
+						width:450,
+						style:'margin-left:10px;',
+						items:[
+								{
+								xtype: 'displayfield',
+								fieldLabel: i18n._("machineNum"),
+								value: store.getAt(0).get('uuid'),
+								style:'margin-left:30px;'
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("vmName"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('vmName')	
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("ipOuter"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('outerIp')			
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("order_id"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('orderNo')			
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("openTime"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('openDate'),
+									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s')
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("expireTime"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('expirationDate'),
+									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s')
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("applayTime"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('applyDate'),
+									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s')
+								},{
+									xtype:'displayfield',
+									fieldLabel:i18n._("refundDate"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('refundDate'),
+									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s')
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("refundAmount"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('refundAmount')==null?"":store.getAt(0).get('refundAmount')+"(元)"
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("operator"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('operator')
+								},
+								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("Owner"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('ownerEmail')
+								
+								},
+ 								{
+									xtype:'displayfield',
+									fieldLabel:i18n._("refundType"),
+									style:'margin-left:30px',
+									value: store.getAt(0).get('refundType'),
+									renderer:function(value){
+				
+										switch(value){
+											case '1':return i18n._('partialRefund');
+											case '2':return i18n._('fullRefund');  
+											default:{
+							    		       return '';
+							    		    }
+										}
+									}
+								},
+								{
+									xtype:'textarea',
+									fieldLabel:i18n._('applyReason'),
+									style:'margin-left:30px;',
+									editable:false,
+									width:350,
+									readOnly:true,
+									value: store.getAt(0).get('applyRefundReason')
+								}
+						]
+					}
+					]
+					}
+					]
+					}).show();
+				}
+			}
+ 	   }).load();
+};
+
+    function splitExtDisk(addDisk){
+	    if(addDisk){
+		var extDiskNameArr=addDisk.split(",");
+		for(var i in extDiskNameArr){
+			extDiskNameArr[i]=extDiskNameArr[i]+'G';
+		}
+		return extDiskNameArr.join(',');
+		}else{
+			return '';
+		}
+     }
+
+	 function getCookie(name){
+	         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+	         if(arr != null) return unescape(arr[2]);
+			 return null;
+	 }
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

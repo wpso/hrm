@@ -1,0 +1,718 @@
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script src="../../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="sccommon.js"></script>
+<style type="text/css">
+ #ext-quicktips-tip-body{
+ word-break:break-all;
+ word-wrap:break-word;
+ }
+</style>
+<script>
+	Ext.onReady(function() {
+				var params;
+				MultiLang = (function() {
+					return {
+						init : function() {
+							params = getCookie("lang");
+							i18n.set({
+								lang : params,
+								path : '../../resources'
+							});
+							if (params) {
+								var url = Ext.util.Format
+										.format(
+												'../../extjs-4.1.0/locale/ext-lang-{0}.js',
+												params);
+								Ext.Ajax.request({
+									url : url,
+									success : this.onLoadExtLocaleSuccess,
+									failure : this.onLoadExtLocaleFailure,
+									scope : this
+								});
+							} else {
+								// no language found, locale of ExtJS will be english as default
+								//this.loadmyprojectLocale();
+								this.setup();
+							}
+						},
+						onLoadExtLocaleSuccess : function(response) {
+							try {
+								eval(response.responseText);
+							} catch (e) {
+								//Ext.Msg.alert('Failure', e.toString());
+							}
+							//this.loadmyprojectLocale();
+							this.setup();
+						},
+						onLoadExtLocaleFailure : function() {
+							//Ext.Msg.alert('Failure','Failed to load locale file.');
+							this.setup();
+							//this.loadmyprojectLocale();
+						},
+						setup : function() {
+/*********************************************页面渲染开始******************************************************************/
+
+Ext.define('ServiceItem', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'name',  type: 'string'},
+	{name: 'serviceType',  type: 'int'},
+	{name: 'createDate',  type: 'date',dateFormat : 'time'},
+	{name: 'updateDate',  type: 'date',dateFormat : 'time'},
+	{name: 'description',  type: 'string'}
+	]
+});
+
+var ramModel=Ext.define('Ram', {
+    extend: 'ServiceItem',
+    fields: [
+	{name: 'size',  type: 'int'},
+	{name: 'model',  type: 'string'}
+	]
+}); 
+ 
+ 
+function tooltipRenderer(value,metedata,record,rowIndex,colIndex,store){
+	 metedata.tdAttr = 'data-qtip="' + value + '"';
+	 return value;
+}
+
+var ram_columns=[{xtype:'rownumberer', width: 30},
+                 {"text":i18n._('name'),"dataIndex":"name","flex":1,renderer:tooltipRenderer},
+                 {"text":i18n._('capacity(M)'),"dataIndex":"size","flex":1},
+                 {"text":i18n._('model'),"dataIndex":"model","flex":1,renderer:tooltipRenderer},
+                 {"text":i18n._('createTime'),"dataIndex":"createDate","flex":1,"xtype":"datecolumn","format":"Y-m-d H:i:s"}
+                 ];
+
+var v_proxy=new Ext.create('Ext.data.proxy.Ajax',
+		 {
+		 		//model: 'Cpu',
+		         type: 'ajax',
+		         url : path+'/../sc/serviceItem!pageServiceItem.action',
+		 		//extraParams:{serviceType:1},
+		 		reader: {
+		             type: 'json',
+		 			root:'resultObject.result',
+		 			totalProperty: 'resultObject.totalCount'
+		         }
+		     }
+		 );
+
+		 var v_store=Ext.create('Ext.data.Store', {
+		     pageSize:pageSize,
+		 	width:'100%',
+		 	sorters: [
+		              {
+		            	  property : 'createDate',
+		                  direction: 'DESC'
+		              }
+		          ],
+		 	remoteSort:true,
+		 	proxy:v_proxy
+		 });
+		 v_proxy.setModel(ramModel);
+		 v_proxy.setExtraParam('serviceType',2);
+		 v_store.load();
+ 
+ var v_height = 30;
+ var v_width = 290;
+ var v_margin = '4px';
+ Ext.define('textPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	width:v_width,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		xtype:'textfield',
+ 		width:235,
+ 		fieldLabel:'',
+ 		enforceMaxLength:true,
+ 		maxLength:50
+ 		}]
+ 	
+ });
+ Ext.define('descPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:50,
+ 	width:450,
+ 	border:false,
+ 	//layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[
+ 		{
+ 		height:45,
+ 		width:360,
+ 		xtype:'textarea',
+ 		enforceMaxLength:true,
+ 		maxLength:200,
+ 		fieldLabel:i18n._('ExpensesDesc')
+ 		}]
+ 	
+ });
+ Ext.define('pricePanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	border:false,
+ 	layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[		
+ 		{
+ 	    xtype: 'numberfield',
+ 		fieldLabel:i18n._('Price'),
+ 		width:235,
+ 		enforceMaxLength:true,
+		maxLength:9,
+		maxValue: 1000000,
+ 		minValue: 0,
+ 		allowBlank: false
+ 	    },
+ 		{
+ 		xtype: 'displayfield',
+ 		margin:'0 0 0 10',
+ 		value:i18n._('RMB/hour')
+ 		}
+ 		]
+ 	
+ });
+ Ext.define('numberPanel',{
+ 	extend:'Ext.panel.Panel',
+ 	height:v_height,
+ 	border:false,
+ 	layout:'hbox',
+ 	style:{
+ 		marginTop:v_margin
+ 	},
+ 	items:[		
+ 		{
+ 	    xtype: 'numberfield',
+ 		fieldLabel:'',
+ 		width:235,
+ 		maxValue: 1000000,
+ 		enforceMaxLength:true,
+		maxLength:9,
+ 		minValue: 0,
+ 		allowDecimals:false,
+ 		allowBlank: false
+ 	    },
+ 		{
+ 		xtype: 'displayfield',
+ 		margin:'0 0 0 10',
+ 		value:'M'
+ 		}
+ 		],
+ 	setLabel:function(value){
+ 		this.getComponent(0).setFieldLabel(value);
+ 	},
+ 	setExt:function(value){
+ 		this.getComponent(1).setValue(value);
+ 	}
+ 	
+ });
+
+
+ Ext.define('commonForm',{ 
+ extend:'Ext.form.Panel',	
+                     border: false,
+                     items: [{
+ 					xtype:"fieldset",
+ 					border:true,
+ 					anchor:'100% 100%',
+                     style:{
+ 					 marginLeft:"5px",
+ 					 marginRight:"5px",
+                      marginTop:"5px"
+ 					}
+ 					}]
+
+                    });
+ 				   
+ Ext.define('commonWindow',{ 				   
+ 			extend:'Ext.window.Window',
+             title: i18n._('add resource'),
+ 	        modal:'true',
+             width: 550,
+             constrain:true,
+             autoHeight:true,
+             layout: 'anchor',
+             closable:false});
+ 
+ 
+ //cpu form item define
+ var ram_name= Ext.create('textPanel');
+ ram_name.getComponent(0).setFieldLabel(i18n._('name'));
+ var ram_model=Ext.create('textPanel');
+ ram_model.getComponent(0).setFieldLabel(i18n._('model'));
+ var ram_size= Ext.create('numberPanel');		
+ ram_size.setLabel(i18n._('capacity'));	
+				
+ var ramForm = Ext.create('commonForm');		
+ ramForm.getComponent(0).setTitle(i18n._('ram info'));
+ ramForm.getComponent(0).add([ram_name,ram_model,ram_size]);
+
+ 
+ var addButton=Ext.create('Ext.button.Button',{
+			 style:'margin-right:5',
+			 text: i18n._('Add')
+ });	
+
+var commonWindow=Ext.create('commonWindow', {
+			                   //  items: cpuForm,
+			                   constrain:true,
+			 	            	tools:[{
+			 	                type:'close',
+			 	                handler:function(){					
+			 					commonWindow.getComponent(0).getForm().reset();
+			 					commonWindow.hide();
+			 	                }
+			 	                }],               
+			                     buttons: [
+			 					addButton,
+			 					{   
+			 					    style:'margin-right:5',
+			                         text: i18n._('reset'),
+			 						handler:function(){
+			 						    commonWindow.getComponent(0).getForm().reset();
+			 						    //commonWindow.hide();
+			 						}
+			                     }]
+});
+
+function setRecord(record){
+	ram_name.getComponent(0).setValue(record.get('name'));
+	ram_size.getComponent(0).setValue(record.get('size'));
+	ram_model.getComponent(0).setValue(record.get('model'));
+}
+
+function checkMemAddField(oldName){
+	var ramName=ram_name.getComponent(0).getValue();
+	var size=ram_size.getComponent(0).getValue();
+	//alert(frequency+'===='+price);
+	if(ramName.length==0||ramName.length>50){
+		showMsg(i18n._("ramNameTip"));
+		return false;
+	}
+	if(!/^\S+$/g.test(ramName)){
+		showMsg(i18n._("The name can not contain blank characters"));
+		return false;
+	}
+	if(!checkResourceNameRepeat(ramName,2,oldName)){
+		showMsg(i18n._('sirepeat'));
+		return false;
+	}
+	if(!ram_size.getComponent(0).isValid()){
+		return false;
+	}
+	if(size==null||!/\d+/.test(size)){
+		showMsg(i18n._("ramSizeNullTip"));
+		return false;
+	}
+	
+	if(size==0){
+		showMsg(i18n._("ramSizeZeroTip"));
+		return false;
+	}
+
+
+}
+
+function ajax_request(v_serviceType,v_json){
+	var v_mask = new Ext.LoadMask(Ext.getBody(), {
+	                        msg: i18n._('saving'),
+	                        removeMask: true //完成后移除
+	                    });
+					v_mask.show();					
+					Ext.Ajax.request({
+						url: path+'/../sc/serviceItem!save.action',
+						params:{serviceType:v_serviceType},
+						jsonData:v_json,
+						success:function(response){
+							v_mask.hide();
+							commonWindow.hide();
+							commonWindow.removeAll(false);
+           					var result=Ext.JSON.decode(response.responseText);
+           					if(result.success==false){
+           						Ext.MessageBox.show({
+ 	                              // title: '提示',
+                                    title:i18n._('notice'),
+ 	                               msg: result.resultMsg,
+ 	                               icon:Ext.MessageBox.INFO,	 	           		  
+ 	                               buttons: Ext.MessageBox.OK	 	                      
+ 	           				});
+           					}else{
+							    v_store.load();
+							}
+						}	
+					});	
+					commonWindow.getComponent(0).getForm().reset();
+};
+
+function showMsg(msg){
+	 Ext.MessageBox.show({
+        title: i18n._('Prompt'),
+         msg: msg==null?i18n._('Input error'):msg,
+       icon:Ext.MessageBox.INFO,
+      buttons: Ext.MessageBox.OK
+      });
+}
+
+function showWindow(){
+	addButton.setText(i18n._('Add'));
+	commonWindow.setTitle(i18n._('add resource'));
+	commonWindow.removeAll(false);	
+	
+		commonWindow.add(ramForm);
+		addButton.setHandler(
+				function(){
+					
+					if(checkMemAddField()==false){return;}
+					
+					var qos_arr = [] ;
+					
+					var arr = {"key" : "soft_limit","value" : ram_size.getComponent(0).getValue()}
+					qos_arr.push(arr);
+					
+					var v_json={
+							serviceType:2,
+							name:ram_name.getComponent(0).getValue(),
+							size: ram_size.getComponent(0).getValue(),
+							model:ram_model.getComponent(0).getValue(),
+							qosPolicies:qos_arr
+							};
+					ajax_request(2,v_json);		
+				}
+		);
+		commonWindow.show();
+		
+		
+}
+		 
+		 Ext.QuickTips.init();
+		 Ext.form.Field.prototype.msgTarget = 'side';
+		 var pluginExpanded = true;
+		 var dataGrid=Ext.create('Ext.grid.Panel', {
+		     layout:'fit',
+		 	title:i18n._('ServiceCatalog_resource')+'&nbsp;>&nbsp;MEM',
+		     store: v_store,
+		 	simpleSelect:true,	
+		 	//sortableColumns:false,
+		     columns: ram_columns,
+		 	selModel: Ext.create('Ext.selection.RowModel'),
+		     //selType: 'rowmodel',
+		 	bbar: Ext.create('Ext.PagingToolbar', {
+		           store:v_store ,
+		           displayInfo: true
+		     }),
+		     listeners:{
+			    	'itemdblclick':{
+			    		fn:function(){
+			    			viewDetail();
+			    		}
+			    	}
+			    },
+		     dockedItems:[
+		      			{xtype:'toolbar',
+		      			dock: 'top',
+		      			cls: 'toolbarCSS',
+		      			//style:'background-color:#4c4c4c; background-image:url();',
+		      			items:[{
+		      				xtype:'button',
+		      				margin:'0 0 0 0',
+		      				icon:'images/add_new.png',
+		      				text:'<font id="AddMem" color="white" >' +i18n._("Add") + '</font>',
+		      				 listeners: {
+		    					 "mouseout" : function() {
+		    						 document.getElementById("AddMem").style.color = "white";
+		    					 },
+		    					 "mouseover" : function() {
+		    						 document.getElementById("AddMem").style.color = "black";
+		    					 }
+		    						
+		    				 },
+		      				handler:showWindow
+		      			},
+// 		      			{    
+// 		      			    margin:'0 0 0 0',
+// 		      			  text:'<font id="EditMem" color="white" >' +i18n._("edit") + '</font>',
+// 		      				listeners: {
+// 		    					 "mouseout" : function() {
+// 		    						 document.getElementById("EditMem").style.color = "white";
+// 		    					 },
+// 		    					 "mouseover" : function() {
+// 		    						 document.getElementById("EditMem").style.color = "black";
+// 		    					 }
+		    						
+// 		    				},
+// 		      				style:'margin-left:750px;',
+// 		      				icon: 'images/edit_new.png',
+// 		      				handler:function(){
+// 		      				addButton.setText(i18n._('Save'));
+// 		      				commonWindow.setTitle(i18n._('edit'));
+// 		      				var rows=dataGrid.getSelectionModel().getSelection();
+// 		      				var scId=0;
+// 		      				if(rows.length > 0){
+// 		      				  scId=rows[0].get('id');
+// 		      				}else{
+// 		      						 Ext.MessageBox.show({
+// 		      						    title:i18n._('notice'),
+// 		      						    msg:i18n._('please choose one column'),
+// 		                                icon:Ext.MessageBox.WARNING,
+// 		                               buttons: Ext.MessageBox.OK
+// 		                               }); 
+// 		      						return;
+// 		      			    }
+// 		      				var record=	v_store.getById(scId);
+// 		      				setRecord(record);
+// 		      				var oldName=record.get('name');
+// 		      				commonWindow.add(ramForm);
+// 		      				addButton.setHandler(
+// 		      					function(){
+// 		      						if(checkMemAddField(oldName)==false){return;}
+// 		      					    var v_json={id:scId,
+// 		    								serviceType:2,
+// 		    								name:ram_name.getComponent(0).getValue(),
+// 		    								size:ram_size.getComponent(0).getValue(),
+// 		    								model:ram_model.getComponent(0).getValue(),							
+// 		    								price:ram_price.getComponent(0).getValue()
+// 		      							};
+// 		      					   ajax_request(2,v_json);		
+// 		      					});
+		      				
+// 		      	            commonWindow.show();
+// 		                  }},
+		                  {
+		                	  xtype:'button',
+			                    itemId: 'detailButton',
+			                    text:'<font id="detailDisk" color="white" >' +i18n._("detail") + '</font>',
+			      				listeners: {
+			    					 "mouseout" : function() {
+			    						 document.getElementById("detailDisk").style.color = "white";
+			    					 },
+			    					 "mouseover" : function() {
+			    						 document.getElementById("detailDisk").style.color = "black";
+			    					 }
+			    						
+			    				},
+			                    icon: 'images/detail.png',
+			      				handler:function(){
+			      					viewDetail();
+			      				}
+		                  },
+		      			{
+		                      itemId: 'removeButton',
+		                      text:'<font id="deleteMem" color="white" >' +i18n._("delete") + '</font>',
+			      				listeners: {
+			    					 "mouseout" : function() {
+			    						 document.getElementById("deleteMem").style.color = "white";
+			    					 },
+			    					 "mouseover" : function() {
+			    						 document.getElementById("deleteMem").style.color = "black";
+			    					 }
+			    						
+			    				},
+		                      icon: 'images/delete.png',
+		      				handler:function(){
+		      				var rows=dataGrid.getSelectionModel().getSelection();
+		      				 var scId;
+		      				 if(rows.length > 0){
+		      				 scId=rows[0].get('id');
+		      				 
+		      				 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      								msg:i18n._('Are you sure to delete'),
+		      			                   buttons: Ext.MessageBox.YESNO,
+		      			                   icon: Ext.MessageBox.QUESTION,
+		      			                   fn:function(e){
+		      			                	   if(e=="no"){
+		      			                		   return;
+		      			                	   }else if(e=='yes'){
+		      			                		   Ext.Ajax.request({
+		      											url: path+'/../sc/serviceItem!delete.action',
+		      											method: 'POST',
+		      											params:{
+		      											'serviceItem.id':scId
+		      											},
+		      											success:function(response){
+		      					           					var result=Ext.JSON.decode(response.responseText);
+		      					           					if(result.success==false){
+		      					           						Ext.MessageBox.show({
+		      				                                        title:i18n._('notice'),
+		      					 	                               msg: result.resultMsg,
+		      					 	                               icon:Ext.MessageBox.INFO,	 	           		  
+		      					 	                               buttons: Ext.MessageBox.OK	 	                      
+		      					 	           				});
+		      					           					}else{
+		      					           						Ext.MessageBox.show({
+		      														  title: i18n._('notice'),
+		      														  msg:i18n._('delete successfully'),
+		      				                                          icon:Ext.MessageBox.INFO,
+		      				                                          buttons: Ext.MessageBox.OK
+		      														});
+		      												v_store.loadPage(1,null);
+		      												}
+		      											}
+		      												});
+		      			                	   }
+		      			                	 
+		      			                	}
+		      			    		});	 	
+		      					}else{
+		      						 Ext.MessageBox.show({
+		      							    title: i18n._('notice'),
+		      							    msg:i18n._('please choose one column'),
+		                                      icon:Ext.MessageBox.WARNING,
+		                                      buttons: Ext.MessageBox.OK
+		      						}); 
+		      						return;
+		      			    	}		           
+		      			        }
+		                  },
+		      			{xtype:'tbfill'},
+		      			{
+		    				xtype:'displayfield',
+		    				hideLabel:true,
+		    				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+		    			},
+		    			{    
+		    				xtype: 'searchfield',
+		    			    hideLabel:true,
+		    				hasSearch:true,
+		    				emptyText:i18n._('name'),
+		    				store: v_store
+		    			}
+		      			]}],
+		     width: '100%'
+		     
+		 });
+		 
+		 function viewDetail(){
+				var rows = dataGrid.getSelectionModel().getSelection();
+				if(rows.length > 0){
+					var record = rows[0];
+					var info =Ext.create('Ext.window.Window', {
+						title: i18n._('resourceDetail'),
+						height: 200,
+						layout:'fit',
+						constrain:true,
+					    width: 550,
+	    	        plain:true,
+					    border: false,
+						closable:false,
+						modal:true,
+						tools:[{
+						  type:'close',
+						  handler:function(){
+						  info.destroy();
+						  }
+						}],
+					    items: [
+											{
+							xtype: 'form',
+							height:'100%',
+							width:550,
+							autoScroll:true,
+							border: false,
+							  items: [
+						{
+						xtype: 'fieldset',
+						title: i18n._("resource_info"),
+						width:440,
+						margin:'0 40 0 50',
+						//style:'margin-left:50px;',
+						items:[
+								{
+								xtype: 'textfield',
+								fieldLabel: i18n._("name"),
+								name: i18n._("name"),
+								width:400,
+								labelWidth:80,
+								readOnly:true,
+								margin:'5 5',
+								value: record.get('name')
+								},
+								{
+								xtype:'textfield',
+								fieldLabel:i18n._("model"),
+								width:400,
+								labelWidth:80,
+								readOnly:true,
+								margin:'5 5',
+								name:i18n._("model"),
+								value: record.get('model')
+								},
+								{
+								xtype:'textfield',
+								fieldLabel:i18n._("capacity"),
+								width:400,
+								labelWidth:80,
+								readOnly:true,
+								margin:'5 5',
+								name:i18n._("capacity"),
+								value: record.get('size')+'(M)'
+								}
+						]
+					}
+					]
+					}
+					]
+
+					});
+					//用户详细信息页面结束
+					info.show();
+				}else{
+				    	Ext.MessageBox.show({
+				          // title: '提示',
+				           //msg: '请选择一个用户',
+						   title:i18n._('notice'),
+					       msg:i18n._('please choose one column'),
+				           icon:Ext.MessageBox.INFO,
+				           buttons: Ext.MessageBox.OK
+				           
+				       }); 
+					return;
+				}
+				
+			}
+		 
+		 
+		 Ext.create('Ext.Viewport',{
+			 layout:'fit',
+			 items: dataGrid
+			});
+ 
+ 
+/*********************************************页面渲染结束******************************************************************/
+
+						}
+					};
+				})();
+				MultiLang.init();
+});
+	
+	 function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+     }
+</script>
+</head>
+<body>
+</body>
+</html>

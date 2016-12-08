@@ -1,0 +1,1296 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css"
+	href="../extjs-4.1.0/resources/css/ext-all-gray.css" />
+<link rel="stylesheet" type="text/css" href="../css/example.css" />
+<link rel='stylesheet' type='text/css'
+	href='../js/ux/css/CheckHeader.css' />
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+<script type="text/javascript" src="../js/ux/CheckColumn.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+<style type="text/css">
+body .x-panel {
+	margin: 0 0 20 0;
+	padding: 0 0 0 0;
+}
+
+.x-tree-checked .x-grid-cell-inner {
+	font-style: italic;
+	color: #777;
+}
+
+.x-grid-row-selected .x-grid-cell {
+	background-color: #efefef !important;
+}
+
+.fontWhite {
+	color: #ffffff;
+}
+</style>
+<script type="text/javascript">
+	Ext.Loader.setConfig({
+		enabled : true
+	});
+
+	Ext.require([ 'Ext.grid.*', 'Ext.form.*', 'Ext.data.*',
+			'Ext.ux.RowExpander', 'Ext.ux.form.SearchField',
+			'Ext.ux.CheckColumn' ]);
+
+	function vd(text) {
+		if (text.indexOf(' ') >= 0)
+			return i18n._('blank'); //return 'can not use the blank space';      
+		else
+			return true;
+
+	};
+
+	var roleId = '';
+
+	Ext.onReady(function() {
+		var params;
+		MultiLang = (function() {
+			return {
+				init : function() { // load ExtJS locale
+					params = getCookie("lang");
+					i18n.set({
+						lang : params,
+						path : '../resources'
+					});
+					if (params) {
+						var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js',params);
+						Ext.Ajax.request({
+							url : url,
+							success : this.onLoadExtLocaleSuccess,
+							failure : this.onLoadExtLocaleFailure,
+							scope : this
+						});
+					} else {
+						// no language found, locale of ExtJS will be english as default
+						this.setup();
+					}
+				},
+				onLoadExtLocaleSuccess : function(response) {
+					try {
+						eval(response.responseText);
+					} catch (e) {
+						//Ext.Msg.alert('Failure', e.toString());
+					}
+					this.setup();
+				},
+				onLoadExtLocaleFailure : function() {
+					//Ext.Msg.alert('Failure', 'Failed to load locale file.');
+					this.setup();
+				},
+				setup : function() {
+					Ext.define('Role', {
+						extend : 'Ext.data.Model',
+						fields : [ {name : 'id',type : 'long'}, 
+						           {name : 'name',type : 'string'},
+						           {name : 'createDate',mapping : 'create_date',type : 'date',dateFormat : 'time'}, 
+						           {name : 'updateDate',mapping : 'update_date',type : 'date',dateFormat : 'time'} ]
+					});
+					var fields = ["id", "name", "create_date","update_date", "code", "status"];
+					//加載角色列表
+					var store1 = Ext.create('Ext.data.Store',
+					{
+						pageSize : pageSize,
+						autoLoad : true,
+						storeId : 'loadRolelist',
+						width : '100%',
+						model : 'Role',
+						remoteSort : true,
+						proxy : {
+							actionMethods:{read:'POST'},
+							type : 'ajax',
+							url : './../admin/getAllRole',
+							reader: new Ext.data.JsonReader(
+					        {
+					            fields: fields,
+					            root: "RoleList",
+					            id: "id",
+					            totalProperty: "totalProperty"
+					        })
+						}
+					});
+	
+					var itemValue = 'roleName';
+					var pluginExpanded = true;
+	
+					Ext.define('Admin', {
+						extend : 'Ext.data.Model',
+						fields : [ 'id', 'name', {
+							name : 'createDate',
+							mapping : 'createDate',
+							type : 'date',
+							dateFormat : 'time'
+						} ]
+					});
+					var role_member = Ext.create('Ext.data.Store',
+					{
+						pageSize : pageSize,
+						width : '100%',
+						requires : 'Admin',
+						model : 'Admin',
+						remoteSort : true,
+						proxy : {
+							type : 'ajax',
+							url : path
+									+ '/admin_mgmt/role!pageAdminByRoleId.action',
+							extraParams : {
+								'role.id' : 0
+							},
+							reader : {
+								type : 'json',
+								root : 'resultObject.result',
+								totalProperty : 'resultObject.totalCount'
+							}
+						}
+					});
+					var grid_member = Ext.create('Ext.grid.Panel',
+					{
+						id : 'grid_member',
+						store : role_member,
+						margin : '0 0 0 0',
+						width : '80%',
+						height : 265,
+						frame : true,
+						border : false,
+						simpleSelect : true,
+						selModel : sm,
+						viewConfig : {//自适应
+							stripeRows : true,
+							forceFit : true
+						},
+						columns : [
+								{
+									xtype : 'rownumberer',
+									align : 'left',
+									flex : .5,
+									text : i18n._('No.')
+								},
+								{
+									text : i18n._('Admin Name'),
+									dataIndex : 'name',
+									flex : 1,
+									sortable : false
+								},
+								{
+									text : i18n._('createDate'),
+									dataIndex : 'createDate',
+									renderer : Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+									flex : 1,
+									sortable : true
+								} ],
+						columnLines : true,
+						bbar : Ext.create('Ext.PagingToolbar',
+						{//page
+							store : role_member,
+							pageSize : 0,
+							displayInfo : true
+						})
+					});
+					//查看成员 窗口
+					var win_group_detail = Ext.create('Ext.window.Window',
+					{
+						title : i18n._('Role Member'),
+						width : 500,
+						height : 430,
+						layout : 'fit',
+						constrain : true,
+						plain : true,
+						closable : false,
+						modal : true,
+						tools : [ {
+							type : 'close',
+							handler : function() {
+								win_group_detail.hide();
+							}
+						} ],
+						items : {
+							xtype : 'form',
+							height : '100%',
+							width : '80%',
+							autoScroll : true,
+							border : false,
+							items : [
+									{
+										xtype : 'displayfield',
+										fieldLabel : i18n._('Role Name'),
+										style : 'margin-left:50px;margin-top:20px;',
+										name : i18n._('Role Name'),
+										id : 'group_name_3',
+										maxLength : 50
+									}, grid_member ]
+						}
+					});
+					var sm = Ext.create('Ext.selection.RowModel');
+	
+					function parentCheck(node, checked) {
+						if (checked == false) {
+							var parentNode = node.parentNode;
+							if (parentNode !== null) {
+								parentNode.set("checked", false);
+								parentCheck(parentNode, checked);
+							}
+						}
+					}
+	
+					//   递归循环选中所以的子节点
+					function childCheck(node, checked) {
+						if (checked == true) {
+							node.checked = checked;
+							node.expand();
+							//获得子节点
+							var cNode = node.childNodes;
+							//当checked == true通过循环将所有子节点选中
+							for (var i = 0; i < cNode.length; i++) {
+								cNode[i].set("checked", true);
+								if (!cNode[i].get("leaf") && checked) {
+									childCheck(cNode[i], checked);
+								}
+							}
+						}
+					}
+	
+					Ext.define('ResourceType', {
+						extend : 'Ext.data.Model',
+						fields : [ {
+							name : 'resourceType',
+							type : 'string'
+						}, {
+							name : 'name',
+							type : 'string'
+						} ]
+					});
+					var typeStore = Ext.create('Ext.data.Store',
+					{
+						storeId : 'loadResourceId',
+						width : '100%',
+						requires : 'ResourceType',
+						model : 'ResourceType',
+						proxy : {
+							type : 'ajax',
+							url : path
+									+ '/admin_mgmt/role!getResourceTypeList.action'
+						}
+					});
+	
+					//权限数据模板
+					Ext.define('Task', {
+						extend : 'Ext.data.Model',
+						fields : [ {
+							name : 'id',
+							type : 'string'
+						}, {
+							name : 'name',
+							type : 'string'
+						}, {
+							name : 'param1',
+							type : 'string'
+						}, {
+							name : 'param2',
+							type : 'string'
+						}, {
+							name : 'param3',
+							type : 'string'
+						} ]
+					});
+					var privilegeTreeStore = Ext.create('Ext.data.TreeStore',
+					{
+						model : 'Task',
+						proxy : {
+							type : 'ajax',
+							url : './../admin/getMenuStore?parm=0',
+						},
+						fields: ['name', 'param1', 'leaf'],
+						folderSort : true
+					});
+					var privilegeGridStore = Ext.create('Ext.data.Store',
+					{
+						model : 'Task',
+						pageSize : pageSize,
+						autoLoad : false,
+						proxy : new Ext.data.proxy.Ajax(
+								{
+									url : path
+											+ '/admin_mgmt/role!findVmGrid.action',
+									reader : {
+										type : 'json',
+										root : 'resultObject.result',
+										totalProperty : 'resultObject.totalCount'
+									},
+									listeners : {
+										exception : function(reader,response,error,eOpts) {
+											var obj = Ext.decode(response.responseText);
+											if (!obj.success) {
+												Ext.MessageBox.show({
+													title : i18n._('errorNotice'),
+													msg : obj.resultMsg,
+													buttons : Ext.MessageBox.OK,
+													icon : Ext.MessageBox.ERROR
+												});
+											}
+										}
+									}
+								}),
+						folderSort : true
+					});
+					var privilegeZoneStore = Ext.create('Ext.data.Store',
+					{
+						model : 'Task',
+						pageSize : pageSize,
+						autoLoad : false,
+						proxy : new Ext.data.proxy.Ajax(
+								{
+									url : path
+											+ '/admin_mgmt/role!findZoneGrid.action',
+									reader : {
+										type : 'json',
+										root : 'resultObject.result',
+										totalProperty : 'resultObject.totalCount'
+									},
+									listeners : {
+										exception : function(reader,response,error,eOpts) {
+											var obj = Ext.decode(response.responseText);
+											if (!obj.success) {
+												Ext.MessageBox.show({
+													title : i18n._('errorNotice'),
+													msg : obj.resultMsg,
+													buttons : Ext.MessageBox.OK,
+													icon : Ext.MessageBox.ERROR
+												});
+											}
+										}
+									}
+								}),
+						folderSort : true
+					});
+					var menuColumns = [ {
+						xtype : 'treecolumn', //this is so we know which column will show the tree
+						text : i18n._('menu'),
+						flex : 1,
+						sortable : true,
+						dataIndex : 'name'
+					}, {
+						text : i18n._('show'),
+						dataIndex : 'param1',
+						sortable : false,
+						renderer : boxValue1
+					} ];
+					//分平台列表
+					var domainColumns = [ {
+						text : i18n._('menu'),
+						flex : 1,
+						sortable : true,
+						dataIndex : 'name'
+					}, {
+						text : i18n._('show'),
+						dataIndex : 'param1',
+						sortable : false,
+						renderer : domainBoxValue
+					} ];
+					var vmColumns = [ {
+						text : i18n._('vm_name'),
+						flex : 1,
+						sortable : false,
+						dataIndex : 'name'
+					}, {
+						text : i18n._('vmListShow'),
+						flex : 0.4,
+						sortable : false,
+						dataIndex : 'param2',
+						renderer : boxValue
+					}, {
+						text : 'id',
+						dataIndex : 'id',
+						sortable : false,
+						hidden : true,
+						hideable : false
+					} ];
+					var privilegeTree = Ext.create('Ext.tree.Panel', {
+						text : i18n._('menu'),
+						width : 500,
+						height : 330,
+						renderTo : Ext.getBody(),
+						collapsible : false,
+						useArrows : true,
+						rootVisible : false,
+						store : privilegeTreeStore,
+						multiSelect : true,
+						columns : menuColumns,
+						singleExpand : false
+					});
+					var treeButton = Ext.create('Ext.button.Button',
+					{
+						text : i18n._('OK'),
+						width : 100,
+						handler : function() {
+							var privilegesStr = boxArrayValue
+									.join(',');
+							var noCheckStr = noCheckValue
+									.join(',');
+	
+							Ext.Ajax
+									.request({
+										url : path
+												+ '/admin_mgmt/role!addPrivilege.action',
+										jsonData : {
+											"id" : roleId,
+											"noCheckStr" : noCheckStr,
+											"privilegesStr" : privilegesStr
+										},
+										success : function(response) {
+											var obj = Ext.decode(response.responseText);
+											if (obj.success) {
+												Ext.MessageBox.show({
+													title : i18n._('notice'),
+													msg : i18n._('Edit Success!'),
+													icon : Ext.MessageBox.INFO,
+													buttons : Ext.MessageBox.OK,
+													fn : resetPrivilegeWin
+												});
+											} else {
+												Ext.MessageBox.show({
+													title : i18n._('notice'),
+													msg : obj.resultMsg,
+													icon : Ext.MessageBox.WARNING,
+													buttons : Ext.MessageBox.OK,
+													fn : resetPrivilegeWin
+												});
+											}
+										}
+									});
+						}
+					});
+					var gridButton = Ext.create('Ext.button.Button',
+					{
+						text : i18n._('OK'),
+						width : 100,
+						handler : function() {
+						
+							var resourceValue = '';
+							var permissionValue = '';
+							var actionValue = '';
+							for (var i = 0, len = privilegeGridStore.data.length; i < len; i++) {
+								var data = privilegeGridStore.getAt(i).data;
+								resourceValue += data.id+ ',';
+							}
+	
+							$('input[name=privilegesBox]').each(
+								function(index) {
+									if (this.checked == true) {
+										if (this.value.indexOf('-') == -1) {
+											permissionValue += this.value+ ',';
+										} else {
+											actionValue += this.value+ ',';
+										}
+									}
+								});
+	
+							Ext.Ajax.request({
+								url : path+ '/admin_mgmt/role!addPermission.action',
+								params : {
+									"role.id" : roleId,
+									"resourceValue" : resourceValue,
+									"permissionValue" : permissionValue,
+									"actionValue" : actionValue
+								},
+								success : function(response) {
+									var obj = Ext.decode(response.responseText);
+									if (obj.success) {
+										Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : i18n._('Edit Success!'),
+											icon : Ext.MessageBox.INFO,
+											buttons : Ext.MessageBox.OK,
+											fn : resetPrivilegeWin
+										});
+									} else {
+										Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : obj.resultMsg,
+											icon : Ext.MessageBox.WARNING,
+											buttons : Ext.MessageBox.OK,
+											fn : resetPrivilegeWin
+										});
+									}
+								}
+							});
+						}
+					});
+					//资源域添加按钮
+					var zoneButton = Ext.create('Ext.button.Button',
+					{
+						text : i18n._('OK'),
+						width : 100,
+						handler : function() {
+							var resourceValue = '';
+							var permissionValue = '';
+							$('input[name=privilegesBox]').each(
+								function(index) {
+									if (this.checked == true) {
+										permissionValue += this.value+ ',';
+									}
+									resourceValue += this.value+ ',';
+								});
+
+							Ext.Ajax.request({
+								url : path
+										+ '/admin_mgmt/role!updateZoneOfRolePermission.action',
+								params : {
+									"role.id" : roleId,
+									"resourceValue" : resourceValue,
+									"permissionValue" : permissionValue
+								},
+								success : function(response) {
+									var obj = Ext.decode(response.responseText);
+									if (obj.success) {
+										Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : i18n._('Edit Success!'),
+											icon : Ext.MessageBox.INFO,
+											buttons : Ext.MessageBox.OK,
+											fn : resetPrivilegeWin
+										});
+									} else {
+										Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : obj.resultMsg,
+											icon : Ext.MessageBox.WARNING,
+											buttons : Ext.MessageBox.OK,
+											fn : resetPrivilegeWin
+										});
+									}
+								}
+							});
+						}
+					});
+					var domainButton = Ext.create('Ext.button.Button',
+					{
+						text : i18n._('OK'),
+						width : 100,
+						handler : function() {
+							var resourceValue = '';
+							var permissionValue = '';
+							$('input[name=privilegesBox]').each(
+								function(index) {
+									if (this.checked == true) {
+										permissionValue += this.value+ ',';
+									}
+									resourceValue += this.value+ ',';
+							});
+							Ext.Ajax.request({
+								url : path
+										+ '/admin_mgmt/role!editDomainPermission.action',
+								params : {
+									"role.id" : roleId,
+									"resourceValue" : resourceValue,
+									"permissionValue" : permissionValue
+								},
+								success : function(response) {
+									var obj = Ext.decode(response.responseText);
+									if (obj.success) {
+										Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : i18n._('Edit Success!'),
+											icon : Ext.MessageBox.INFO,
+											buttons : Ext.MessageBox.OK,
+											fn : resetPrivilegeWin
+										});
+									} else {
+										Ext.MessageBox.show({
+											title : i18n._('notice'),
+											msg : obj.resultMsg,
+											icon : Ext.MessageBox.WARNING,
+											buttons : Ext.MessageBox.OK,
+											fn : resetPrivilegeWin
+										});
+									}
+								}
+							});
+						}
+					});
+					var buttonPanel = Ext.create('Ext.panel.Panel', {
+						frame : true,
+						layout : 'hbox',
+						width : 500,
+						items : [ {
+							xtype : 'tbfill'
+						}, treeButton ]
+					});
+	
+					//分平台列表
+					var domainGrid = Ext.create('Ext.grid.Panel', {
+						width : 500,
+						height : 330,
+						id : 'domainGrid',
+						//collapsible: true,
+						store : privilegeGridStore,
+						multiSelect : true,
+						columnLines : true,
+						columns : domainColumns,
+						bbar : Ext.create('Ext.toolbar.Paging', {
+							store : privilegeGridStore,
+							displayInfo : true,
+							beforePageText : i18n._('beforePageText'),//"第"
+							firstText : i18n._('firstText'),//"第一页"
+							prevText : i18n._('prevText'),//"上一页"
+							nextText : i18n._('nextText'),//"下一页"
+							lastText : i18n._('lastText'),//"最后页"
+							refreshText : i18n._('refreshText')
+						//"刷新"
+						})
+					});
+					//资源域列表
+					var zoneGrid = Ext.create('Ext.grid.Panel', {
+						width : 500,
+						height : 330,
+						id : 'zoneGrid',
+						//collapsible: true,
+						store : privilegeZoneStore,
+						multiSelect : true,
+						columnLines : true,
+						columns : domainColumns,
+						bbar : Ext.create('Ext.toolbar.Paging', {
+							store : privilegeZoneStore,
+							displayInfo : true,
+							beforePageText : i18n._('beforePageText'),//"第"
+							firstText : i18n._('firstText'),//"第一页"
+							prevText : i18n._('prevText'),//"上一页"
+							nextText : i18n._('nextText'),//"下一页"
+							lastText : i18n._('lastText'),//"最后页"
+							refreshText : i18n._('refreshText')
+						//"刷新"
+						})
+					});
+					var privilegePanel = Ext.create('Ext.panel.Panel',
+					{
+						items : [ privilegeTree ]
+					//privilegeGrid
+					});
+					//权限分配
+					var privilegeWin = Ext.create('Ext.window.Window',
+					{
+						title : i18n._('Choose Privileges'),
+						width : 510,
+						autoHeight : true,
+						constrain : true,
+						closable : false,
+						layout : 'vbox',//'column',
+						items : [
+								{
+									xtype : 'panel',
+									frame : true,
+									width : 500,
+									items : [ {
+										xtype : 'combobox',
+										id : 'resourceTypeId',
+										fieldLabel : i18n
+												._('selectType'),
+										labelWidth : 100,
+										width : 300,
+										store : typeStore,
+										queryMode : 'local',
+										displayField : 'name',
+										valueField : 'resourceType',
+										queryMode : 'remote',
+										value : i18n
+												._('menu'),
+										listeners : {
+											change : function(comb,newValue,oldValue,eOpts) {
+												if (newValue == 'com.ttcloud.crm.usermanager.entity.Domain') {
+													var proxy = privilegeGridStore.getProxy();
+	
+													proxy.setExtraParam('kind','UiformDef');
+													proxy.setExtraParam('type',newValue);
+													privilegeGridStore.loadPage(1,null);
+													privilegePanel.removeAll(false);
+													privilegePanel.add(domainGrid);
+													buttonPanel.removeAll(false);
+													buttonPanel.add({xtype : 'tbfill'});
+													buttonPanel.add(domainButton);
+	
+													//选择权限菜单栏隐藏
+													Ext.getCmp('privilegeButtonId').hide();
+	
+												} else if (newValue == 'com.ttcloud.bss.sla.sc.entity.ServerZone') {
+													var proxy = privilegeZoneStore.getProxy();
+													privilegeZoneStore.loadPage(1,null);
+													privilegePanel.removeAll(false);
+													privilegePanel.add(zoneGrid);
+													buttonPanel.removeAll(false);
+													buttonPanel.add({xtype : 'tbfill'});
+													buttonPanel.add(zoneButton);
+	
+													//选择权限菜单栏隐藏
+													Ext.getCmp('privilegeButtonId').hide();
+												} else {
+													privilegeTreeStore.load();
+													privilegePanel.removeAll(false);
+													privilegePanel.add(privilegeTree);
+													buttonPanel.removeAll(false);
+													buttonPanel.add({xtype : 'tbfill'});
+													buttonPanel.add(treeButton);
+													//选择权限菜单栏隐藏
+													Ext.getCmp('privilegeButtonId').hide();
+												}
+											}
+										}
+									} ]
+								},
+								{
+									xtype : 'panel',
+									frame : true,
+									id : 'privilegeButtonId',
+									layout : 'hbox',
+									width : 500,
+									items : [
+											{
+												xtype : 'displayfield',
+												fieldLabel : i18n
+														._('Please choose one or more group')
+											},
+											{
+												xtype : 'tbfill'
+											},
+											{
+												xtype : 'button',
+												text : i18n
+														._('UniformDefinition'),
+												id : 'UniformDefinitionId',
+												disabled : false,
+												handler : function() {
+													var proxy = privilegeGridStore.getProxy();
+													proxy.setExtraParam('kind','UiformDef');
+													privilegeGridStore.loadPage(1,null);
+												}
+											},
+											{
+												xtype : 'button',
+												text : i18n._('Custom'),
+												id : 'CustomId',
+												disabled : false,
+												menu : new Ext.menu.Menu(
+												{
+													items : [
+															{
+																text : i18n._('Assigned'),
+																handler : function() {
+																	var proxy = privilegeGridStore.getProxy();
+																	proxy.setExtraParam('kind','Assigned');
+																	privilegeGridStore.loadPage(1,null);
+																}
+															},
+															{
+																text : i18n._('Unassigned'),
+																handler : function() {
+																	var proxy = privilegeGridStore.getProxy();
+																	proxy.setExtraParam('kind','Unassigned');
+																	privilegeGridStore.loadPage(1,null);
+																}
+															} ]
+												})
+											}, {
+	
+											} ]
+								}, privilegePanel,
+								buttonPanel ],
+						tools : [ {
+							type : 'close',
+							handler : function() {
+								//resetPrivilegeWin();
+								privilegeWin.hide();
+							}
+						} ]
+					});
+					//删除后刷新页面
+					function afterDelete() {
+						var count = store1.data.length;
+						var total = store1.getTotalCount();
+						if (total != 1 && count == 1) {
+							store1.previousPage();
+						} else {
+							store1.load();
+						}
+					}
+					;
+					function resetPrivilegeWin() {
+						//Ext.getCmp('resourceTypeId').resetOriginalValue();
+					}
+					;
+					//角色列表
+					Ext.create('Ext.Viewport',{
+						layout : 'fit',
+						width : '100%',
+						items : Ext.create('Ext.grid.Panel',{
+								id : 'roleList',
+								height : 900,
+								//layout:'fit',
+								width : '100%',
+								title : i18n._('userManagement')+ '&nbsp; &nbsp;>&nbsp;&nbsp;'
+										+ i18n._('Admin Management')+ '&nbsp; &nbsp;>&nbsp;&nbsp;'
+										+ i18n._('Role Management'),
+								store : store1,
+								selModel : sm,
+								columns : [
+										{header : '',xtype : 'rownumberer',dataIndex : 'item',align : 'left',flex : .3},
+										{header : i18n._('Role Name'),dataIndex : 'name',flex : 1,sortable : false},
+										{text : i18n._("createDate"),dataIndex : 'createDate',
+											renderer : Ext.util.Format.dateRenderer('Y-m-d H:i:s'),
+											flex : 1,sortable : false
+										} ],
+								selType : 'cellmodel',
+								bbar : Ext.create('Ext.PagingToolbar',
+								{
+									store : store1,
+									pageSize : 2,
+									displayInfo : true,
+								}),
+								viewConfig : {
+									plugins : {
+										ptype : 'gridviewdragdrop',
+										dragText : 'Drag and drop to reorganize'
+									}
+								},
+								dockedItems : [ {
+									xtype : 'toolbar',
+									cls : 'toolbarCSS',
+									dock : 'top',
+									items : [
+											{
+												text : '<font id="addId" color="#ffffff" >'
+														+ i18n._("Add")
+														+ '</font>',
+												icon : '../images/add_new.png',
+												listeners : {
+													"click" : function() {
+														var treestore = Ext.create('Ext.data.TreeStore',
+														{
+															proxy : {
+																type : 'ajax',
+																url : path
+																		+ '/admin_mgmt/role!getPermissionTree.action'
+															}
+														});
+	
+														//添加窗口
+														var add = Ext.create('Ext.window.Window',
+														{
+															title : i18n._('Add a Role'),
+															height : 135,
+															constrain : true,
+															layout : 'fit',
+															width : 460,
+															border : false,
+															closable : false,
+															modal : true,
+															tools : [ {
+																type : 'close',
+																handler : function() {
+																	add.destroy();
+																}
+															} ],
+															items : [ {
+																xtype : 'form',
+																id : 'addform',
+																height : '100%',
+																width : 450,
+																border : false,
+																items : [ {
+																	xtype : 'textfield',
+																	fieldLabel : i18n._('Role Name'),
+																	style : 'margin-left:50px;margin-top:20px;',
+																	name : i18n._('Role Name'),
+																	id : 'rolename',
+																	//emptyText:'请输入姓名',
+																	emptyText : i18n._('please enter rolename!'),
+																	allowBlank : false,
+																	validator : vd,
+																	maxLength : 50
+																} ],
+																dockedItems : [ {
+																	xtype : 'toolbar',
+																	dock : 'bottom',
+																	ui : 'footer',
+																	layout : {
+																		pack : 'left'
+																	},
+																	items : [ {
+																		style : 'margin-left:200px;',
+																		minWidth : 80,
+																		//text: '确定',
+																		text : i18n._('OK'),
+																		handler : function() {
+																			if (!Ext.getCmp('rolename').isValid()) {
+																				return;
+																			}
+																			//遮罩层
+																			var v_mask = new Ext.LoadMask(
+																					Ext.getBody(),
+																					{
+																						msg : i18n._('please wait'),
+																						removeMask : true
+																					//完成后移除
+																					});
+																			v_mask.show();
+																			Ext.Ajax.request({
+																				url : './../admin/addAdminRole',
+																				params : {
+																					"name" : Ext.getCmp('rolename').getValue().trim()
+																				},
+																				success : function(response) {
+																					v_mask.hide();
+																					if (response.responseText == "success") {
+																						Ext.MessageBox.show({
+																							title : i18n._('notice'),
+																							msg : i18n._('Add Success!'),
+																							icon : Ext.MessageBox.INFO,
+																							buttons : Ext.MessageBox.OK
+																						});
+																						add.destroy();
+																						store1.load();
+																					} else if (response.responseText == "exist") {
+																						Ext.MessageBox.show({
+																							title : i18n._('notice'),
+																							msg : i18n._('RoleName Exist'),
+																							icon : Ext.MessageBox.INFO,
+																							buttons : Ext.MessageBox.OK
+																						});
+																					} else {
+																						Ext.MessageBox.show({
+																							title : i18n._('notice'),
+																							msg : response.responseText,
+																							icon : Ext.MessageBox.WARNING,
+																							buttons : Ext.MessageBox.OK
+																						});
+																					}
+																					return;
+																				}
+																			})
+																		}
+																	} ]
+																} ]
+	
+															} ]
+	
+														});
+														add.show();
+													},
+													"mouseout" : function() {
+														document.getElementById("addId").style.color = "#ffffff";
+													},
+													"mouseover" : function() {
+														document.getElementById("addId").style.color = "#000000";
+													}
+												}
+											},
+											{
+												style : 'margin-left:10px;',
+												icon : '../images/edit_new.png',
+												text : '<font id="editId" color="#ffffff" >'
+														+ i18n._('Choose Privileges')
+														+ '</font>',
+												listeners : {
+													"click" : function() {
+														var rows = Ext.getCmp('roleList').getSelectionModel().getSelection();
+														if (rows.length > 0) {
+															var resourceType = Ext.getCmp('resourceTypeId').getValue();
+															roleId = rows[0].get('id');
+															boxArrayValue = new Array();
+															noCheckValue = new Array();
+															var gridProxy = privilegeGridStore.getProxy();
+															gridProxy.setExtraParam('role.id',roleId);
+															var treeProxy = privilegeTreeStore.getProxy();
+															treeProxy.setExtraParam('role.id',roleId);
+															var zoneProxy = privilegeZoneStore.getProxy();
+															zoneProxy.setExtraParam('role.id',roleId);
+															treeProxy.setExtraParam('type','com.ttcloud.crm.usermanager.entity.Menu');
+															Ext.getCmp('resourceTypeId').reset();
+															var resourceType1 = Ext.getCmp('resourceTypeId').getValue();
+															if (resourceType == resourceType1) {
+																privilegeTreeStore.load();
+															}
+															//    
+															//选择权限菜单栏隐藏
+															Ext.getCmp('privilegeButtonId').hide();
+															privilegeWin.show();
+														} else {
+															Ext.MessageBox.show({
+																		// msg: '请选择一个用户',
+																		title : i18n._('notice'),
+																		msg : i18n._('selectOne'),
+																		icon : Ext.MessageBox.INFO,
+																		buttons : Ext.MessageBox.OK
+	
+																	});
+															return;
+														}
+													},
+													"mouseout" : function() {
+														document.getElementById("editId").style.color = "#ffffff";
+													},
+													"mouseover" : function() {
+														document.getElementById("editId").style.color = "#000000";
+													}
+												}
+											},
+											{
+												icon : '../images/delete.png',
+												//text:'删除',
+												text : '<font id="deleteId" color="#ffffff" >'
+														+ i18n._('delete')
+														+ '</font>',
+												listeners : {
+													"click" : function() {
+														//删除用户操作
+														var rows = Ext.getCmp('roleList').getSelectionModel().getSelection();
+														if (rows.length > 0) {
+															var id = rows[0].get('id');
+															var record = store1.getById(id);
+															Ext.Msg.confirm(
+																i18n._('confirm'),
+																i18n._('Whether delete?'),
+																function(btn) {
+																	if (btn == 'yes') {
+																		Ext.Ajax.request({
+																			url : './../admin/deleteAdminRole',
+																			params : {
+																				"roleId" : record.get('id')
+																			},
+																			success : function(response) {
+																				if (response.responseText == 'false') {
+																					Ext.MessageBox.show({
+																						//title: '提示',msg: '不能删除',
+																						title : i18n._('notice'),
+																						msg : i18n._('InvalidDelete'),
+																						icon : Ext.MessageBox.INFO,
+																						buttons : Ext.MessageBox.OK
+																					});
+																				} else if (response.responseText == 'true'){
+																					Ext.MessageBox.show({
+																						//title: '提示',msg: '删除成功',
+																						title : i18n._('notice'),
+																						msg : i18n._('Delete Success!'),
+																						icon : Ext.MessageBox.INFO,
+																						buttons : Ext.MessageBox.OK,
+																						fn : afterDelete()
+																					});
+																					//     store1.load();
+																				}
+																			},
+																			failure : function(res) {
+																				Ext.MessageBox.show({
+																					// title: '提示',msg: '网络错误',
+																					title : i18n._('notice'),
+																					msg : i18n._('Internet Error'),
+																					icon : Ext.MessageBox.INFO,
+																					buttons : Ext.MessageBox.OK
+																				});
+																			},
+																			scope : this
+																		});
+																	}
+																},this);
+														} else {
+															Ext.MessageBox.show({
+																//title: '提示',
+																// msg: '请选择一个用户',
+																title : i18n._('notice'),
+																msg : i18n._('selectOne'),
+																icon : Ext.MessageBox.INFO,
+																buttons : Ext.MessageBox.OK
+															});
+															return;
+														}
+													},
+													"mouseout" : function() {
+														document.getElementById("deleteId").style.color = "#ffffff";
+													},
+													"mouseover" : function() {
+														document.getElementById("deleteId").style.color = "#000000";
+													}
+												}
+											},
+											{
+												style : 'margin-left:10px;',
+												text : '<font id="roleMemberId" color="#ffffff" >'
+														+ i18n._('Role Member')
+														+ '</font>',
+												tooltip : i18n._('Role Member'),
+												icon : '../images/roleMember.png',
+												listeners : {
+													"click" : function() {
+														var rows = Ext.getCmp('roleList').getSelectionModel().getSelection();
+														if (rows.length > 0) {
+															var id = rows[0].get('id');
+															var roleName = rows[0].get('name');
+															var record = store1.getById(id);
+															role_member.proxy.extraParams = {'role.id' : id}
+															role_member.load();
+															win_group_detail.show();
+															Ext.getCmp('group_name_3').setValue(roleName);
+														} else {
+															Ext.MessageBox.show({
+																title : i18n._('notice'),
+																msg : i18n._('selectOne'),
+																icon : Ext.MessageBox.INFO,
+																buttons : Ext.MessageBox.OK
+															});
+															return;
+														}
+													},
+													"mouseout" : function() {
+														document.getElementById("roleMemberId").style.color = "#ffffff";
+													},
+													"mouseover" : function() {
+														document.getElementById("roleMemberId").style.color = "#000000";
+													}
+												}
+											},
+											{
+												xtype : 'tbfill'
+											},
+											{
+												xtype : 'label',
+												text : i18n._('quickQuery')+ "：",
+												cls : 'fontWhite'
+											},
+											{
+												labelWidth : 5,
+												xtype : 'searchfield',
+												store : store1,
+												emptyText : i18n._('Role Name'),
+												id : 'orderNoField',
+												onTrigger1Click : function() {
+													var me = this, store = me.store, proxy = store.getProxy(), val;
+													if (me.hasSearch) {
+														me.setValue('');
+														proxy.extraParams[me.paramName] = '';
+														proxy.extraParams['type'] = '';
+														proxy.extraParams.start = 0;
+														store.loadPage(1,null);
+														me.hasSearch = false;
+														me.triggerEl.item(0).setDisplayed('none');
+														me.doComponentLayout();
+													}
+												},
+												onTrigger2Click : function() {//点击查询按钮或回车调用该方法  
+													var me = this, store = me.store, proxy = store.getProxy(), value = me.getValue();
+													if (value.length < 1) {
+														me.onTrigger1Click();
+														return;
+													}
+													var i = itemValue;
+													store = me.store,
+													proxy = store.getProxy(),
+													proxy.extraParams['query'] = value;
+													proxy.extraParams['type'] = i;
+													proxy.extraParams.start = 0;
+													store.loadPage(1,null);
+													this.hasSearch = true;
+													me.triggerEl.item(0).setDisplayed('block');
+													me.doComponentLayout();
+												}
+											} ]
+									} ]
+								})
+							});
+							
+						}
+					};
+				})();
+
+				MultiLang.init();
+
+			})
+
+	//****************角色赋权********************************
+	var boxArrayValue = new Array();
+	var noCheckValue = new Array();
+
+	function changeBox(obj) {
+		if (obj.checked == true) {
+			boxArrayValue[boxArrayValue.length] = obj.value;
+			for (var i = 0; i < noCheckValue.length; i++) {
+				if (obj.value == noCheckValue[i]) {
+					noCheckValue.splice(i, 1);
+				}
+			}
+		} else {
+			noCheckValue[noCheckValue.length] = obj.value;
+			for (var i = 0; i < boxArrayValue.length; i++) {
+				if (obj.value == boxArrayValue[i]) {
+					boxArrayValue.splice(i, 1);
+				}
+			}
+		}
+	}
+	//分平台多选框处理
+	function domainBoxValue(value, obj, record) {
+		var id = record.get('id');
+		var param1 = record.get('param1');
+		if (param1 == 'true') {
+			return '<input type="checkbox" name="privilegesBox" value="' + id + '" checked>';
+		} else {
+			return '<input type="checkbox" name="privilegesBox" value="' + id + '">';
+		}
+	}
+
+	//菜单多选框处理
+	function boxValue1(value, obj, record) {
+		var array = value.split(",");
+		var checkFlag = false;
+		for (var i = 0; i < boxArrayValue.length; i++) {
+			if (array[0] == boxArrayValue[i]) {
+				checkFlag = true;
+			}
+		}
+
+		var noCheckFlag = false;
+		for (var i = 0; i < noCheckValue.length; i++) {
+			if (array[0] == noCheckValue[i]) {
+				noCheckFlag = true;
+			}
+		}
+
+		if ((array[1] == 'true' && noCheckFlag == false) || checkFlag == true) {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '" checked>';
+		} else {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '">';
+		}
+	}
+	//虚拟机多选框处理
+	function boxValue(value, obj, record) {
+		var array = value.split(",");
+		if (array[1] == 'true') {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '" checked>';
+		} else {
+			return '<input type="checkbox" onchange="changeBox(this);" name="privilegesBox" value="'
+					+ array[0] + '">';
+		}
+	}
+
+	function getCookie(name) {
+		var arr = document.cookie.match(new RegExp("(^| )" + name
+				+ "=([^;]*)(;|$)"));
+		if (arr != null)
+			return unescape(arr[2]);
+		return null;
+	}
+</script>
+</head>
+
+<body>
+
+</body>
+</html>

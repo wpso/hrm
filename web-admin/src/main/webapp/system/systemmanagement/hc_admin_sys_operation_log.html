@@ -1,0 +1,832 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>ttcloud</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css"
+	href="../../extjs-4.1.0/resources/css/ext-all-gray.css" />
+<script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../../js/head.js"></script>
+<script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+<script type="text/javascript" src="../../js/jquery-1.7.2.min.js"></script>
+<script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+<script type="text/javascript" src="../systemmanagement/common.js"></script>
+<script type="text/javascript">
+
+     Ext.onReady(function(){
+    	 Ext.QuickTips.init(true,{dismissDelay:600000});
+    		Ext.apply(Ext.QuickTips.getQuickTip(), {
+    		    maxWidth: 1000,
+    		    trackMouse: true,
+    		    dismissDelay: 0
+    		});
+    	 var params;
+    	 MultiLang =(function(){
+            return {
+                init: function() {
+                    // load ExtJS locale
+                    params = getCookie("lang");
+                    i18n.set({
+      				  lang: params, 
+      				  path: '../../resources'
+      				});
+                    if (params) {
+                        var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                        Ext.Ajax.request({
+                            url: url,
+                            success: this.onLoadExtLocaleSuccess,
+                            failure: this.onLoadExtLocaleFailure,
+                            scope: this
+                        });
+                    } else {
+                    	this.setup();
+                    }
+                },
+                onLoadExtLocaleSuccess: function(response) {
+                    try {
+                        eval(response.responseText);
+                    } catch (e) {
+                        //Ext.Msg.alert('Failure', e.toString());
+                    }
+                    this.setup();
+                },
+                onLoadExtLocaleFailure: function() {
+                    //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                    this.setup();
+                },
+                setup: function() {
+	        		   var count = 0;
+                	Ext.define('SysOPLog',{
+                		extend: 'Ext.data.Model',
+                		fields:[
+                		        {name:'id',type:'long'},
+                		        {name:'operationDate',type:'date', dateFormat:'time'},
+                		        {name:'operationResult',type:'short'},
+                		        {name:'domainName',type:'string'},
+                		        {name:'actionName',type:'string'},
+                		        {name:'operateObject',type:'string'},
+                		        {name:'operatorType',type:'short'},
+                		        {name:'operator',type:'string'},
+                		        {name:'description',type:'string'},
+                		        {name:'userName',type:'string'}
+                		       ]
+                	});
+
+        		     var OPSLogStore=Ext.create('Ext.data.Store', {
+     					pageSize: pageSize,
+     					autoLoad:false,
+     					model: 'SysOPLog',
+     					sorters: [{
+     					            property : 'event_time',
+     					            direction: 'DESC'
+     					           }],
+     					remoteSort:true,
+     				    proxy: new Ext.data.proxy.Ajax({
+     					     actionMethods: { read: 'POST' },//将提交方式改为post
+     					     url : path+'/../systemmanagement/logManagement!pageOperationLog.action',
+     						 reader: {
+     					         type: 'json',    
+     					         root: 'resultObject.result',
+     					         totalProperty: 'resultObject.totalCount'
+     					     },
+     					    listeners:{
+     							exception:function(reader, response, error, eOpts){
+     								ajaxException(reader, response, error, eOpts );
+     							}
+     						}
+     					 }),
+     					 listeners:{
+     						 'load':function(){
+     							var dateStr=Ext.Date.format(new Date(),"H:i:s");
+     	        				Ext.get("lastRefreshTime").update(dateStr);
+     						 }
+     					 }
+     		     }); 
+        		     OPSLogStore.load();
+        			var sm = Ext.create('Ext.selection.RowModel');
+        			//日志列表
+        			Ext.create('Ext.Viewport',{
+        			    layout:'fit',
+        			    width:'100%',
+        				height:'100%',
+        			    items: Ext.create('Ext.grid.Panel', {
+	        				id:'sysLogList',
+	        				height:900,
+	        				sortableColumns:false,
+	        				width:'100%',
+	        				title: i18n._('systemManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('logManagement') +'&nbsp; &nbsp;>&nbsp;&nbsp;' + i18n._('sysOperationLog'),
+	        			    store: OPSLogStore,
+	        				selModel: sm,
+	        				listeners:{
+	        					'itemdblclick':{
+	        						fn:function(){
+	        							viewDetail();
+	        						}
+	        					}
+	        				},
+	        				bbar: Ext.create('Ext.toolbar.Paging', {
+	        					store: OPSLogStore,		
+	        					pageSize:0,			
+	        					displayInfo: true,
+	        					inputItemWidth:pagingBarPageNumWidth,
+	        					items:[{
+	        						margin:'0 10 0 10',
+	        					    xtype:'displayfield',
+	        					    value: '<span style="position:relative;bottom:3px;">'+i18n._("Last refresh time")+'：<span id="lastRefreshTime"></span><span id="refreshSetting" style="color:orange;margin-left:5px;cursor:pointer;">'+i18n._("refreshSettings")+'</span></span>',
+	        					    hideLabel:true
+	        					  }]
+	        				}),
+	        				viewConfig: {
+	        					   stripeRows: true						
+	        				},
+	        				dockedItems : [ {
+	        					xtype : 'toolbar',
+	        					cls: 'toolbarCSS',
+	        					dock : 'top',
+	        					items : [
+										{
+											icon: '../../images/detail.png', 
+									        text:'<font id="detailUser" color="white" >' + i18n._('details') + '</font>',
+											listeners: {
+												 "mouseout" : function() {
+													 document.getElementById("detailUser").style.color = "white";
+												 },
+												 "mouseover" : function() {
+													 document.getElementById("detailUser").style.color = "black";
+												 }
+											 },
+											handler:function(){
+												viewDetail();
+										}},
+	     	        					{xtype:'tbfill'},            
+
+{
+	xtype:'button',
+	iconAlign:'right',
+	text:'<font id="Search" color="white">'+i18n._('Search')+'</font>',//搜索
+    listeners: {
+		 "mouseout" : function() {
+			 document.getElementById("Search").style.color = "white";
+		 },
+		 "mouseover" : function() {
+			 document.getElementById("Search").style.color = "black";
+		 }
+			
+	},
+    tooltip:i18n._('Search'),//高级搜索
+	handler:function(){
+		if(count>0){
+			return ;
+	    }
+		var p=this.getPosition(true);
+		var xP=p[0]-287;
+		
+		var resultTypeStore = Ext.create('Ext.data.Store', {
+		    fields: ['value', 'name'],
+		    data : [
+                {"value":"0","name":i18n._('All')},//全部
+				{"value":"1","name":i18n._('logSuccess')},
+		        {"value":"2","name":i18n._('failure')}
+		       
+		    ]
+		});
+		
+		var dataSearchWin =Ext.create('Ext.window.Window', {
+    		title : i18n._('Query'),//查询条件
+    		width : 330,
+    		height : 150,
+    		border : false,
+    		frame:false,
+    		//bodyPadding : 10,
+    		resizable : false,
+    		closable : false,
+    		collapsible:true,
+    		items:[
+    		        {
+    		        xtype: 'form',
+					height:'100%',
+					width:'100%',
+					id:'dataSearchForm',
+					fieldDefaults:{
+						msgTarget:'side',
+						autoFitErrors:false
+					},
+					frame:true,
+			        border: false,
+			        items:[
+							{
+								   xtype:'textfield',
+								   id: 'byOperator',
+								   fieldLabel : i18n._('byOperator'),//按模糊查询
+								   labelAlign:'right',
+								   width : 280,
+								   labelWidth : 70,
+								   emptyText:i18n._('operator')//登录邮箱/备注
+							},
+			    		       {
+			    		    	   xtype:'textfield',
+			    		    	   id: 'byAction',
+			    		    	   fieldLabel : i18n._('fuzzy'),
+			    		    	   labelAlign:'right',
+			    		    	   width : 280,
+			    		    	   labelWidth : 70,
+			    		    	   emptyText:i18n._('操作')+"/"+i18n._('操作描述')
+			    		       },
+		    		       {
+		    		    	   xtype:'fieldcontainer',
+		    		    	   layout : 'hbox',
+		    		    	   width : 280,
+		    		    	   items:[
+										{
+										    xtype: 'datefield',
+										    id: 'fromDate',
+										    fieldLabel: i18n._('byOperationTime'),//按时间段
+										    labelAlign:'right',
+										    width : 170,
+										    labelWidth : 70,
+										    name: 'from_date',
+										    emptyText:i18n._('beginDate'),//起始日期
+										    maxValue: new Date(),  // limited to the current date or prior
+										    format:'Y-m-d'
+										}, 
+										{
+											xtype:'label',
+											text:i18n._('To'),//至
+											width:20,
+											padding:'2 0 0 4'
+										},
+										{
+										    xtype: 'datefield',
+										    id: 'toDate',
+										    width : 90,
+										    name: 'to_date',
+										    emptyText:i18n._('endDate'),//结束日期
+										    maxValue: new Date(),
+										    format:'Y-m-d'
+										}
+		    		    	          ]
+		    		       },
+		    		       {
+		    		    	   xtype:'fieldcontainer',
+		    		    	   layout : 'hbox',
+		    		    	   width : 280,
+		    		    	   items:[
+		    		    	          {
+		    		    	        	  xtype:'button',
+		    		    	        	  name: 'search',
+		    		    	        	  width:80,
+		    		    	        	  margin:'0 44 0 75',
+		    		    	        	  text:i18n._('Search'),//搜索
+		    		    	        	  handler:function(){
+		    		    	        		  var startTime=Ext.getCmp('fromDate').getValue();
+		    		    	        		  var endTimeTemp = Ext.getCmp('toDate').getValue();
+		        		    	        	  if(null!=startTime&&null!=endTimeTemp){
+		        		    	        		  if(endTimeTemp.getTime()-startTime.getTime()<0){
+		        		    	        			  Ext.MessageBox.show({
+		        											title : i18n._('notice'),
+		        											msg : i18n._('the expiry date should be later than effective date'),//输入IP无效
+		        											buttons : Ext.MessageBox.OK,
+		        											icon : Ext.MessageBox.ERROR,
+		        											fn:function(){
+		        												Ext.getCmp('fromDate').focus();
+		            										}
+		        										});
+		            		    	        		  return null;
+		            		    	        	  }
+		            		    	          }
+		        		    	        	  var endTime;
+		    		    	        		  if(endTimeTemp!=null){
+		    		    	        			  endTime=Ext.Date.add(endTimeTemp,Ext.Date.DAY, 1);
+		        		    	        	  }
+		    		    	        		  var operator=Ext.getCmp('byOperator').getValue();
+		    		    	        		  var action=Ext.getCmp('byAction').getValue();
+		    		    	        		 
+											   var proxy = OPSLogStore.getProxy();
+												proxy.setExtraParam('olqv.startTime',startTime) ;
+												proxy.setExtraParam('olqv.endTime',endTime) ;
+												proxy.setExtraParam('olqv.operator',operator) ;
+												proxy.setExtraParam('olqv.action',action) ;
+												proxy.extraParams.start = 0;
+												count=0;
+												OPSLogStore.loadPage(1,null);
+												Ext.getCmp('dataSearchForm').getForm().reset();
+												dataSearchWin.destroy();
+			    		    	        		
+		    		    	        	  }
+		    		    	          },
+		    		    	          {
+		    		    	        	  xtype:'button',
+		    		    	        	  name: 'cancel',
+		    		    	        	  width:80,
+		    		    	        	  text:i18n._('off'),//取消
+		    		    	        	  handler:function(){
+		    		    	        		 count = 0;
+		    		    	        		 dataSearchWin.destroy();
+		    		    	        		 
+		    		    	        	  }
+		    		    	          }
+		    		    	         ]
+		    		       }
+			        ]
+    		        }
+    		      ],
+    		listeners : {
+    			collapse:function(p,eOpts ){
+    				count = 0;
+    				dataSearchWin.destroy();
+    			}
+    		}     
+    	});
+		dataSearchWin.showAt(xP,50); 
+		count = count +1;
+	}
+}
+	     	        					]
+	        				}]
+        					,
+	        			    columns: [
+                                {xtype: 'rownumberer',flex:0.1},
+                                {header: i18n._('operator'), dataIndex: 'operator',align:'left', flex: 0.5},
+                                {header: i18n._('username'), dataIndex: 'userName',align:'left', flex: 0.3},
+                                {header: i18n._('operatorType'), dataIndex: 'operatorType',align:'left', flex: 0.3,renderer:operatorTypeRenderer},
+                                {header: i18n._('domainName'), dataIndex: 'domainName',align:'left', flex: 0.4},
+                                {header: i18n._('Operating'),dataIndex: 'actionName',align:'left', flex: 0.4,renderer:actionNameRenderer},
+                                {header: i18n._('operateObject'),dataIndex: 'operateObject',align:'left', flex: 0.6},
+	        			        {header: i18n._('operationTime'),dataIndex: 'operationDate',align:'left',renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s'), flex: 0.5},
+	        			        {header: i18n._('operationResult'), dataIndex: 'operationResult',align:'left', flex: 0.3,renderer:resultTypeRenderer},
+	        					{header: i18n._('operationDesc'), dataIndex: 'description',align:'left', flex: 0.6,renderer:operationDescRenderer}
+	        				]
+        			    })
+        			});
+					
+        			function viewDetail(){
+        				var rows = Ext.getCmp('sysLogList').getSelectionModel().getSelection();
+        				if(rows.length > 0){
+
+        					var id = rows[0].get('id');
+        					var record = OPSLogStore.getById(id);
+        					
+        					var info =Ext.create('Ext.window.Window', {
+        						title: i18n._('details'),
+        						height: 330,
+        						layout:'fit',
+        					    width: 500,
+        					    border: false,
+        						closable:false,
+        						resizable : false,
+        						constrain : true,
+        						modal:true,
+        						tools:[{
+        						  type:'close',
+        						  handler:function(){
+        						  info.destroy();
+        						  }
+        						}],
+        					    items: [
+        											{
+        							xtype: 'form',
+        							height:'100%',
+        							id:'infoForm',
+        							width:470,
+        							autoScroll:true,
+        							border: false,
+        							  items: [
+        						{
+        						xtype: 'fieldset',
+        						title: i18n._("Basic information"),
+        						width:450,
+        						style:'margin-left:10px;',
+        						items:[
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operator"),
+        									style:'margin-left:30px',
+        									value: record.get('operator')
+        								},
+        								
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("username"),
+        									style:'margin-left:30px',
+        									value: record.get('userName')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operatorType"),
+        									style:'margin-left:30px',
+        									value: record.get('operatorType'),
+        									renderer:operatorTypeRenderer
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("domainName"),
+        									style:'margin-left:30px',
+        									value: record.get('domainName')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("Operating"),
+        									style:'margin-left:30px',
+        									value: record.get('actionName'),
+        									renderer:actionNameRenderer
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operateObject"),
+        									style:'margin-left:30px',
+        									value: record.get('operateObject')
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operationResult"),
+        									style:'margin-left:30px',
+        									value:function(){
+        										var result=record.get('operationResult');
+        										return resultTypeRenderer(result);
+        									}()
+        								},
+        								{
+        									xtype:'displayfield',
+        									fieldLabel:i18n._("operationTime"),
+        									style:'margin-left:30px',
+        									value:record.get('operationDate'),
+        									renderer: Ext.util.Format.dateRenderer('Y-m-d H:i:s')
+        								},
+        								{
+            								xtype:'textarea',
+            								fieldLabel:i18n._('operationDesc'),
+            								style:'margin-left:30px;',
+            								editable:false,
+            								width:350,   
+            								readOnly:true,
+            								value: record.get('description'),
+            								renderer:operationDescRenderer
+            							}
+        						]
+        					}
+        					]
+        					}
+        					]
+
+        					});
+        					info.show();
+        				}else{
+        				    	Ext.MessageBox.show({
+        						   title:i18n._('notice'),
+        					       msg:i18n._('selectOne'),
+        				           icon:Ext.MessageBox.INFO,
+        				           buttons: Ext.MessageBox.OK
+        				           
+        				       }); 
+        					return;
+        				}
+        				
+        			}
+        			
+        			
+        			function operationTypeRenderer(value){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        			    switch(value){
+	        			    case 1: return i18n._("start");break;
+	        			    case 2: return i18n._("REBOOT");break;
+	        			    case 3: return i18n._("CLOSE");break;
+	        			    case 4: return i18n._("Enable");break;
+	        			    case 5: return i18n._("Disable");break;
+	        			    case 6: return i18n._("backups");break;
+	        			    case 7: return i18n._("renew");break;
+	        			    case 8: return i18n._("rebuildOs");break;
+	        			    case 9: return i18n._("RetPassword");break;
+	        			    case 10:return i18n._("osRepair");break;
+	        			    default:return i18n._("Unknown");break;
+        			    }
+        			}
+        			
+        			function operatorTypeRenderer(value){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        			    switch(value){
+	        			    case 1: return i18n._("logUser");break;
+	        			    case 2: return i18n._("logAdmin");break;
+	        			    case 3: return i18n._("CPUser");break;
+	        			    case 4: return i18n._("interfaceService");break;
+	        			    case 5: return i18n._("logProcess");break;
+	        			    default:return i18n._("Unknown");break;
+        			    }
+        			}     //
+        			
+        			//获取从数据库得到的消息并判断当前的语言做修改
+        			function operationDescRenderer(value){
+        				
+        				if(getCookie("lang")=="en_US") {
+        				
+        				
+        		
+        					value = value.replace("成功受理获取密码规则操作","Successful receipt and obtain the operation of password program");
+             	            value = value.replace("克隆套餐","Cloning Package");
+             	            value = value.replace("获取VNC远程控制操作错误:getVnc Exception","VNC remote connecting is error.");
+             	            value = value.replace("获取VNC远程控制操作出现错误:getVNCUrl异常","VNC remote operation is error");
+             	            value = value.replace("成功获取扩展盘","Successfully obtain extents");
+             	         	value = value.replace("发布公告","Announcement");
+             	            value = value.replace("编辑API用户","Editing API User");
+             	            value = value.replace("后台启动线程","Start process background");
+             	            value = value.replace("后台停止线程","Stop process background");
+             	            value = value.replace("创建角色","Creating a Role");
+             	            value = value.replace("成功受理重启云主机操作","Rebooting Cloud host computer is successfully accepted");
+             	            value = value.replace("订单支付","Order payment");
+             	            value = value.replace("成功设置控制面板密码","The control panel password is set successfully" );       	            
+     			    		value = value.replace("订单支付出现错误:createVm-Admin异常","Payment of Order is error");
+             	            value = value.replace("生成未支付订单","Generate unpaid orders");
+             	            value = value.replace("成功受理手动迁移云主机操作","Manual movement of the Cloud host computer is accepted successfully.");
+             	            value = value.replace("成功受理获取VNC远程控制操作","VNC remote control operation is obtained successfully.");
+             	            value = value.replace("审核套餐","Audit Package");
+             	            value = value.replace("保存套餐","Save Package");
+                         	value = value.replace("提交退款申请 ","Submit a refund request");
+             	            value = value.replace("菜单赋权","Menu empowering");
+             	            value = value.replace("修改消息状态","Modify message status");
+             	            value = value.replace("审核全额退款","Audit full refund");
+             	            value = value.replace("成功受理删除云主机操","Removal of Cloud host computer is accepted successfully.");
+             	            value = value.replace("更新云主机资源限置成功","Resource limiting of Cloud host computer is updated successfully.");
+             	            value = value.replace("审核试用云主机成功","Auditing of Cloud host computer trial is successful.");
+             	            value = value.replace("成功修改云主机名称","Cloud host computer name is modified successfully");
+             	            value = value.replace("成功受理重启云主机操作","Rebooting Cloud host computer is successfully accepted");
+             	            value = value.replace("成功受理设置密码规则操作","the setting of password program is accepted successfully.");
+             	            value = value.replace("成功受理关闭云主机操作","The operation of ending Cloud host computer is accepted successfully.");
+             	            value = value.replace("发送获取VNC远程控制命令成功","The order of getting VNC remote control commands is sent successfully.");
+             	            value = value.replace("成功受理备份云主机操作","Backup of Cloud host computer is accepted successfully.");
+             	            value = value.replace("成功受理启动云主机操作","Start-up of Cloud host computer is accepted successfully.");
+             	            value = value.replace("成功受理重置云主机密码操作","Resetting password of Cloud host computer is accepted successfully.");
+             	            value = value.replace("提交退款申请","Submit a refund request");
+             	            value = value.replace("成功取消试用待审核云主机","Trial of Cloud host computer is canceled successfully");
+             	            value = value.replace("订单支付出现错误:createVm-Admin 异常","Payment of Order is error.");
+             	            value = value.replace("成功受理调整云主机Flavor操作","Modification of Cloud host computer Flavor is accepted successfully");
+             	            value = value.replace("成功受理备份扩展盘操作","Backup operation of the extents is accepted successfully");
+             	            value = value.replace("成功受理发布云主机操作","Announcement of Cloud host computer is accepted successfully");
+             	            value = value.replace("后台启用/禁用机房线路","Enable/dis-enable the operating system background");
+             	            value = value.replace("成功受理重置操作系统操作","Resetting operating system is accepted successfully");
+             	            value = value.replace("成功受理删除云主机备份操作","Removal of Cloud host computer backup is accepted successfully"); 
+             	            value = value.replace("编辑镜像","Edit Mirror image");
+             	            value = value.replace("编辑分平台","Editing points Platform"); 
+             	            value = value.replace("出现错误","Error");
+             	            value = value.replace("按需","Demand"); 
+             	            value = value.replace("修改全部消息状态","Modify all message status"); 
+             	            value = value.replace("取消订单","Cancel Order"); 
+             	            value = value.replace("审核","Check");
+             	            value = value.replace("试用","Trial"); 
+             	            value = value.replace("云主机","Cloud host computer"); 
+             	            value = value.replace("操作错误","Operator error"); 
+             	            value = value.replace("异常","Abnormal");
+             	            value = value.replace("成功受理","Success accepted");
+             	            value = value.replace("启用","Enable");"Enable"
+             	            value = value.replace("冻结","Freeze");"Freeze"
+             	            value = value.replace("保存镜像","Save mirror image");
+             	            value = value.replace("套餐","Package");
+             	            value = value.replace("停用","Stop");
+             	            value = value.replace("删除","Delete");
+             	            value = value.replace("镜像","Mirror image");
+             	            value = value.replace("错误","Error");
+             	            value = value.replace("上传","Upload");
+             	            value = value.replace("文件","File");
+             	            value = value.replace("发送","Send");
+             	            value = value.replace("获取","Get");
+             	            value = value.replace("远程","Remote");
+             	            value = value.replace("控制","Control");
+             	            value = value.replace("命令","Command");
+             	            value = value.replace("出现","Appear");
+             	       		value = value.replace("重置操作系统","Reset the operating system");
+        	            
+        	            
+        	            
+        	            
+        	            //   value = value.replace("","");   
+        				return value;
+        				}else{
+        					return value;
+        				}
+	
+        			} 
+        			
+        			function actionNameRenderer(value){
+
+         			    return value;
+        			}
+        			
+        			
+        			function resultTypeRenderer(value,metadata,record){
+        				if(typeof value=='string'){
+        					value=parseInt(value);
+        				}
+        				switch(value){
+	        			    case 1: return i18n._("logSuccess");break;
+	        			    case 2: return i18n._("failure");break;
+	        			    default:return i18n._("Unknown");break;
+    			        }
+        			}
+        			
+        			function refreshData(){
+        				VMOPSLogStore.loadPage(1,null);
+        			}
+        			var timeTypeStore = Ext.create('Ext.data.Store', {
+        			    fields: ['value', 'name'],
+        			    data : [
+        	                {"value":"1","name":i18n._('Second')},//全部
+        					{"value":"2","name":i18n._('minute')}
+        			    ]
+        			});
+        			
+        			var periodGlobal=60;
+        			var timeTypeGlobal='1';
+        			var refreshYesGlobal=true;
+        			var refreshNoGlobal=false;
+        			
+        			var refreshSettingWin =Ext.create('Ext.window.Window', {
+    		    		title : i18n._('Refresh Setting'),//查询条件
+    		    		width : 350,
+    		    		height : 150,
+    		    		border : false,
+    		    		frame:false,
+    		    		modal:true,
+    		    		closable:false,
+    		    		resizable : false,
+    		    		tools:[{
+  						  type:'close',
+  						  handler:function(){
+  							reset();
+  							refreshSettingWin.hide();
+  						  }
+  						}],
+    		    		items:[
+    		    		        {
+    		    		        xtype: 'form',
+    							height:'100%',
+    							width:'100%',
+    							id:'refreshSettingForm',
+    							fieldDefaults:{
+    								msgTarget:'side',
+    								autoFitErrors:false
+    							},
+    							frame:true,
+    					        border: false,
+    					        items:[
+    				    		       {
+    				    		    	   xtype:'fieldcontainer',
+    				    		    	   layout : 'hbox',
+    				    		    	   width : 255,
+    				    		    	   items:[ 
+													{
+														xtype:'radiofield',
+														name:'refreshFlag',
+														margin:'10 10 10 10',
+														id:"refreshYes",
+														boxLabel:i18n._("Refresh rate"),
+														checked:true,
+														listeners:{
+															'change':function(radio,isChecked){
+																if (isChecked) { 
+																	Ext.getCmp("period").enable();
+																	Ext.getCmp("timeType").enable();
+																} 
+															}
+														}
+													},
+    												{
+    												    xtype: 'numberfield',
+    												    id: 'period',
+    												    width:70,
+    												    maxLength:7,
+    												    enforceMaxLength:true,
+    												    allowDecimals:false,
+    												    hideLabel:true,
+    												    margin:'10 10 10 10',
+    												    value:refreshPeriod,
+    												    minValue:1
+    												},
+    												{
+    								    		    	   xtype:'combobox',
+    								    		    	   id:'timeType',
+    								    		    	   width:70,
+    								    		    	   hideLabel:true,
+    								    		    	   store:timeTypeStore,
+    								    		    	   allowBlank:false,
+    								    		    	   value:"1",
+    								    		    	   forceSelection:true,
+    								    		    	   queryMode: 'local',
+    								    		    	   margin:'10 10 10 10',
+    								    		    	   displayField: 'name',
+    								    		    	   valueField: 'value'
+    								    		    }
+    				    		    	          ]
+    				    		       },
+    				    		       {
+    				    		    		xtype:'radiofield',
+    				    					name:'refreshFlag',
+    				    					margin:'10 10 10 10',
+    				    					id:"refreshNo",
+    				    					boxLabel:i18n._("Disable refresh"),
+    				    					listeners:{
+    				    						'change':function(radio,isChecked){
+													if (isChecked) { 
+														Ext.getCmp("period").disable();
+														Ext.getCmp("timeType").disable();
+													} 
+												}
+											}
+    				    		       }
+    					        ]
+    		    		        }
+    		    		      ],
+    		    		buttons:[{
+		    	        	  xtype:'button',
+	    	        	  name: 'search',
+	    	        	  width:80,
+	    	        	  text:i18n._('OK'),//搜索
+	    	        	  handler:function(){
+	    	        		  var refreshYes=Ext.getCmp("refreshYes").getValue();
+	    	        		  var refreshNo=Ext.getCmp("refreshNo").getValue();
+	    	        		  periodGlobal=Ext.getCmp("period").getValue();
+	    	        	      timeTypeGlobal=Ext.getCmp("timeType").getValue();
+	    	        		  refreshYesGlobal=refreshYes;
+	    	        		  refreshNoGlobal=refreshNo;
+	    	        		  if(refreshNo){
+	    	        			  runner.stopAll();
+	    	        			  refreshSettingWin.hide();
+	    	        			  return;
+	    	        		  }
+	    	        		  if(refreshYes){
+	    	        			  if(Ext.getCmp("period").isValid()&&Ext.getCmp("timeType").isValid()){
+	    	        				  var timeType=Ext.getCmp("timeType").getValue();
+	    	        				  var period=Ext.getCmp("period").getValue();
+	    	        				  if(timeType=='1'){
+	    	        					  refreshPeriod=period;
+	    	        				  }else if(timeType=='2'){
+	    	        					  refreshPeriod=period*60;
+	    	        				  }
+	    	        				  var task = {
+	    	              				    run: refreshData,
+	    	              				    interval: 1000*refreshPeriod 
+	    	              		      };
+	    	        				  runner.stopAll();
+	    	        				  runner.start(task);
+	    	        				  refreshSettingWin.hide();
+	    	        			  }else{
+	    	        				  return;
+	    	        			  }
+	    	        		  }
+	    	        	  }
+	    	          },
+	    	          {
+	    	        	  xtype:'button',
+	    	        	  name: 'cancel',
+	    	        	  width:80,
+	    	        	  margin:"0 85 0 10",
+	    	        	  text:i18n._('off'),//取消
+	    	        	  handler:function(){
+	    	        		  //Ext.getCmp("refreshSettingForm").getForm().reset();
+	    	        		  reset();
+	    	        		  refreshSettingWin.hide();
+	    	        	  }
+	    	          }]
+    		    	});
+        			
+        			Ext.get("refreshSetting").on('click',function(){
+        				refreshSettingWin.show();
+        			});
+        			
+        			var task = {
+        				    run: refreshData,
+        				    interval: 1000*refreshPeriod 
+        		    };
+        			
+        			var runner = new Ext.util.TaskRunner();
+        			runner.start(task);
+        			
+        			function reset(){
+        			  Ext.getCmp("refreshYes").setValue(refreshYesGlobal);
+  	        		  Ext.getCmp("refreshNo").setValue(refreshNoGlobal);
+  	        		  Ext.getCmp("period").setValue(periodGlobal);
+  	        	      Ext.getCmp("timeType").setValue(timeTypeGlobal);
+        			}
+                    
+                }
+            };
+         })();
+    	 MultiLang.init();
+     });
+
+
+	 function getCookie(name){
+	         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+	         if(arr != null) return unescape(arr[2]);
+			 return null;
+	 }
+
+</script>
+</head>
+
+<body>
+
+</body>
+</html>

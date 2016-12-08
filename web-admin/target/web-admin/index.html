@@ -1,0 +1,428 @@
+<html>
+<head>
+<title>管理后台</title>
+<meta http-equiv="Content-Language" content="cn-us" />    
+<meta http-equiv="imagetoolbar" content="no" />  
+<meta name="zyp" content="true" />    
+<meta name="description" content="Description" />  
+<meta name="keywords" content="Keywords" />    
+<meta name="author" content="" /> 
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="extjs-4.1.0/resources/css/ext-all-gray.css" />
+<link rel="stylesheet" type="text/css" href="./css/login.css" />
+<link rel="shortcut icon" href="images/favicon.ico" >
+<script type="text/javascript" src="extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="js/head.js"></script>
+<script src="js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="js/i18n.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/jquery.md5.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+	//$("#loginLogo").attr("src","images/logo/"+domainCode+"/");
+});	
+</script>
+<script type="text/javascript">
+ var currentLanguage="zh_CN";
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+document.write("<script src='extjs-4.1.0/locale/ext-lang-"+getCookie("lang")+".js'><\/script>");
+
+$(document).keydown(function(e){
+   if(e.keyCode == 13){
+     userlogin();
+   }
+  });
+  
+
+
+function userlogin(){
+	if(Ext.MessageBox){
+        Ext.MessageBox.buttonText = {
+           ok     : i18n._("OK"),
+           cancel : "cancel",
+           yes    : "yes",
+           no     : "no"
+        };
+     }
+	
+	//if(Ext.get("loginName").getValue()!=""&&Ext.get("loginName").getValue()!=i18n._("AdminE-mail")&&Ext.get("password").getValue()!=""&&Ext.get("password").getValue()!=i18n._("APassword")&&Ext.get("codeField").getValue()!=""&&Ext.get("codeField").getValue()!=i18n._("code")){
+	if(true){
+		var enCode = $.md5(Ext.get("password").getValue());
+		Ext.Ajax.request({
+		    url: './admin/login?email='+ Ext.get("loginName").getValue().trim()+"&password="+enCode,
+		    params:{
+		    	"code":Ext.get("codeField").getValue()
+		    },
+		    success: function(response){
+		    	var obj = Ext.decode(response.responseText);
+
+	        	document.location.href="system/hc_admin_index.html";
+		        if(obj.success){
+		        	document.location.href="system/hc_admin_index.html";
+		        }else{
+		        	Ext.MessageBox.show({
+				           title: i18n._("notice"),
+				           msg: obj.resultMsg,
+				           icon:Ext.MessageBox.INFO,
+				           buttons: Ext.MessageBox.OK
+				           
+				       });
+		        	
+		        	$("#password").val("");
+		        	$("#codeField").val("");
+		        	getImageCode();
+	        		return;
+		        }
+		    }
+		});
+		}else{
+			 Ext.MessageBox.show({
+		           title: i18n._("notice"),
+		           msg: i18n._("E-mail and password not null"),
+		           icon:Ext.MessageBox.INFO,
+		           buttons: Ext.MessageBox.OK
+		           
+		       });
+			 $("#codeField").val("");
+			 getImageCode();
+		  return;
+		}
+};
+Ext.onReady(function() {
+	init_lang("");
+   $("#password").blur(function(){
+		 if($(this).val()==""){
+			 $(this).val("");
+			 $(this).addClass("gray");
+		 }
+	   });
+	   $("#loginName").blur(function(){
+		   if($(this).val()==""){
+			   $(this).val(i18n._("AdminE-mail")); 
+			   $(this).addClass("gray");
+		   }
+	   });
+	   $("#codeField").blur(function(){
+		   if($(this).val()==""){
+			   $(this).val(i18n._("code")); 
+			   $(this).addClass("gray");
+		   }  
+	   });
+
+		$("#password").blur(function() {  
+			  var text_value = $(this).val();  
+			  if(""==text_value){
+	             var text_value = $(this).val();  
+	             $("#password").hide();  
+	             $("#showPwd").addClass("gray").show();  
+			  }
+	    }); 
+	    
+		$("#showPwd").focus(function() { 
+		
+	           var text_value = $(this).val();  
+	           $("#showPwd").hide();  
+	           $("#password").show().focus();  
+	    });
+	    
+	   $("#loginName").focus(function(){
+		   if($(this).val()==i18n._("AdminE-mail")){
+			   	 $(this).val("");
+			   	 $(this).removeClass("gray");
+		   }
+	   });
+	   $("#codeField").focus(function(){
+		   if($(this).val()==i18n._("code")){
+			   	 $(this).val("");
+			   	 $(this).removeClass("gray");
+		   }
+	   });
+	   
+   $("#changeCN").click(function(){
+	   $(this).attr("src","images/index/chinese_click.png");
+	   $("#imageCode").attr("title","see！");
+	   $("#changeEN").attr("src","images/index/english.png");
+	   init_lang($(this).attr("value"));
+	   currentLanguage=$(this).attr("value");
+   });
+   $("#changeEN").click(function(){
+	   $(this).attr("src","images/index/english_click.png");
+	   $("#imageCode").attr("title","Change a new one!");
+	   $("#changeCN").attr("src","images/index/chinese.png");
+	   init_lang($(this).attr("value"));
+	   currentLanguage=$(this).attr("value");
+   });
+   
+   $("#imageCode").click(function(){
+		var time = Math.random();
+		var url = "../query?time="+time;
+	    $(this).attr("src", url);
+	}); 
+   
+  
+});
+
+/*
+ * 验证码输入框获取焦点时，更新验证码
+ */
+function getImageCode(){
+	var time = Math.random();
+	var url = "./terminal/login?telphone="+time;
+    $("#imageCode").attr("src", url);
+}
+function seti18n(){
+	
+	if($("#password").val()==i18n._("APassword")){
+		  $("#password").val("");
+	  }
+	  if($("#loginName").val()==i18n._("AdminE-mail")){
+		  $("#loginName").val("");
+	  }
+    if($("#codeField").val()==i18n._("code")){
+  	  $("#codeField").val("");
+	  }
+	   
+	
+	 if(getCookie("lang")==null||getCookie("lang")=="undefined"){
+         var language_other = window.navigator.language;
+	      var language_ie = window.navigator.browserLanguage;
+         if(language_ie!=null||language_ie!="undefined"){
+		      i18n.lang=language_ie;
+             i18n.set(i18n);
+		  }else{
+		      i18n.lang=language_other;
+             i18n.set(i18n);
+		  }
+     }else{
+         i18n.lang=getCookie("lang");
+         i18n.set(i18n);
+     }
+	  if($("#password").val()==""){
+		  $("#showPwd").val(i18n._("APassword")).addClass("gray");
+	  }
+	  if($("#loginName").val()==""){
+		  $("#loginName").val(i18n._("AdminE-mail")).addClass("gray");
+	  }
+      if($("#codeField").val()==""){
+    	  $("#codeField").val(i18n._("code")).addClass("gray");
+	  }
+	   
+	   
+	  
+}
+
+if (window.top !== window.self) { // are you trying to put self in an iframe?		
+	window.open(location.href,'_top');	
+}
+
+  function init_lang(value){
+     if(value == ""){
+        var lang = getCookie("lang");
+		if(lang==null||lang=="undefined"){
+	            var language_other = window.navigator.language;
+	            var language_ie = window.navigator.browserLanguage;
+                if(language_other=="zh-cn"||language_other=="zh-CN"||language_other=="zh_cn"||language_other=="zh_CN"){
+				    language_other="zh_CN"
+				}
+
+				if(language_ie=="zh-cn"||language_ie=="zh-CN"||language_ie=="zh_cn"||language_ie=="zh_CN"){
+				    language_ie="zh_CN"
+				}
+
+				if(language_other=="en-us"||language_other=="en-US"||language_other=="en_us"||language_other=="en_US"||language_other=="en"){
+				    language_other="en_US"
+				}
+
+				if(language_ie=="en-us"||language_ie=="en-US"||language_ie=="en_us"||language_ie=="en_US"){
+				    language_ie="en_US"
+				}
+				
+				if(language_ie){
+					currentLanguage=language_ie;
+					setCookie(language_ie);
+				}else if(language_other){
+					currentLanguage=language_other;
+					setCookie(language_other);
+				}
+	    }
+	 }else{
+	    setCookie(value);
+	 }
+     
+     seti18n();
+  }
+  
+function setCookie(value){
+     document.cookie = "lang="+ value;
+}
+
+
+</script>
+</head>
+<body bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+<table id="__01" width="1367" height="769" border="0" cellpadding="0" cellspacing="0">
+	<tr>
+		<td colspan="13">
+			<img src="images/index/index_01.gif" width="1366" height="158" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="158" alt=""></td>
+	</tr>
+	<tr>
+		<td colspan="2" rowspan="3">
+			<img src="images/index/index_02.png" width="430" height="135" alt=""></td>
+		<td colspan="3">
+			<img src="images/index/index_03.png" width="11" height="6" alt=""></td>
+		<td colspan="3">
+			<img src="images/index/index_04.gif" width="484" height="6" alt=""></td>
+		<td colspan="2">
+			<img src="images/index/index_05.png" width="10" height="6" alt=""></td>
+		<td colspan="3" rowspan="5">
+			<img src="images/index/index_06.gif" width="431" height="237" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="6" alt=""></td>
+	</tr>
+	<tr>
+		<td>
+			<img src="images/index/index_07.png" width="6" height="83" alt=""></td>
+		<td>
+			<img src="images/index/index_08.gif" width="1" height="83" alt=""></td>
+		<td colspan="5" rowspan="6" style="background:url(images/index/index_09.gif) no-repeat;">
+           <div id="loginDiv">
+			<div>
+				<img id="loginLogo" src="" style="height:58px;width:128px;"/><!-- images/index/logo.png -->
+			</div>
+             <table border="0" width="490" height="200" style="margin-top:17px">
+                <tr>
+                   <td style="padding-left:70px;padding-top:50px;height:33px;"><image class="nameIcon" src="images/index/nameIcon.png"></image><input type="text" name="userName" id="loginName"  value="" class="text" onkeyup="this.value.replace(/\s+/g,"")"/><td>     
+                   <td rowspan="2" style="margin-right: 50px; padding-right: 60px; padding-left: 10px; padding-top: 46px;">
+                   		<button class="btn"
+							tabindex="6" type="button" onclick="userlogin()"
+							style="background: url(images/index/login.png) no-repeat;"></button>
+	                    </div>
+                   </td>
+                </tr>
+                <tr>
+                   <td style="padding-left:70px;padding-top:0px; padding-bottom: 10px;height:33px;"><image class="nameIcon" src="images/index/passwdIcon.png"></image><input type="text" class="text" id="showPwd"/><input type="password" style="display: none;" value="" name="password" id="password" class="text"/><td>
+                </tr>
+                <tr>
+                  <td colspan="3" style="width:480px;height:33px; margin-bottom: 20px; padding-bottom: 25px;">
+                  	<input id="codeField" value="" type="text" name="code"  onfocus="getImageCode()"/><img id="imageCode" alt="" title="    " >
+	                <image id="changeCN" name="lang" value="zh_CN"  src="images/index/chinese.png"></imgage>
+	                <image id="changeEN" name="lang" value="en_US"  src="images/index/english.png"></imgage>
+	              </td>
+	              <td></td>
+                </tr>
+             </table>
+              <div id="copyright" style="font-family: Arial; font-size: 12px; width: 400px; color: white;">
+					© 2015 </div>
+           </div>
+           
+		<td>
+			<img src="images/index/index_10.gif" width="5" height="83" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="83" alt=""></td>
+	</tr>
+	<tr>
+		<td rowspan="4">
+			<img src="images/index/index_11.png" width="6" height="195" alt=""></td>
+		<td rowspan="5">
+			<img src="images/index/index_12.png" width="1" height="322" alt=""></td>
+		<td rowspan="4">
+			<img src="images/index/index_13.png" width="5" height="195" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="46" alt=""></td>
+	</tr>
+	<tr>
+		<td>
+			<img src="images/index/index_14.png" width="301" height="92" alt=""></td>
+		<td rowspan="5">
+			<img src="images/index/index_15.gif" width="129" height="283" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="92" alt=""></td>
+	</tr>
+	<tr>
+		<td rowspan="6">
+			<img src="images/index/index_16.gif" width="301" height="383" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="10" alt=""></td>
+	</tr>
+	<tr>
+		<td colspan="2" rowspan="3">
+			<img src="images/index/index_17.png" width="157" height="181" alt=""></td>
+		<td rowspan="3">
+			<img src="images/index/index_18.gif" width="274" height="181" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="47" alt=""></td>
+	</tr>
+	<tr>
+		<td>
+			<img src="images/index/index_19.png" width="6" height="127" alt=""></td>
+		<td>
+			<img src="images/index/index_20.png" width="5" height="127" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="127" alt=""></td>
+	</tr>
+	<tr>
+		<td colspan="4">
+			<img src="images/index/index_21.png" width="12" height="7" alt=""></td>
+		<td colspan="2">
+			<img src="images/index/index_22.gif" width="483" height="7" alt=""></td>
+		<td colspan="2">
+			<img src="images/index/index_23.png" width="10" height="7" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="7" alt=""></td>
+	</tr>
+	<tr>
+		<td rowspan="2">
+			<img src="images/index/index_24.gif" width="129" height="192" alt=""></td>
+		<td colspan="5">
+			<img src="images/index/index_25.png" width="253" height="99" alt=""></td>
+		<td colspan="4">
+			<img src="images/index/index_26.png" width="308" height="99" alt=""></td>
+		<td colspan="2" rowspan="2">
+			<img src="images/index/index_27.gif" width="375" height="192" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="99" alt=""></td>
+	</tr>
+	<tr>
+		<td colspan="9">
+			<img src="images/index/index_28.gif" width="561" height="93" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="93" alt=""></td>
+	</tr>
+	<tr>
+		<td>
+			<img src="images/index/Delimiter.gif" width="301" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="129" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="6" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="4" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="1" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="241" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="242" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="5" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="5" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="56" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="101" height="1" alt=""></td>
+		<td>
+			<img src="images/index/Delimiter.gif" width="274" height="1" alt=""></td>
+		<td></td>
+	</tr>
+</table>
+</body>
+</html>

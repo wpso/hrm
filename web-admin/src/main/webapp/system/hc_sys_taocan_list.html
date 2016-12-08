@@ -1,0 +1,4429 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<title>管理员用户</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<link rel='stylesheet' type="text/css"
+	href="../extjs-4.1.0/resources/css/ext-all-gray.css" />
+<script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+<script type="text/javascript" src="../js/head.js"></script>
+<script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+<script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+<script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+<script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+<script type="text/javascript">
+
+Ext.Loader.setConfig({
+    enabled: true
+});
+var vmCreateDiskCreateCount=0;
+
+var addDiskCount=0;
+Ext.require([
+    'Ext.grid.*',
+    'Ext.data.*',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+	// 'Ext.selection.CheckboxModel'
+    
+]);
+
+// var sm = Ext.create('Ext.selection.CheckboxModel');
+Ext.onReady(function() {
+    var params;
+    MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    //Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                //Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            
+            setup: function() {
+			     Ext.Ajax.timeout = 120000;  	
+// /////////////////////////////////////// 创建数据
+
+Ext.regModel("QosPolicy",{
+	fields:[
+	{name:"key",type:"string"},
+	{name:"value",type:"string"}
+	]
+});
+
+Ext.define('ServiceItem', {
+    extend: 'Ext.data.Model',
+    fields: [
+	{name: 'id',  type: 'int'},
+	{name: 'serviceType',  type: 'int'},
+	{name: 'createDate',  type: 'date'},
+	{name: 'updateDate',  type: 'date'},
+	{name: 'price',  type: 'float'},
+	{name: 'size',  type: 'int'},
+	{name: 'description',  type: 'string'},
+	{name: 'name',  type: 'string'},
+	{name: 'model',  type: 'string'},
+	{name: 'frequency',  type: 'float'},
+	{name: 'coreNum',  type: 'int'},
+	{name: 'arch',  type: 'string'},
+	{name: 'vendor',  type: 'string'},
+	{name: 'capacity',  type: 'int'},
+	{name: 'type',  type: 'string'},
+	{name: 'bandWidth',  type: 'int'},
+	{name: 'version',  type: 'string'},
+	{name: 'language',  type: 'string'},
+	{name: 'imageSize',  type: 'string'},
+	{name: 'platform',  type: 'string'},
+	{name: 'family',  type: 'string'},
+	{name: 'times',  type: 'int'},
+//	{name: 'Location1',  type: 'int'},
+//	{name: 'Location2',  type: 'int'}
+	
+	],
+	hasMany:[{model:"QosPolicy",name:"qosPolicies"}],
+	getQos:function(){
+		return this.getAssociatedData().qosPolicies;
+	}
+});
+
+Ext.define("ScFeeType",{
+	extend:'Ext.data.Model',
+	fields:[
+	  {name:'id',type:'int'},
+	  {name:'period',type:'string'},
+	  {name:'priceType',type:'string'},
+	  {name:'pricePeriodType',type:'string'},
+	  {name:'price',type:'float'}
+	]
+})
+
+Ext.regModel("ScIsolationConfig",{
+	fields:[
+		{name:"all_bw_in",type:"int"},
+		{name:"all_bw_out",type:"int"},
+		{name:"wan_bw_in",type:"int"},
+		{name:"wan_bw_out",type:"int"},
+		{name:"ip_in",type:"int"},
+		{name:"ip_out",type:"int"},
+		{name:"tcp_in",type:"int"},
+		{name:"tcp_out",type:"int"},
+		{name:"udp_in",type:"int"},
+		{name:"udp_out",type:"int"},
+		
+		{name:"cpu_quota",type:"int"},
+		{name:"cpu_period",type:"int"},
+		
+		{name:"read_bytes_sec",type:"int"},
+		{name:"write_bytes_sec",type:"int"},
+		{name:"read_iops_sec",type:"int"},
+		{name:"write_iops_sec",type:"int"},
+		
+		{name:"disk_read_bytes_sec",type:"int"},
+		{name:"disk_write_bytes_sec",type:"int"},
+		{name:"disk_read_iops_sec",type:"int"},
+		{name:"disk_write_iops_sec",type:"int"}
+	]
+});
+
+Ext.define('ServiceCatalog', {
+    extend: 'Ext.data.Model',
+    fields: ['id', 'name',
+	{name: 'createDate', type:'date',dateFormat : 'time'},
+	{name: 'effectiveDate', type:'date',dateFormat : 'time'},
+	{name: 'expirationDate', type:'date',dateFormat : 'time'},
+	{name: 'description', type:'string'},
+	{name: 'price', type:'float'},
+	{name: 'tryOrNo',type:'boolean'},
+	{name: 'tryApproveOrNo',type:'boolean'},
+	{name: 'tryDuration',type:'int'},
+	{name: 'priceType',  type: 'int'},
+	{name: 'rowid',  type: 'int'},
+	{name: 'period',  type: 'float'},
+	{name: 'userLevel',type:'string'},
+	{name: 'periodType',  type: 'int'},
+	{name: 'status',  type: 'int'},
+	{name:'nodeName',type:'string'},
+	{name:'usePointOrNot',type:'boolean'},
+	{name:'useGiftOrNot',type:'boolean'},
+	{name:'catalogCode',type:'string'}
+	],
+	hasMany:[{model: 'ServiceItem', name: 'items'},
+	         {model:'ScFeeType',name:'feeTypes'},
+	         {model:'UserBrand',name:'userBrand'},
+	         {model:'Domain',name:'domainList'},
+	         {model:'Zone',name:'zoneList'},
+	         {model:'ScIsolationConfig',name:'scIsolationConfig'}
+	],
+	getItems:function(){
+	return this.getAssociatedData().items;
+	},
+	getFeeTypes:function(){
+		return this.getAssociatedData().feeTypes;
+	},
+	getUserBrand:function(){
+		return this.getAssociatedData().userBrand;
+	},
+	getScIsolationConfig:function(){
+		return this.getAssociatedData().scIsolationConfig[0];
+	}
+});
+
+//定义Brand
+Ext.define('UserBrand',{
+			 extend: 'Ext.data.Model',
+			 fields:[
+			 {name:'id',type:'long'},
+			 {name:'code',type:'string'},
+			 {name:'name',type:'string'}
+			 ]
+});
+
+//定义Domain
+Ext.define('Domain',{
+			 extend: 'Ext.data.Model',
+			 fields:[
+			 {name:'id',type:'long'},
+			 {name:'name',mapping:'abbreviation',type:'string'},
+			 {name:'code',type:'string'}
+			 ]
+});
+
+//定义Zone
+Ext.define('Zone',{
+			 extend: 'Ext.data.Model',
+			 fields:[
+			 {name:'id',type:'long'},
+			 {name:'name',type:'string'}
+			 ]
+});
+
+//定义ZoneGroup
+Ext.define('ZoneGroup',{
+			 extend: 'Ext.data.Model',
+			 fields:[
+			 {name:'id',type:'long'},
+			 {name:'name',type:'string'}
+			 ]
+});
+
+Ext.define('ScFeeType',{
+	extend:'Ext.data.Model',
+	fields:[
+	  {name:'id',type:'long'},
+	  {name:'priceType',type:'string'}
+	]
+});
+
+function getQosTpl(){
+	return  '<div data-qtip="'+
+				'<tpl for="qosPolicies">'+
+					'<p>'+
+			        '<tpl if="key == \'all_bw_in\'">'+
+			        '链路下行:{value}</p>'+
+			        '<tpl elseif="key == \'all_bw_out\'">'+
+			        '链路上行:{value}</p>'+
+			        '<tpl elseif="key == \'wan_bw_in\'">'+
+			        '带宽下行:{value}</p>'+
+			        '<tpl elseif="key == \'wan_bw_out\'">'+
+			        '带宽上行:{value}</p>'+
+			        '<tpl elseif="key == \'ip_in\'">'+
+			        'IP连接数下行:{value}</p>'+
+			        '<tpl elseif="key == \'ip_out\'">'+
+			        'IP连接数上行:{value}</p>'+
+			        '<tpl elseif="key == \'tcp_in\'">'+
+			        'TCP连接数下行:{value}</p>'+
+			        '<tpl elseif="key == \'tcp_out\'">'+
+			        'TCP连接数上行:{value}</p>'+
+			        '<tpl elseif="key == \'udp_in\'">'+
+			        'UDP连接数下行:{value}</p>'+
+			        '<tpl elseif="key == \'udp_out\'">'+
+			        'UDP连接数上行:{value}</p>'+
+			        
+			        '<tpl elseif="key == \'cpu_period\'">'+
+			        'CPU周期:{value}</p>'+
+			        '<tpl elseif="key == \'cpu_quota\'">'+
+			        'CPU配额:{value}</p>'+
+			        
+			        '<tpl elseif="key == \'disk_read_bytes_sec\'">'+
+			        '系统盘读速度:{value}</p>'+
+			        '<tpl elseif="key == \'disk_write_bytes_sec\'">'+
+			        '系统盘写速度:{value}</p>'+
+			        '<tpl elseif="key == \'disk_read_iops_sec\'">'+
+			        '系统盘读IOPS:{value}</p>'+
+			        '<tpl elseif="key == \'disk_write_iops_sec\'">'+
+			        '系统盘写IOPS:{value}</p>'+
+			        
+			        '<tpl elseif="key == \'read_bytes_sec\'">'+
+			        '扩展盘读速度:{value}</p>'+
+			        '<tpl elseif="key == \'write_bytes_sec\'">'+
+			        '扩展盘写速度:{value}</p>'+
+			        '<tpl elseif="key == \'read_iops_sec\'">'+
+			        '扩展盘读IOPS:{value}</p>'+
+			        '<tpl elseif="key == \'write_iops_sec\'">'+
+			        '扩展盘写IOPS:{value}</p>'+
+			        
+			        '</tpl>'+
+				'</tpl>'+
+	        '">'+
+				'{name}'+
+				'<tpl if="serviceType == 3">'+
+		        '({capacity}G)'+
+		    	'<tpl elseif="serviceType == 5">'+
+		        '({bandWidth}M)'+
+		        '</tpl>'+
+			'</div>';  
+}
+
+var brandArr=[];
+var brandArrQuery=[];
+
+$.ajax({
+	url:path+'/brand/userBrand!getAllNormalBrand.action',
+	async:false,
+	dataType:'json',
+	type:'POST',
+	success:function(brandObj){
+		if(brandObj.success){
+			var brandArrTemp=brandObj.resultObject;
+			if(brandArrTemp.length>0){
+				brandArrQuery.push({id:0,name:i18n._('All')});
+			}
+			for(var i=0;i<brandArrTemp.length;i++){
+				var item={id:brandArrTemp[i].id,name:brandArrTemp[i].name};
+				brandArr.push(item);
+				brandArrQuery.push(item);
+			}
+		}else{
+			alert("load brand failure");
+		}
+	},
+	failure:function(){
+		alert("load brand failure");
+	}
+});
+
+var brandStore = Ext.create("Ext.data.Store",{
+   	model:"UserBrand",
+   	data:brandArr
+   })
+   
+var brandStoreQuery = Ext.create("Ext.data.Store",{
+   	model:"UserBrand",
+   	data:brandArrQuery
+   })
+     
+
+var zoneGroupStore=Ext.create('Ext.data.Store',{
+    model: 'ZoneGroup',
+    proxy: new Ext.data.proxy.Ajax({
+    	url: path+'/sc/zoneGroup!getAllZoneGroups.action',
+		reader: {
+            type: 'json',
+            root: 'resultObject',
+            totalProperty: 'resultObject.totalCount'
+      }
+    })
+});
+
+var zoneArr=[];
+$.ajax({
+    url:'../sc/zone!getAllZones.action',
+    async:false,
+    dataType:'json',
+    type:'POST',
+    success:function(zoneObj){
+        if(zoneObj.success){
+            var zoneArrTemp=zoneObj.resultObject;
+            zoneArr.push({id:0,name:i18n._('All')});
+            for(var i=0;i<zoneArrTemp.length;i++){
+            	zoneArr.push(zoneArrTemp[i]);
+            }
+        }else{
+            alert("load domain failure");
+        }
+    },
+    failure:function(){
+        alert("load domain failure");
+    }
+});
+
+        
+var zoneArrStore = Ext.create("Ext.data.Store",{
+    model:"Zone",
+    data:zoneArr
+});
+	
+var zoneStore=Ext.create('Ext.data.Store',{
+    model: 'Zone',
+    proxy: new Ext.data.proxy.Ajax({
+    	url: path+'/sc/zone!getServerZonesByGroupId.action',
+		reader: {
+            type: 'json',
+            root: 'resultObject',
+            totalProperty: 'resultObject.totalCount'
+      }
+    }),
+    listeners:{
+    	'load':function(store){
+    		if(store.getCount()==0){
+    			showMsg("对不起，没有相关发布区域信息。");
+    		}
+    	}
+    }
+});
+
+
+zoneStore.load();
+
+ 
+Ext.define('listItemStore',{
+		extend:'Ext.data.Store',
+		autoLoad:false,
+		remoteSort:true,
+		proxy:{
+			model: 'ServiceItem',
+	        type: 'ajax',
+	        url : path+'/sc/serviceItem!listServiceItem.action',
+			reader: {
+	            type: 'json',
+				root:'resultObject',
+				totalProperty: 'resultObject.totalCount'
+	        }
+	    }
+	});
+	
+Ext.define('listItem4Store',{
+		extend:'Ext.data.Store',
+		autoLoad:false,
+		remoteSort:true,
+		proxy:{
+			model: 'ServiceItem',
+	        type: 'ajax',
+	        url : path+'/sc/serviceItem!listServiceItem4ByZoneGroupId.action',
+			reader: {
+	            type: 'json',
+				root:'resultObject',
+				totalProperty: 'resultObject.totalCount'
+	        }
+	    }
+	});	
+
+var v_height = 30;
+var v_width = 270;
+var v_margin = '4px';
+
+Ext.define('textPanel',{
+	extend:'Ext.panel.Panel',
+	height:v_height,
+	width:v_width,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin
+	},
+	items:[
+		{
+		xtype:'textfield',
+		fieldLabel:''
+		}],
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	},
+	setLabel:function(label){
+	this.getComponent(0).setFieldLabel(label);
+	},
+	setValue:function(value){
+	this.getComponent(0).setValue(value);
+	}
+	
+});
+Ext.define('displayPanel',{
+	extend:'Ext.panel.Panel',
+	minHeight:v_height,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin,
+		marginLeft:'5px'
+	},
+	items:[
+		{
+		xtype:'displayfield',//textfield
+		width:200,
+		style:{
+			wordBreak:'break-all',
+			wordWrap:'break-word'
+		},
+		overflowY : 'auto',
+		readOnly:true,
+		fieldLabel:''
+		}],
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	},
+	setLabel:function(label){
+	this.getComponent(0).setFieldLabel(label);
+	},
+	setValue:function(value){
+	this.getComponent(0).setValue(value);
+	},
+	setWidth:function(value){
+		this.getComponent(0).setWidth(value);
+	}
+	
+});
+
+Ext.define('extDiskDetailfield',{
+	extend:'Ext.panel.Panel',
+	border:false,
+	layout:'hbox',
+	style:{
+		marginLeft:'5px'
+	},
+	items:[
+		{
+		xtype:'displayfield',//textfield
+		width:90,
+		labelWidth:40,
+		readOnly:true,
+		fieldLabel:''
+		}],
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	},
+	setLabel:function(label){
+	this.getComponent(0).setFieldLabel(label);
+	},
+	setValue:function(value){
+	this.getComponent(0).setValue(value);
+	}
+});
+
+var extDiskDetailContainer=Ext.create('Ext.panel.Panel',{
+	width:500,
+	border:false,
+	layout:'hbox',
+	items:[]
+});
+
+Ext.define('sliderPanel',{
+extend:'Ext.panel.Panel',
+	height:v_height,
+	width:v_width,
+	border:false,
+	layout:'hbox',
+	items:[
+	{
+	xtype:'sliderfield',
+	fieldLabel: '',
+	width:220,
+	increment: 1,
+    minValue: 1,
+    maxValue: 10,
+    value:1,
+	tipText: function(thumb){
+        return Ext.String.format('<b>{0}</b>', thumb.value);
+	},
+	listeners:{
+		'change':{
+			fn:function(){
+				this.getBubbleTarget().getComponent(1).setValue(this.getValue());
+			}
+	  	}
+	}
+    },{
+		xtype: 'displayfield',
+		margin:'0 0 0 6',
+		value:''
+	},{
+	xtype: 'displayfield',
+		value:''
+	}],
+	setValue:function(value){
+	this.getComponent(0).setValue(value);
+	this.getComponent(1).setValue(value);
+	},
+	setLabel:function(label){
+	this.getComponent(0).setFieldLabel(label);
+	},
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	}
+});
+
+Ext.define('pricePanel',{
+	extend:'Ext.panel.Panel',
+	height:v_height,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin,
+		marginLeft:'5px'
+	},
+	items:[		
+		{
+	    xtype: 'numberfield',
+		fieldLabel:i18n._('Price'),
+		width:328,
+		minValue: 0,
+		allowBlank: false
+	    },
+		{
+		xtype: 'displayfield',
+		margin:'0 0 0 10',
+		value:i18n._('cny')
+		}
+		],
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	},setValue:function(value){
+		this.getComponent(0).setValue(value)
+	}
+	
+});
+Ext.define('descPanel',{
+	extend:'Ext.panel.Panel',
+	height:80,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:v_margin,
+		marginLeft:'5px'
+	},
+	items:[
+		{
+		height:70,
+		width:400,
+		xtype:'textareafield',
+		maxLength:1000,
+		enforceMaxLength:true,
+		fieldLabel:i18n._('ExpensesDesc')
+		}],
+	setValue:function(value){
+	this.getComponent(0).setValue(value);
+	},
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	}
+	
+});   
+   
+Ext.define('commonForm',{ 
+extend:'Ext.form.Panel',	
+	            	//height:380,
+                    border: false,
+                    items: [{
+					title:'',
+					xtype:"fieldset",
+					border:true,
+					anchorSize:'100% 100%',
+					margin:'3 3 3 3'
+					}],
+					setLabel:function(label){
+					this.getComponent(0).setTitle(label);
+					},
+					addCmp:function(obj){
+					this.getComponent(0).add(obj);
+					}
+                   });
+
+Ext.define('commonFormScroll',{ 
+	extend:'Ext.form.Panel',	
+	                    border: false,
+	                    autoHeight:true,
+	                    items: [{
+						title:'',
+						xtype:"fieldset",
+						border:true,
+						anchorSize:'100% 100%',
+						margin:'3 3 3 3'
+						}],
+						setLabel:function(label){
+						this.getComponent(0).setTitle(label);
+						},
+						addCmp:function(obj){
+						this.getComponent(0).add(obj);
+						}
+	                   });
+                   
+                   
+Ext.define('button',{
+extend:'Ext.button.Button',
+style:'margin-right:5'
+
+}); 
+ 
+Ext.define('commonWindow',{
+extend:'Ext.window.Window',
+title:i18n._('Add_ServiceCatalog'),
+modal:true,
+width: 600,
+manageHeight:true,
+resizable:false,
+layout: 'anchor',
+closable:false,
+constrain:true,
+tools:[{
+type:'close',
+handler:function(){					
+formReset();
+this.getBubbleTarget().getBubbleTarget().hide();
+}
+}]
+});
+
+Ext.define('commonWindowScroll',{
+	extend:'Ext.window.Window',
+	title:i18n._('Add_ServiceCatalog'),
+	modal:true,
+	maxHeight: 440,
+	autoScroll:true,
+	width: 600,
+	height: 440,
+	constrain:true,
+	autoScroll:true,
+	resizable:false,
+	layout: 'anchor',
+	closable:false
+	});
+
+var scFeeTypesConstants=new Ext.util.HashMap();
+scFeeTypesConstants.add("1,2","oneWeek");
+scFeeTypesConstants.add("1,1","oneMonth");
+scFeeTypesConstants.add("3,1","threeMonth");
+scFeeTypesConstants.add("6,1","sixMonth");
+scFeeTypesConstants.add("12,1","twevelMonth");
+
+function fillMFeeType(feeType,mFeeType){
+	for(var i=0;i<feeType.length;i++){
+		var pricePeriodType=feeType[i].pricePeriodType;
+		var priceTemp=feeType[i].price;
+		var period=feeType[i].period;
+		var id=feeType[i].id;
+		if(priceTemp){
+			var mFeeContainer=mFeeType.getComponent(scFeeTypesConstants.get(period+','+pricePeriodType));
+			mFeeContainer.getComponent(0).setValue(true);
+			mFeeContainer.getComponent(1).setValue(priceTemp);
+			mFeeContainer.getComponent(3).setValue(id);
+		}
+	}
+}
+ 
+function formReset(){
+v_step1.getForm().reset();
+v_step3.getForm().reset();
+v_step4.getForm().reset();
+v_displayForm.getForm().reset();
+}
+
+function showMsg(msg){
+	 Ext.MessageBox.show({
+        title: i18n._('Prompt'),
+         msg: msg==null?i18n._('Input error'):msg,
+       icon:Ext.MessageBox.INFO,
+      buttons: Ext.MessageBox.OK
+      });
+}
+
+function setMaxValue(cmp,value){
+	if(cmp.maxValue!=value){
+		cmp.setMaxValue(value);
+	}
+}
+
+function initFieldValue(){
+vmCreateDiskCreateCount=0;
+addDiskCount=0;
+v_extDiskPanel.removeAll(true);
+extDiskDetailContainer.removeAll(true);
+setMaxValue(v_ram.getComponent(0),v_ramStore.getCount());
+v_ram.getComponent(1).setValue(v_ramStore.getAt(0).get('size')+'M');
+v_disk.setValue(v_diskStore.getAt(0).get('id'));
+v_networkSlider.setValue(v_networkStore.getAt(0).get("id"));
+v_buttonPre9.show();v_confirmButton.show();
+v_displayForm.getComponent(0).show();
+}
+
+/************************套餐详情展示函数开始*************************/
+function fillForm_view(){
+extDiskDetailContainer.removeAll(true);
+var rows=dataGrid.getSelectionModel().getSelection();
+if(rows.length==0){
+	 Ext.MessageBox.show({
+		    title: i18n._('notice'),
+		    msg:i18n._('please choose one column'),
+        icon:Ext.MessageBox.WARNING,
+        buttons: Ext.MessageBox.OK
+	}); 
+	return;
+}
+var	scId=rows[0].get('id');	
+var record=	v_serviceCatalogStore.getById(scId);
+d_name.setValue(record.get('name'));
+d_desc.setValue(record.get('description'));
+var tmp_cpu;
+var tmp_ram;
+var tmp_disk;
+var tmp_os=[];
+var tmp_network;
+var tmp_items=record.getItems();
+var tempExtDiskArr=[];
+var tmp_brand=[];
+var tmp_code ;
+d_code.setValue(record.get('catalogCode'));
+for(var i=0;i<tmp_items.length;i++){
+switch(tmp_items[i].serviceType)
+{	case 1:
+	tmp_cpu=tmp_items[i];break;
+	case 2:
+	tmp_ram=tmp_items[i];break;
+	case 3:
+	tmp_disk=tmp_items[i];break;
+	case 4:
+	tmp_os.push(tmp_items[i].name);break;
+	case 5:
+	tmp_network=tmp_items[i];break;
+	case 8:{
+	tempExtDiskArr.push(tmp_items[i]);break;
+	}
+}
+}
+var brandArray=record.getAssociatedData().userBrand;
+tmp_brand=[];
+for(var i=0;i<brandArray.length;i++){
+	tmp_brand.push(brandArray[i].name);
+}
+
+var domainArray=record.getAssociatedData().domainList;
+tmp_domain=[];
+for(var i=0;i<domainArray.length;i++){
+	tmp_domain.push(domainArray[i].name);
+}
+
+var zoneArray=record.getAssociatedData().zoneList;
+tmp_zone=[];
+tmp_zone_id=[];
+for(var i=0;i<zoneArray.length;i++){
+	tmp_zone.push(zoneArray[i].name);
+	tmp_zone_id.push(zoneArray[i].id);
+}
+
+var temp_zoneGroupId=[];
+
+var temp_zoneGroup=[];
+
+Ext.Ajax.request({
+	  url: path+'/sc/zoneGroup!getAllZoneGroupIds.action',
+	  method: 'POST',
+	  async : false, //同步 
+	  params:{
+		  zoneIds:tmp_zone_id
+	  },
+	  success: function (response) {
+			var obj = Ext.decode(response.responseText);
+	    	if(obj.success){　　　
+	    		var zoneGroupIdsTemp=obj.resultObject;
+				if(zoneGroupIdsTemp.length>0){
+					for(var i=0;i<zoneGroupIdsTemp.length;i++){
+						temp_zoneGroupId.push(zoneGroupIdsTemp[i]);
+					}
+					for(var j=0;j<temp_zoneGroupId.length;j++){
+						temp_zoneGroup.push(zoneGroupStore.getById(temp_zoneGroupId[j]).get('name'));
+					}
+					d_zoneGroupName.setValue(temp_zoneGroup.join(' '));
+				}
+			}
+	    	//else{
+// 				showMsg(obj.resultMsg);   
+// 	  		}
+	  }
+});
+
+if(tempExtDiskArr.length>0){
+	var extDiskDetailLabel=Ext.create('Ext.form.field.Display',{
+		fieldLabel:'ExtDisk',
+	    style:{
+	    	marginLeft:'5px'
+	    },
+		width:100,
+		border:false,
+		height:v_height,
+		value:''
+	});
+extDiskDetailContainer.add(extDiskDetailLabel);
+for ( var i = 1; i <=tempExtDiskArr.length; i++) {							
+	var addDisk =tempExtDiskArr[i-1].capacity;
+		var temp_disk=Ext.create("extDiskDetailfield");
+		temp_disk.setLabel("DISK"+i);
+		temp_disk.setValue(addDisk+'G');
+		extDiskDetailContainer.add(temp_disk);
+}
+}
+d_cpu.setValue(tmp_cpu.name);
+d_zoneName.setValue(tmp_zone.join(' '));
+//d_zoneGroupName.setValue('');
+
+d_userLevel.setValue(tmp_brand);
+d_domain.setValue(tmp_domain);
+d_ram.setValue(tmp_ram.size+'M');
+d_disk.setValue(tmp_disk.capacity+'G');
+d_os.setValue(tmp_os);
+if(record.get("tryOrNo")){
+	d_tryOrNo.setValue(i18n._('Yes'));
+	d_tryDuration.setValue(record.get("tryDuration")+i18n._('Day'));
+}else{
+	d_tryOrNo.setValue(i18n._('No'));
+	d_tryDuration.setValue(i18n._('None'));
+}
+if(record.get('tryApproveOrNo')){
+	d_tryApproveOrNo.setValue(i18n._('Yes'));
+}else{
+	d_tryApproveOrNo.setValue(i18n._('No'));
+}
+d_network.setValue(tmp_network.bandWidth+'M');
+var effectiveDateTemp=Ext.Date.format(record.get('effectiveDate'),'m/d/Y');
+var expirationDateTemp=Ext.Date.format(record.get('expirationDate'),'m/d/Y');
+if(record.get('usePointOrNot')){
+	d_coupons.setValue(i18n._('Yes'));//"是"
+}else{
+    d_coupons.setValue(i18n._('No'));//"否"
+}
+
+if(record.get('useGiftOrNot')){
+	d_gifts.setValue(i18n._('Yes'));//"是"
+}else{
+    d_gifts.setValue(i18n._('No'));//"否"
+}
+
+if(params=='zh_CN'){
+	effectiveDateTemp=Ext.Date.format(record.get('effectiveDate'),'Y-m-d');
+	expirationDateTemp=Ext.Date.format(record.get('expirationDate'),'Y-m-d');
+}
+
+var d_scIsolationConfig = record.getScIsolationConfig();
+
+if(d_scIsolationConfig != null){
+	d_cpuPeriodNumField.setValue(d_scIsolationConfig.cpu_period);
+	d_cpuQuotaNumField.setValue(d_scIsolationConfig.cpu_quota);
+	
+	d_diskRLimitNumField.setValue(d_scIsolationConfig.disk_read_bytes_sec+i18n._('MB/sec'));
+	d_diskWLimitNumField.setValue(d_scIsolationConfig.disk_write_bytes_sec+i18n._('MB/sec'));
+	
+	d_iopsRLimitNumField.setValue(d_scIsolationConfig.disk_read_iops_sec);
+	d_iopsWLimitNumField.setValue(d_scIsolationConfig.disk_write_iops_sec);
+	
+	d_bandWidthUpTextField.setValue(d_scIsolationConfig.wan_bw_out);
+	d_bandWidthDownTextField.setValue(d_scIsolationConfig.wan_bw_in);
+	d_linkUpTextField.setValue(d_scIsolationConfig.all_bw_out);
+	d_linkDownTextField.setValue(d_scIsolationConfig.all_bw_in);
+	d_IPUpTextField.setValue(d_scIsolationConfig.ip_out);
+	d_IPDownTextField.setValue(d_scIsolationConfig.ip_in);
+	d_TCPUpTextField.setValue(d_scIsolationConfig.tcp_out);
+	d_TCPDownTextField.setValue(d_scIsolationConfig.tcp_in);
+	d_UDPUpTextField.setValue(d_scIsolationConfig.udp_out);
+	d_UDPDownTextField.setValue(d_scIsolationConfig.udp_in);
+}
+
+d_effectiveDate.setValue(effectiveDateTemp);
+d_expirationDate.setValue(expirationDateTemp);
+d_priceType.setValue(getPriceDataForDetail(record.getFeeTypes()));
+v_buttonPre9.hide();v_confirmButton.hide();
+v_displayForm.addCmp([d_name,d_code,d_try,d_desc,d_cpu,d_ram,d_disk,extDiskDetailContainer,d_os,d_network,d_time,d_priceType,d_coupons,d_gifts,d_zoneGroupName,d_zoneName,d_userLevel,d_domain,d_isolationSet]);
+v_displayForm.setLabel('');
+v_displayWindow.setTitle(i18n._('detail infomation of service catalog'));
+v_displayWindow.show();
+}
+/************************套餐详情展示函数结束*************************/
+/************************套餐修改函数开始*************************/
+function modifyServiceCatalog(){
+	var modifyExtDiskAddCount=0;
+	var modifyAddExtDiskIndex=0;
+	var rows=dataGrid.getSelectionModel().getSelection();
+	if(rows.length==0){
+		 Ext.MessageBox.show({
+			    title: i18n._('notice'),
+			    msg:i18n._('please choose one column'),
+             icon:Ext.MessageBox.WARNING,
+             buttons: Ext.MessageBox.OK
+		}); 
+		return;
+	}
+    var	scId=rows[0].get('id');			
+	var record=	v_serviceCatalogStore.getById(scId);
+	var statusLocal=record.get('status');
+	if(statusLocal==2){
+		Ext.MessageBox.show({
+		    title: i18n._('notice'),
+		    msg:i18n._('modify unapproval sc'),
+         icon:Ext.MessageBox.WARNING,
+         buttons: Ext.MessageBox.OK
+	   }); 
+	   return;
+	}
+	var m_extDiskPanel=Ext.create('Ext.panel.Panel',{
+		border:false,
+		items:[]
+	});
+	var temp_name=record.get('name');
+	var temp_desc=record.get('description');
+	var temp_code=record.get('catalogCode');
+	//var temp_code=record.get('catalogCode');
+	var m_name=Ext.create('Ext.form.Text',{    
+			    width:328,
+			    fieldLabel:i18n._('ServiceCatalog_name'),
+			    margin:'5 5 5 5',
+			    allowBlank: false ,
+				blankText:i18n._('ServiceCatalog_name can not be empty'),
+				maxLength:50,
+				enforceMaxLength:true,
+			  	validateOnBlur:true,
+			    textValid: true,
+			    validator: function(){
+			        return this.textValid;
+			    },
+			    listeners : {
+			        'change': function(textfield,newValue,oldValue) {
+			          if(newValue!=temp_name){
+			           Ext.Ajax.request({
+			        	   url: path+'/sc/sc!checkServiceCatalogName.action',
+				    	    params: {
+				    	        'serviceCatalog.name': Ext.String.trim(newValue)
+				    	    },
+				    	    scope: textfield,
+				    	    success: function(response){
+				    	    	var rs=Ext.JSON.decode(response.responseText);
+				    	    	if(rs.resultObject=='false'){
+		   	                  		this.textValid = true;
+				    	    		this.clearInvalid();
+				    	    	}else{
+									this.textValid=i18n._('ServiceCatalog_name exist');
+		                            this.markInvalid(i18n._('ServiceCatalog_name exist'));
+				    	    	}
+				    	    	}
+			           });
+			          }
+			           
+			         }       
+			      }
+		   });
+		var m_desc=Ext.create('descPanel');
+		var m_code = Ext.create('Ext.form.field.Text',{
+			 //labelAlign : 'right',
+			 title:i18n._('taocanCode'),//套餐code
+			 labelWidth : 100,
+			 width:200,
+			 style:{
+			    	marginLeft:'5px'
+			    },
+			 allowBlank: false,
+			 maxLength:8,
+			 regex:/^[A-Za-z0-9]{8}$/,//字母+数字混合8位数
+			 regexText:i18n._('ServiceCatalogCode'),
+			 fieldLabel: i18n._('taocanCode')
+		 });
+		var m_cpu=Ext.create('Ext.form.ComboBox',{
+		    style:{
+		        marginLeft:'5px'	
+		      },
+		  	height:v_height,
+		  	width:328,
+		  	listConfig: {  
+	            getInnerTpl: getQosTpl
+	        },
+		  	store: v_cpuStore,
+		  	fieldLabel: 'CPU',
+		  	displayField: 'name',
+		  	emptyText:i18n._('Please Select'),
+		  	allowBlank:false,
+		  	editable:false,
+		    valueField: 'id',
+		  	forceSelection:true
+		});
+
+		var m_ram=Ext.create('Ext.panel.Panel',{
+			height:v_height,
+			style:{
+				marginLeft:'5px'
+			},
+			border:false,
+			layout:'hbox',
+			items:[
+			{
+			xtype:'sliderfield',
+			fieldLabel: 'MEM',
+			width:328,
+			increment: 1,
+		    minValue: 1,
+		    value:1,
+		    maxValue:v_ramStore.getCount(),
+			tipText: function(thumb){	
+		        return Ext.String.format('<b>{0}</b>', v_ramStore.getAt(thumb.value-1).get('size')+'M');
+			},
+			listeners:{
+				'change':{
+					fn:function(){			
+						this.getBubbleTarget().getComponent(1).setValue(v_ramStore.getAt(this.getValue()-1).get('size')+'M');
+					}
+			  	},
+			  	'beforerender':{
+			  		fn:function(){	
+						this.getBubbleTarget().getComponent(1).setValue(v_ramStore.getAt(this.getValue()-1).get('size')+'M');
+					}
+			  	}
+			}
+		    },{
+				xtype: 'displayfield',
+				margin:'0 0 0 8',
+				width:20,
+				value:0
+			}],
+			setValue:function(value){
+			this.getComponent(0).setValue(value);
+			this.getComponent(1).setValue(v_ramStore.getAt(value-1).get('size')+'M');
+			},
+			getRawValue:function(){
+			return v_ramStore.getAt(this.getComponent(0).getValue()-1).get('size');
+			},
+			getValue:function(){
+			return v_ramStore.getAt(this.getComponent(0).getValue()-1).get('id');
+			}
+		});
+		var m_feeType=Ext.create('Ext.panel.Panel',{
+			frame:false,
+			border:false,
+			items:[{
+				xtype:'fieldcontainer',
+				itemId:'oneWeek',
+				layout:'hbox',
+				width:367,
+				style:{
+					marginLeft:'5px'
+				},
+				items:[
+				  {
+					 xtype:'checkboxfield',
+					 name:'feeType',
+					 width:202,
+					 labelWidth:99,
+					 boxLabel:i18n._('one-week'),
+					 fieldLabel:i18n._('billing rule')
+				  },{
+					  xtype:'numberfield',
+					  width:125,
+					  minValue: 0,
+					  maxValue: 1000000,
+					  name:'oneWeekFee'
+				  },{
+					  xtype:'displayfield',
+					  margin:'0 0 0 8',
+					  hideLabel:true,
+					  width:78,
+					  value:i18n._('cny')
+				  },{
+					  xtype:'textfield',
+					  hidden:true,
+					  name:'id'
+				  }    
+				]
+			},{
+				xtype:'fieldcontainer',
+				itemId:'oneMonth',
+				layout:'hbox',
+				width:360,
+				style:{
+					marginLeft:'27px'
+				},
+				items:[
+				  {
+					 xtype:'checkboxfield',
+					 name:'feeType',
+					 width:180,
+					 hideEmptyLabel: false,
+					 labelWidth:77,
+					 labelSeparator: '',
+					 boxLabel:i18n._('one-month'),
+					 fieldLabel:''
+				  },{
+					  xtype:'numberfield',
+					  width:125,
+					  minValue: 0,
+					  maxValue: 1000000,
+					  name:'oneMonthFee'
+				  },{
+					  xtype:'displayfield',
+					  margin:'0 0 0 8',
+					  hideLabel:true,
+					  width:78,
+					  value:i18n._('cny')
+				  },{
+					  xtype:'textfield',
+					  hidden:true,
+					  name:'id'
+				  }      
+				]
+			},{
+				xtype:'fieldcontainer',
+				itemId:'threeMonth',
+				layout:'hbox',
+				width:360,
+				style:{
+					marginLeft:'27px'
+				},
+				items:[
+				  {
+					 xtype:'checkboxfield',
+					 name:'feeType',
+					 width:180,
+					 hideEmptyLabel: false,
+					 labelWidth:77,
+					 labelSeparator: '',
+					 boxLabel:i18n._('three-month'),
+					 fieldLabel:''
+				  },{
+					  xtype:'numberfield',
+					  width:125,
+					  minValue: 0,
+					  maxValue: 1000000,
+					  name:'threeMonthFee'
+				  },{
+					  xtype:'displayfield',
+					  margin:'0 0 0 8',
+					  hideLabel:true,
+					  width:78,
+					  value:i18n._('cny')
+				  },{
+					  xtype:'textfield',
+					  hidden:true,
+					  name:'id'
+				  }      
+				]
+			},{
+				xtype:'fieldcontainer',
+				itemId:'sixMonth',
+				layout:'hbox',
+				width:360,
+				style:{
+					marginLeft:'27px'
+				},
+				items:[
+				  {
+					 xtype:'checkboxfield',
+					 name:'feeType',
+					 width:180,
+					 hideEmptyLabel: false,
+					 labelWidth:77,
+					 labelSeparator: '',
+					 boxLabel:i18n._('six-month'),
+					 fieldLabel:''
+				  },{
+					  xtype:'numberfield',
+					  width:125,
+					  minValue:0,
+					  maxValue: 1000000,
+					  name:'sixMonthFee'
+				  },{
+					  xtype:'displayfield',
+					  margin:'0 0 0 8',
+					  hideLabel:true,
+					  width:78,
+					  value:i18n._('cny')
+				  },{
+					  xtype:'textfield',
+					  hidden:true,
+					  name:'id'
+				  }     
+				]
+			},{
+				xtype:'fieldcontainer',
+				itemId:'twevelMonth',
+				layout:'hbox',
+				width:360,
+				style:{
+					marginLeft:'27px'
+				},
+				items:[
+				  {
+					 xtype:'checkboxfield',
+					 name:'feeType',
+					 width:180,
+					 hideEmptyLabel: false,
+					 labelWidth:77,
+					 labelSeparator: '',
+					 boxLabel:i18n._('twelve-month'),
+					 fieldLabel:''
+				  },{
+					  xtype:'numberfield',
+					  width:125,
+					  minValue: 0,
+					  maxValue: 1000000,
+					  name:'twevelMonthFee'
+				  },{
+					  xtype:'displayfield',
+					  margin:'0 0 0 8',
+					  hideLabel:true,
+					  width:78,
+					  value:i18n._('cny')
+				  },{
+					  xtype:'textfield',
+					  hidden:true,
+					  name:'id'
+				  }      
+				]
+			}]
+		});
+		var m_disk=Ext.create('Ext.panel.Panel',{
+			height:v_height,
+			border:false,
+			style:{
+				marginLeft:'5px'
+			},
+			layout:'hbox',
+			items:[
+			{
+				xtype:'combobox',
+				width:328,
+				store: v_diskStore,
+				listConfig: {  
+		            getInnerTpl: getQosTpl
+		        },
+				fieldLabel: 'DISK',
+				displayField: 'name',
+				emptyText:i18n._('Please Select'),
+				allowBlank:false,
+				editable:false,
+			    valueField: 'id',
+				forceSelection:true,
+				listeners:{
+					'change':{
+						fn:function(){			
+							var disk_tmp = v_diskStore.getById(this.getValue()) ;
+							if(disk_tmp){
+								this.getBubbleTarget().getComponent(1).setValue(disk_tmp.get('capacity')+'G');
+							}
+						}
+				  	}
+				}
+		    },{
+				xtype: 'displayfield',
+				margin:'0 0 0 8',
+				width:23,
+				value:0
+			}],
+			setValue:function(value){
+				this.getComponent(0).setValue(value);
+				this.getComponent(1).setValue(v_diskStore.getById(value).get('capacity')+'G');
+			},
+			getRawValue:function(){
+				return v_diskStore.getById(this.getComponent(0).getValue()).get('capacity');
+			},
+			getValue:function(){
+				return this.getComponent(0).getValue();
+			},
+			getPrice:function(){
+				return v_diskStore.getById(this.getComponent(0).getValue()).get('price');
+			}
+		});
+		var m_coupons = new Ext.form.RadioGroup({
+              xtype:'radiogroup',
+  			margin:'10 0 0 4',
+  			columns:2,
+  			fieldLabel:i18n._('usecoupons'),
+ 	 			width:320,
+  			items:[
+    	  		    {name:"coupons",inputValue:true,boxLabel:i18n._('Yes')},
+      			{name:"coupons",inputValue:false,boxLabel:i18n._('No')}
+ 		 		]});
+		
+		var m_gifts = new Ext.form.RadioGroup({
+               xtype:'radiogroup',
+   			margin:'10 0 0 4',
+   			columns:2,
+   			fieldLabel:i18n._('usegifts'),
+  	 			width:320,
+   			items:[
+     	  		    {name:"gifts",inputValue:true,boxLabel:i18n._('Yes')},
+       			{name:"gifts",inputValue:false,boxLabel:i18n._('No')}
+  		 		]});
+		var m_networkSlider = Ext.create('Ext.panel.Panel',{
+			height:v_height,
+			border:false,
+			style:{
+				marginLeft:'5px'
+			},
+			layout:'hbox',
+			items:[
+			{
+				xtype:'combobox',
+				width:328,
+				listConfig: {  
+		            getInnerTpl: getQosTpl
+		        },
+				store: v_networkStore,
+				fieldLabel: i18n._('Bandwidth'),
+				displayField: 'name',
+				emptyText:i18n._('Please Select'),
+				allowBlank:false,
+				editable:false,
+			    valueField: 'id',
+				forceSelection:true,
+				listeners:{
+					'change':{
+						fn:function(){
+							var network_tmp = v_networkStore.getById(this.getValue()) ;
+							if(network_tmp){
+								this.getBubbleTarget().getComponent(1).setValue(network_tmp.get('bandWidth')+'M');
+							}
+						}
+				  	}
+				}
+		    },{
+				xtype: 'displayfield',
+				margin:'0 0 0 8',
+				width:20,
+				value:0
+			}],
+			setValue:function(value){
+				this.getComponent(0).setValue(value);
+				this.getComponent(1).setValue(v_networkStore.getById(value).get('bandWidth')+'M');
+			},
+			getRawValue:function(){
+				return v_networkStore.getById(this.getComponent(0).getValue()).get('bandWidth');
+			},
+			getValue:function(){
+				return this.getComponent(0).getValue();
+			},
+			getPrice:function(){
+				return v_networkStore.getById(this.getComponent(0).getValue()).get('price');
+			}
+		});
+
+		m_os=Ext.create('Ext.form.ComboBox',{
+			height:v_height,
+			width:328,
+			style:{
+				marginLeft:'5px'
+			},
+			multiSelect:true,
+			fieldLabel: 'OS',
+			store: v_osStore,
+			displayField: 'name',
+		    valueField: 'id',
+		    editable:false,
+		    allowBlank:false,
+			forceSelection:true
+		});
+
+		var m_effectiveDate=Ext.create('Ext.form.field.Date',
+						{               
+			            margin:'5 5 5 5',
+		                fieldLabel:i18n._('effective date'),
+						value:new Date(),
+						width:328,
+			            minValue: Ext.Date.format(record.get('effectiveDate'),'m/d/Y'),
+			            format:'Y-m-d',
+			            editable:false
+			            });
+			            
+		var m_expirationDate=Ext.create('Ext.form.field.Date',
+						{               
+			            margin:'5 5 5 5',
+		                fieldLabel:i18n._('expiry date'),
+						minValue:new Date(),
+						format:'Y-m-d',
+						width:328,
+						editable:false
+			            });
+
+	
+	var m_createDiskAddFieldContainer = Ext.create('Ext.form.FieldContainer', {
+		layout : 'hbox',
+		items : [ {
+			xtype : 'label',
+			width : 110
+		}, 
+		{
+			xtype:'button',
+			height:20,
+			width:20,
+			style:{
+				marginRight:'5px'
+			},
+			text:'+',
+		 	handler : function() {
+		 	if(modifyAddExtDiskIndex>=4){
+		 		Ext.Msg.alert(i18n._('notice'),i18n._('addExtDiskTip'));
+		 		return;
+		 	}
+		 	modifyAddExtDiskIndex=modifyAddExtDiskIndex+1;
+		 	modifyExtDiskAddCount = modifyExtDiskAddCount + 1;
+			var ext_disk=Ext.create('Ext.panel.Panel',{
+				id:'diskSliderPanelModify'+modifyExtDiskAddCount,
+				height:v_height,
+				//width:300,
+				border:false,
+				style:{
+					marginLeft:'5px'
+				},
+				layout:'hbox',
+				items:[
+				{
+				xtype:'sliderfield',
+				fieldLabel: 'EXTDISK',
+				width:328,
+				increment: 1,
+				maxValue:v_extDiskStore.getCount(),
+			    minValue: 1,
+			    value:1,
+				tipText: function(thumb){	
+			        return Ext.String.format('<b>{0}</b>', v_extDiskStore.getAt(thumb.value-1).get('capacity')+'G');
+				},
+				listeners:{
+					'change':{
+						fn:function(){			
+							this.getBubbleTarget().getComponent(1).setValue(v_extDiskStore.getAt(this.getValue()-1).get('capacity')+'G');
+						}
+				  	}
+				}
+			    },{
+					xtype: 'displayfield',
+					margin:'0 10 0 8',
+					width:80,
+					value:0
+				},{
+					xtype:'button',
+					text : '×',
+					width: 20,
+					height:20,			
+					handler : function() {				
+						modifyAddExtDiskIndex=modifyAddExtDiskIndex-1;
+						this.getBubbleTarget().getComponent(1).setValue(0);
+						this.getBubbleTarget().getComponent(0).setDisabled(true);
+						this.getBubbleTarget().hide();
+					}
+				}],
+				setValue:function(value){
+				this.getComponent(0).setValue(value);
+				this.getComponent(1).setValue(v_extDiskStore.getAt(value-1).get('capacity')+'G');
+				},
+				getRawValue:function(){
+				return this.getComponent(1).getValue();//v_diskStore.getAt(this.getComponent(0).getValue()-1).get('capacity');
+				},
+				getValue:function(){
+				return v_extDiskStore.getAt(this.getComponent(0).getValue()-1).get('id');
+				},
+				getPrice:function(){
+				return v_extDiskStore.getAt(this.getComponent(0).getValue()-1).get('price');
+				}
+			});
+			
+			setMaxValue(ext_disk.getComponent(0),v_extDiskStore.getCount());
+			ext_disk.getComponent(1).setValue(v_extDiskStore.getAt(0).get('capacity')+'G');
+			m_extDiskPanel.add(ext_disk);
+		}
+		},
+		{
+			xtype : 'displayfield',
+			width : 200,
+			value : i18n._('Add a new disk')
+		} ]
+	});
+	
+	var m_try=Ext.create('Ext.form.FieldContainer',{
+		layout:'hbox',hidden:true,
+		style:{
+			marginLeft:'5px'
+		},
+		items:[{
+			xtype:'checkboxfield',
+			name:'tryOrNo',
+			fieldLabel:i18n._('PackageTrial'),//'套餐试用'
+			boxLabel:i18n._('To try')     
+			
+		},{
+			xtype:'numberfield',
+			name:'tryDuration',
+			allowDecimals:false,
+			fieldLabel:i18n._('TryDays'),//'试用天数'
+			style:{
+				marginLeft:'5px'
+			},
+			labelWidth:60,
+			width:120,
+			value:1,
+			editable:false,
+			minValue: 1,
+			increment:1,
+	        maxValue: 30
+		},{
+			xtype:'displayfield',
+			hideLabel:'true',
+			style:{
+				marginLeft:'5px'
+			},
+			value:i18n._('Day')//'天'
+		},{
+			xtype:'checkboxfield',
+			name:'tryApproveOrNo',
+			style:{
+				marginLeft:'5px'
+			},
+			boxLabel: i18n._('tryApproveOrNo')      
+		}
+		]
+	});
+		
+	
+	//创建虚拟机节点下拉列表框
+	var m_zoneCombo = Ext.create('Ext.form.ComboBox', {
+		fieldLabel : i18n._('Release zone'),//发布位置
+		width : 328,
+		style:{
+			marginLeft:'5px'
+		},
+		labelWidth : 100,
+		emptyText:i18n._('Please Select'),
+		store : zoneStore,
+		editable : false,
+		multiSelect:false,
+		allowBlank:true,
+		//triggerAction: "all",
+		queryMode : 'local',
+		displayField : 'name',
+		valueField : 'id'
+	});
+
+	var m_zoneGroupCombo = Ext.create('Ext.form.ComboBox', {
+		fieldLabel : i18n._('Release zoneGroup'),//发布位置
+		width : 328,
+		style:{
+			marginLeft:'5px'
+		},
+		labelWidth : 100,
+		editable : false,
+		allowBlank:false,
+		emptyText:i18n._('Please Select'),
+		store : zoneGroupStore,
+		queryMode : 'local',
+		displayField : 'name',
+		valueField : 'id',
+		listeners:{
+			'select':function(){
+				var localId=this.getValue();
+				var new_params={'zoneGroupId':localId};
+				m_zoneCombo.setValue(null);
+				Ext.apply(zoneStore.proxy.extraParams,new_params);
+				zoneStore.load();
+				
+				v_osStore.getProxy().setExtraParam('zoneGroupId',localId);
+	            v_osStore.load();
+			}
+		}
+	});
+	
+	m_userLevel=Ext.create('Ext.form.ComboBox',{
+		height:v_height,
+		width:328,
+		style:{
+			marginLeft:'5px'
+		},
+		fieldLabel: i18n._('brand'),//"用户级别"
+		store: brandStore,
+		multiSelect:true,
+		queryMode: 'local',
+		displayField: 'name',
+		emptyText:i18n._('Please Select'),
+		editable:false,
+		//allowBlank:false,
+	    valueField: 'id',
+		forceSelection:true
+	});
+	
+	m_domain=Ext.create('Ext.form.ComboBox',{
+		height:v_height,
+		width:328,
+		style:{
+			marginLeft:'5px'
+		},
+		store: domainStore,
+		multiSelect:true,
+		fieldLabel: i18n._('domain'),
+		store: domainStore,
+		displayField: 'name',
+		emptyText:i18n._('Please Select'),
+		editable:false,
+		allowBlank:false,
+	    valueField: 'id',
+		forceSelection:true
+	});
+
+	var tmp_cpu;
+	var tmp_ram;
+	var tmp_disk;
+	var tmp_os=[];
+	var tmp_network;
+	var tmp_items=record.getAssociatedData().items;
+	var temp_extDisk=[];
+	var tmp_brand=[];//套餐品牌
+	var tmp_domain=[];
+	var tmp_zone=[];
+	var temp_zoneGroup=[];
+	for(i in tmp_items){
+	switch(tmp_items[i].serviceType)
+	{
+		case 1:
+		tmp_cpu=tmp_items[i];break;
+		case 2:
+		tmp_ram=tmp_items[i];break;
+		case 3:
+		tmp_disk=tmp_items[i];break;
+		case 4:
+		tmp_os.push(tmp_items[i].id);break;
+		case 5:
+		tmp_network=tmp_items[i];break;
+		case 8:
+		temp_extDisk.push(tmp_items[i]);break;
+	}
+	}
+	var tmp_userBrand=record.getAssociatedData().userBrand;	
+	for(j in tmp_userBrand){
+		tmp_brand.push(tmp_userBrand[j].id);
+	}
+	
+	var tmp_domainList=record.getAssociatedData().domainList;	
+	for(j in tmp_domainList){
+		tmp_domain.push(tmp_domainList[j].id);
+	}
+	
+	var tmp_zoneList=record.getAssociatedData().zoneList;
+	zoneStore.removeAll();
+	//zoneStore.loadData(tmp_zoneList);
+	zoneStore.load();
+	for(j in tmp_zoneList){
+		tmp_zone.push(tmp_zoneList[j].id);
+	}
+	
+	if(temp_extDisk.length>0){
+		for(var i=0;i<temp_extDisk.length;i++){
+			modifyAddExtDiskIndex=modifyAddExtDiskIndex+1;
+			modifyExtDiskAddCount=modifyExtDiskAddCount+1;
+			var ext_disk=Ext.create('Ext.panel.Panel',{
+				id:'diskSliderPanelModify'+modifyExtDiskAddCount,
+				height:v_height,
+				//width:300,
+				border:false,
+				style:{
+					marginLeft:'5px'
+				},
+				layout:'hbox',
+				items:[
+				{
+				xtype:'sliderfield',
+				fieldLabel: 'EXTDISK',
+				width:328,
+				increment: 1,
+			    minValue: 1,
+			    maxValue:v_extDiskStore.getCount(),
+			    value:1,//v_extDiskStore.indexOfId(temp_extDisk[i].id)+1,
+				tipText: function(thumb){	
+			        return Ext.String.format('<b>{0}</b>', v_extDiskStore.getAt(thumb.value-1).get('capacity')+'G');
+				},
+				listeners:{
+					'change':{
+						fn:function(){			
+							this.getBubbleTarget().getComponent(1).setValue(v_extDiskStore.getAt(this.getValue()-1).get('capacity')+'G');
+						}
+				  	}
+				}
+			    },{
+					xtype: 'displayfield',
+					width:80,
+					margin:'0 10 0 8',
+					value:0//temp_extDisk[i].capacity+'G'
+				},{
+					xtype:'button',
+					text : '×',
+					width: 20,
+					height:20,			
+					handler : function() {				
+						modifyAddExtDiskIndex=modifyAddExtDiskIndex-1;
+						this.getBubbleTarget().getComponent(1).setValue(0);
+						this.getBubbleTarget().getComponent(0).setDisabled(true);
+						m_extDiskPanel.remove(this.getBubbleTarget(),false);
+					}
+				}],
+				setValue:function(value){
+				this.getComponent(0).setValue(value);
+				this.getComponent(1).setValue(v_extDiskStore.getAt(value-1).get('capacity')+'G');
+				},
+				getRawValue:function(){
+				return this.getComponent(1).getValue();
+				},
+				getValue:function(){
+				return v_extDiskStore.getAt(this.getComponent(0).getValue()-1).get('id');
+				}
+			});
+			ext_disk.setValue(v_extDiskStore.indexOfId(temp_extDisk[i].id)+1);
+			m_extDiskPanel.add(ext_disk);
+		}	
+	}
+	m_name.setValue(temp_name);
+	m_desc.setValue(temp_desc);
+	m_code.setValue(temp_code);
+	m_cpu.setValue(tmp_cpu.id);
+	m_zoneCombo.setValue(tmp_zone);
+	Ext.Ajax.request({
+		  url: path+'/sc/zoneGroup!getAllZoneGroupIds.action',
+		  method: 'POST',
+		  async : false, //同步 
+		  params:{
+			  zoneIds:tmp_zone
+		  },
+		  success: function (response) {
+				var obj = Ext.decode(response.responseText);
+      	    	if(obj.success){　　　
+      	    		var zoneGroupIdsTemp=obj.resultObject;
+    				if(zoneGroupIdsTemp.length>0){
+    					for(var i=0;i<zoneGroupIdsTemp.length;i++){
+    						temp_zoneGroup.push(zoneGroupIdsTemp[i]);
+    					}
+    					m_zoneGroupCombo.setValue(temp_zoneGroup);
+    					v_osStore.getProxy().setExtraParam('zoneGroupId',zoneGroupIdsTemp[0]);
+    		            v_osStore.load();
+    				}
+				}
+      	    	//else{
+					//showMsg(obj.resultMsg);   
+		  		//}
+		  }
+     });
+	m_ram.setValue(v_ramStore.indexOfId(tmp_ram.id)+1);//tmp_ram.size);
+    m_try.getComponent(0).setValue(record.get('tryOrNo'));
+    m_try.getComponent(1).setValue(record.get('tryDuration'));//
+    m_try.getComponent(3).setValue(record.get('tryApproveOrNo'));//
+    var tmp_rowid_modify = record.get('rowid') ;
+    //alert(tmp_rowid_modify) ;
+	m_disk.setValue(tmp_disk.id);
+	m_os.setValue(tmp_os);
+	m_userLevel.setValue(tmp_brand);
+	m_domain.setValue(tmp_domain);
+	m_networkSlider.setValue(tmp_network.id);
+	m_effectiveDate.setValue(Ext.Date.format(record.get('effectiveDate'),'m/d/Y'));
+	m_expirationDate.setValue(Ext.Date.format(record.get('expirationDate'),'m/d/Y'));
+	
+	var c = record.get('usePointOrNot');
+	var cou = {coupons:c};
+	m_coupons.setValue(cou);
+	
+	var useGiftOrNot = record.get('useGiftOrNot');
+	var useGiftOrNotValue = {gifts:useGiftOrNot};
+	m_gifts.setValue(useGiftOrNotValue);
+	fillMFeeType(record.getFeeTypes(),m_feeType);
+    var modifyForm=Ext.create("commonFormScroll");
+	
+	//modifyForm.setLabel(i18n._("modify"));
+	if(statusLocal==1){
+		modifyForm.addCmp([m_zoneGroupCombo,m_zoneCombo,m_os,m_effectiveDate,m_expirationDate,m_coupons,m_gifts,m_feeType,m_try,m_domain,m_code,m_desc]);
+	}else if(statusLocal==0){
+      	modifyForm.addCmp([m_zoneGroupCombo,m_zoneCombo,m_os,m_cpu,m_ram,m_disk,m_createDiskAddFieldContainer,m_extDiskPanel,m_networkSlider,m_effectiveDate,m_expirationDate,m_coupons,m_gifts,m_feeType,m_try,m_name,m_code,m_userLevel,m_domain,m_desc]);	
+	}
+	
+	var modifyCancelButton=Ext.create("button");
+	
+	modifyCancelButton.setText(i18n._("Cancel"));
+	
+	
+	modifyCancelButton.setHandler(function(){
+		m_extDiskPanel.removeAll(false);
+	　　　modifyForm.getForm().reset();
+		modifyWindow.hide();
+	});
+	
+	var modifyConfirmButton=Ext.create("button");
+	
+	modifyConfirmButton.setText(i18n._("OK"));
+	
+	modifyConfirmButton.setHandler(function(){
+		/*verify*/
+		if(!m_os.isValid()||!m_cpu.isValid()||m_name.textValid!=true||!m_expirationDate.isValid()||!m_domain.isValid()||!m_zoneGroupCombo.isValid()){
+			return;
+		}
+		
+		if(m_name.getValue().replace(/^\s*((?:[\S\s]*\S)?)\s*$/, '$1').length==0){
+			showMsg(i18n._('ServiceCatalog_name can not be empty'));
+			return;}
+		
+		if(!/^[^<>\&\*\^\$@#%]+$/gi.test(m_name.getValue())){
+			showMsg(i18n._('ServiceCatalog_name')+i18n._('InvalidCharacters'));
+			return;
+		}
+		
+		if(m_code.getValue().length == 0 ){
+			 showMsg(i18n._('ServiceCatalogCodeNotNull'));
+			 return;
+		 }
+		
+		 if(!/^[^<>\&\*\^\$@#%!]+$/gi.test(m_code.getValue())){
+				showMsg(i18n._('ServiceCatalogCode'));
+				return;
+			}
+		 
+		 if(m_code.getValue().length < 8){
+			 showMsg(i18n._('ServiceCatalogCodeIsLess'));
+			 return;
+		 }
+		 
+		 if(m_code.getValue().length > 8){
+			 showMsg(i18n._('ServiceCatalogCodeIsMore'));
+			 return;
+		 }
+		 
+
+
+		m_temp_disk=v_diskStore.getById(m_disk.getValue());
+		var capacity=m_temp_disk.get('capacity');
+		var osIdArr=m_os.getValue();
+		for(var i=0;i<osIdArr.length;i++){
+			m_temp_os=v_osStore.getById(osIdArr[i]);
+			var imageSize=m_temp_os.get("imageSize");
+			if(imageSize>capacity){
+				showMsg(i18n._("imageSizeDiskCapacityTip1")+imageSize+i18n._("imageSizeDiskCapacityTip2"));
+				return;
+			}
+		}
+		if(m_expirationDate.getRawValue().length==0){
+			showMsg(i18n._('please select the expiry date'));
+			return;
+		}
+		if(m_expirationDate.getValue()<m_effectiveDate.getValue()){
+			showMsg(i18n._('the expiry date should be later than effective date'));
+			return;
+		}
+		
+		var verifyFeeTypeResult=verifyFeeType(m_feeType);
+		if(verifyFeeTypeResult!='passed'){
+			showMsg(verifyFeeTypeResult);
+			return;
+		}	
+		
+		var m_items=new Array();
+		
+		if (modifyExtDiskAddCount > 0) {
+			for ( var i = 1; i < modifyExtDiskAddCount + 1; i++) {							
+				var addDisk =Ext.getCmp('diskSliderPanelModify' + i).getValue();
+				if(Ext.getCmp('diskSliderPanelModify' + i).getRawValue()!=0){
+					m_items.push({'id':addDisk,'serviceType':8});
+				}
+			}
+		}
+		
+		m_items.push({'id':m_cpu.getValue(),'serviceType':1});
+		m_items.push({'id':m_ram.getValue(),'serviceType':2});
+		m_items.push({'id':m_disk.getValue(),'serviceType':3});
+		m_items.push({'id':m_networkSlider.getValue(),'serviceType':5});
+		var osIdArrTemp=m_os.getValue();
+		for(var i=0;i<osIdArrTemp.length;i++){
+			m_items.push({'id':osIdArrTemp[i],'serviceType':4});
+		}
+		var brandArray=m_userLevel.getValue();
+		tmp_brand=[];
+		for(var i=0;i<brandArray.length;i++){
+			tmp_brand.push({'id':brandArray[i]});
+		}
+		
+		var domainArray=m_domain.getValue();
+		tmp_domain=[];
+		for(var i=0;i<domainArray.length;i++){
+			tmp_domain.push({'id':domainArray[i]});
+		}
+		
+		var zoneArray=m_zoneCombo.getValue();
+		tmp_zone=[];
+// 		if(zoneArray.length>0){
+// 			for(var i=0;i<zoneArray.length;i++){
+// 				tmp_zone.push({'id':zoneArray[i]});
+// 			}
+// 		}else{
+// 			var zoneRecordNum=zoneStore.getCount();
+// 			for(var i=0;i<zoneRecordNum;i++){
+// 				var tempZoneRecord=zoneStore.getAt(i);
+// 				tmp_zone.push({'id':tempZoneRecord.get('id')});
+// 			}
+// 		}
+		if(zoneArray>-1)
+			tmp_zone.push({'id':zoneArray});
+		var m_feeTypes=new Array();
+		m_feeTypes=getPriceData('array',m_feeType);
+		var m_mask = new Ext.LoadMask(Ext.getBody(), {
+										msg:i18n._('ServiceCatalog is saving,please wait!'),
+				                        removeMask: true 
+				                    });
+								m_mask.show();					
+								Ext.Ajax.request({
+									url: path+'/sc/sc!save.action',
+									params:{
+										effectiveDateParam:m_effectiveDate.getRawValue(),
+										experitionDateParam:m_expirationDate.getRawValue()
+									},
+									jsonData:{
+									id:scId,
+									name:Ext.String.trim(m_name.getValue()),
+									catalogCode:Ext.String.trim(m_code.getValue()),
+									status:statusLocal,
+									description:m_desc.getValue(),
+									items:m_items,
+									feeTypes:m_feeTypes,
+									tryOrNo:m_try.getComponent(0).getValue(),
+									usePointOrNot:m_coupons.getValue()["coupons"],
+									useGiftOrNot:m_gifts.getValue()["gifts"],
+									tryDuration:m_try.getComponent(1).getValue(),
+									tryApproveOrNo:m_try.getComponent(3).getValue(),
+									zoneList:tmp_zone,
+									userBrand:tmp_brand,
+									domainList:tmp_domain,
+									rowid:tmp_rowid_modify
+									},
+									success:function(response){
+										m_mask.hide();
+			           					var result=Ext.JSON.decode(response.responseText);
+			           					if(result.success==false){
+			 	           					showMsg(result.resultMsg);
+			           					}else{
+				           					m_extDiskPanel.removeAll(false);
+				           					modifyForm.getForm().reset();
+				           					modifyWindow.hide();
+											v_serviceCatalogStore.load();
+										}
+									}	
+								});	
+	});
+	
+	var modifyWindow=Ext.create("commonWindowScroll",{
+		buttons:[modifyConfirmButton,modifyCancelButton],
+		tools:[{
+				type:'close',
+				handler:function(){					
+					m_extDiskPanel.removeAll(false);
+					modifyForm.getForm().reset();
+					this.getBubbleTarget().getBubbleTarget().hide();
+				}
+			}]
+	});	
+	
+	modifyWindow.add(modifyForm);
+	modifyWindow.setTitle(i18n._("modify"));
+	
+	modifyWindow.show();
+}
+/************************套餐修改函数结束*************************/
+
+
+
+var trans_status=function translateStatus(status){
+	switch (status)
+	{
+	case 1:
+		return i18n._('approved');break;
+	case 0:
+		return i18n._('unapproved');break;
+	case 2:
+		return i18n._('stoppedSC');break;
+	}
+}
+	/* var funtcton_Exchange1=function Locationraised(status){
+		
+ 		var str = '<a name="'+status+'" href ="javascript:void(0)" style="text-decoration: none" onclick=startProcess()>'+i18n._('raised')+'</a>';
+ 		return str;
+
+	
+}
+function startProcess(processCode){
+		alert("你妹");
+	};
+var funtcton_Exchange2=function Positiondown(status){
+	var str = '<a name="'+status+'" href ="javascript:void(0)" style="text-decoration: none" onclick=startProcess()>'+i18n._('down')+'</a>';
+		return str;
+} 
+function startProcess(processCode){
+	alert("你妹");
+}; */
+
+
+
+
+
+var v_cpuStore=Ext.create('listItemStore');
+v_cpuStore.getProxy().setExtraParam('serviceType',1);
+
+var v_ramStore=Ext.create('listItemStore',{id:'v_ramStore'});
+v_ramStore.getProxy().setExtraParam('serviceType',2);
+v_ramStore.sort('size','ASC');
+
+var v_diskStore=Ext.create('listItemStore',{id:'v_diskStore'});
+v_diskStore.getProxy().setExtraParam('serviceType',3);
+v_diskStore.sort('capacity','ASC');
+
+var v_osStore=Ext.create('listItem4Store');
+v_osStore.getProxy().setExtraParam('serviceType',4);
+
+var v_networkStore=Ext.create('listItemStore');
+v_networkStore.getProxy().setExtraParam('serviceType',5);
+v_networkStore.sort('bandWidth','ASC');
+
+var v_extDiskStore=Ext.create('listItemStore');
+v_extDiskStore.getProxy().setExtraParam('serviceType',8);
+v_extDiskStore.sort('capacity','ASC');
+
+var domainStore=Ext.create('Ext.data.Store',{
+    model: 'Domain',
+    proxy: new Ext.data.proxy.Ajax({
+    	url: path+'/admin_mgmt/domain!getAllDomain.action',
+		reader: {
+            type: 'json',
+            root: 'resultObject',
+            totalProperty: 'resultObject.totalCount'
+      }
+    })
+});
+
+//创建虚拟机节点下拉列表框
+var v_zoneCombo = Ext.create('Ext.form.ComboBox', {
+	fieldLabel : i18n._('Release zone'),//发布位置
+	width : 328,
+	style:{
+		marginLeft:'5px'
+	},
+	labelWidth : 100,
+	emptyText:i18n._('Please Select'),
+	store : zoneStore,
+	editable : false,
+	multiSelect:false,
+	allowBlank:true,
+	queryMode : 'local',
+	displayField : 'name',
+	valueField : 'id'
+});
+
+var v_zoneGroupCombo = Ext.create('Ext.form.ComboBox', {
+	fieldLabel : i18n._('Release zoneGroup'),//发布位置
+	width : 328,
+	style:{
+		marginLeft:'5px'
+	},
+	labelWidth : 100,
+	editable : false,
+	triggerAction: "all",
+	allowBlank:false,
+	emptyText:i18n._('Please Select'),
+	store : zoneGroupStore,
+	queryMode : 'local',
+	displayField : 'name',
+	valueField : 'id',
+	listeners:{
+		'select':function(){
+			var localId=this.getValue();
+			var new_params={'zoneGroupId':localId};
+			v_zoneCombo.setValue(null);
+			Ext.apply(zoneStore.proxy.extraParams,new_params);
+			zoneStore.load();
+			
+            v_osStore.getProxy().setExtraParam('zoneGroupId',localId);
+            v_osStore.load();		
+		}
+	}
+});
+
+var v_data=new Array();
+var v_priceTypeStore=Ext.create('Ext.data.Store', {
+									storeId:"id",
+                                    fields: ['id', 'name'],
+                                    data : [
+                                            {"id":"2", "name":i18n._('Billing by hour')},
+                                            {"id":"3", "name":i18n._('Billing by month')},
+											{"id":"4", "name":i18n._('Billing by year')},
+											{"id":"1", "name":i18n._('One time pay')}
+                                    ]
+                            });
+var v_periodTypeStore=Ext.create('Ext.data.Store', {
+                                    fields: ['id', 'name'],
+                                    data : [
+                                            {"id":"2", "name":i18n._('Hour')},
+                                            {"id":"1", "name":i18n._('Month')},
+											{"id":"0", "name":i18n._('Year')}											
+                                    ]
+                            });
+              
+							
+
+var global_store = null;
+var v_serviceCatalogStore=Ext.create('Ext.data.Store', {
+    model: 'ServiceCatalog',
+	remoteSort:false,
+	pageSize:pageSize,
+     proxy: {
+        type: 'ajax',
+        url : path+'/sc/sc!pageServiceCatalogs.action',
+		reader: {
+            type: 'json',
+			root:'resultObject.result',
+			totalProperty: 'resultObject.totalCount'
+        }
+     },
+    remoteFilter:true,
+	autoLoad: true
+});
+
+query_userLevel=Ext.create('Ext.form.ComboBox',{
+	margin:'0 5 5 0',
+	width:130,
+	hideLabel:true,
+	store: brandStoreQuery,
+	displayField: 'name',
+	emptyText:i18n._('Please Select'),
+	editable:false,
+	queryMode: 'local',
+	valueField: 'id',
+	listeners : {
+		'select':function(){
+			var selectedId=this.getValue();
+			var new_params={'brandId':selectedId};
+	 		Ext.apply(v_serviceCatalogStore.proxy.extraParams,new_params);
+	 		v_serviceCatalogStore.loadPage(1,null);
+		}
+	}
+});
+
+query_zone=Ext.create('Ext.form.ComboBox',{
+	margin:'0 5 5 0',
+	width:100,
+	hideLabel:true,
+	store: zoneArrStore,
+	displayField: 'name',
+	emptyText:i18n._('Please Select'),
+	editable:false,
+	queryMode: 'local',
+	valueField: 'id',
+	value:zoneArrStore.getAt(1).get('id'),
+	listeners : {
+		'change':function(){
+			var selectedId=this.getValue();
+			var new_params={'zoneId':selectedId};
+	 		Ext.apply(v_serviceCatalogStore.proxy.extraParams,new_params);
+	 		v_serviceCatalogStore.loadPage(1,null);
+		}
+	}
+});
+query_domain=Ext.create('Ext.form.ComboBox',{
+	margin:'0 5 5 0',
+	width:100,
+	hideLabel:true,
+	store: domainStore,
+	displayField: 'name',
+	emptyText:i18n._('Please Select'),
+	editable:false,
+	queryMode: 'local',
+	valueField: 'id',
+	listeners : {
+		'select':function(){
+			var selectedId=this.getValue();
+			var new_params={'domainId':selectedId};
+	 		Ext.apply(v_serviceCatalogStore.proxy.extraParams,new_params);
+	 		v_serviceCatalogStore.loadPage(1,null);
+		}
+	}
+});
+
+Ext.QuickTips.init();
+Ext.form.Field.prototype.msgTarget = 'side';
+ var pluginExpanded = true;
+ var dataGrid=Ext.create('Ext.grid.Panel', {
+    layout:'fit',
+	title:i18n._('ServiceCatalog_management')+'&nbsp;>&nbsp;'+i18n._('ServiceCatalog_list'),
+    store: v_serviceCatalogStore,
+	simpleSelect:true,
+	bbar:Ext.create('Ext.PagingToolbar',{
+		store:v_serviceCatalogStore,
+		pageSize:0,
+		displayInfo: true
+	}),
+	autoHeight:true,
+	selModel: Ext.create('Ext.selection.RowModel'),
+    columns: [
+	    {xtype:'rownumberer',align:'left',flex:0.1},
+	    {header: i18n._("taocanID"), dataIndex: 'id', flex:0.2,sortable:false},
+		{header: i18n._('ServiceCatalog_name'),  dataIndex: 'name', flex:0.4,sortable:false},
+		{header: i18n._('taocanCode'),dataIndex:'catalogCode',flex:0.3,sortable:false},
+		{header: i18n._('createTime'), dataIndex: 'createDate',flex:0.36, xtype: 'datecolumn', format: 'Y-m-d H:i:s',sortable:false},//
+		{header: i18n._('effective date'), dataIndex: 'effectiveDate',flex:0.25,renderer: Ext.util.Format.dateRenderer('Y-m-d'),sortable:false},//
+		{header: i18n._('expiry date'), dataIndex: 'expirationDate',flex:0.25,renderer: Ext.util.Format.dateRenderer('Y-m-d'),sortable:false},//
+		{header: i18n._('Price')+"("+i18n._('cny')+")", dataIndex: 'price',flex:0.25,renderer:priceRenderer,sortable:false,sortable:false},
+		{header: i18n._('brand'), dataIndex: 'description',flex:0.36,sortable:false,renderer:userBrandRenderer},
+		{header: i18n._('status'), dataIndex: 'status',flex:0.15,renderer:trans_status,sortable:false}
+/* 		{header: i18n._('Location raised'), dataIndex: 'status',flex:0.15,renderer:funtcton_Exchange1},
+		{header: i18n._('Position down'), dataIndex: 'status',flex:0.15,renderer:funtcton_Exchange2}  // */
+		
+    ],
+    listeners:{
+    	"itemdblclick":{
+	    	fn:function(view,record,item,index,e,eOpts){
+	    		e.preventDefault();  
+                e.stopEvent(); 
+	    		fillForm_view();
+	    	}
+    	},
+		'itemcontextmenu':{
+			fn:function(view,record,item,index,e,eOpts){
+				 e.preventDefault();  
+                 e.stopEvent();  
+                 var menu = new Ext.menu.Menu({  
+                     //控制右键菜单位置  
+                     float:true,  
+                      items:[{  
+                             text:i18n._('Location raised'),  
+                             iconCls:'leaf',  
+                             handler:function(){  
+                                 //当点击时隐藏右键菜单  
+                                 this.up("menu").hide(); 
+                                 if(record.raw.id != "" && record.raw.id!= null){
+                                	 $.ajax({
+                                 		 //路径
+                                 			url:path+'/sc/sc!rowUP.action',
+                                 			async:false,
+                                 			dataType:'json',
+                                 			type:'POST',
+                                 			data : {
+                                 				"id": record.raw.id
+                                 			},                                			
+                                 			success:function(brandObj){
+                                 				//上移成功 
+                                 				v_serviceCatalogStore.loadPage(1,null);
+                                 				},
+                                 			failure:function(){
+                                 			
+                                 			}
+                                 		});
+                                 	}
+     
+                             }  
+                         },{  
+                             text:i18n._('Position down'),  
+                             iconCls:'leaf',  
+                             handler:function(){  
+                                 this.up("menu").hide();  
+                                 //右键
+                                 if(record.raw.id != "" && record.raw.id!= null){
+                                	 $.ajax({
+                                 		 //路径
+                                 			url:path+'/sc/sc!nextMove.action',
+                                 			async:false,
+                                 			dataType:'json',
+                                 			type:'POST',
+                                 			data : {
+                                 				"id": record.raw.id
+                                 			},                                			
+                                 			success:function(brandObj){
+                                 				//上移成功 
+                                 				v_serviceCatalogStore.loadPage(1,null);
+                                 				},
+                                 			failure:function(){
+                                 				
+                                 				
+                                 			}
+                                 		});
+                                 	}
+                             //    alert(record.raw.name+""+record.raw.id);  
+ 
+                             }  
+                         }  
+                      ]  
+                 }).showAt(e.getXY());//让右键菜单跟随鼠标位置  
+			}
+		}
+    	},
+// //////////////////////////////
+	
+	 dockedItems:[
+
+			{xtype:'toolbar',
+			dock: 'top',
+			cls: 'toolbarCSS',
+			//style:'background-color:#4c4c4c; background-image:url();',
+			items:[
+			
+			  { 
+				xtype:'button',
+			    margin:'0 0 0 0',
+			    text:'<font id="addSC" color="white" >' + i18n._('Add_ServiceCatalog') + '</font>',
+				style:'margin-left:750px;',
+				icon: '../images/add_new.png',
+				 listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("addSC").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("addSC").style.color = "black";
+					 }
+						
+				 },
+				handler:function(){
+				if(v_cpuStore.getCount()==0||v_ramStore.getCount()==0||v_diskStore.getCount()==0||v_networkStore.getCount()==0/* ||v_osStore.getCount()==0 */){
+					Ext.MessageBox.show({
+                        // title: '提示',
+						    title:i18n._('notice'),
+                          msg: i18n._('there is no resource in system'),
+                        icon:Ext.MessageBox.WARNING,
+                       buttons: Ext.MessageBox.OK
+                       });
+					return;
+				}
+					
+				initFieldValue();
+				
+				v_window1.show();
+				}
+   
+            },
+            {	xtype:'button',
+            	margin:'0 0 0 0',
+            	icon:'../images/edit_new.png',
+            	text:'<font id="editSC" color="white" >' + i18n._('modify') + '</font>',
+            	 listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("editSC").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("editSC").style.color = "black";
+					 }
+						
+				 },
+            	handler:function(){
+            		modifyServiceCatalog();
+            	}
+            },
+            {	xtype:'button',
+            	margin:'0 0 0 0',
+            	icon:'../images/detail.png',
+            	text:'<font id="detailSC" color="white" >' + i18n._('detail') + '</font>',
+            	 listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("detailSC").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("detailSC").style.color = "black";
+					 }
+						
+				 },
+            	handler:function(){
+            		fillForm_view();
+            	}
+            },
+			{    
+            	xtype:'button',
+			    margin:'0 0 0 0',
+				text:'<font id="approvalSC" color="white" >' + i18n._('approval') + '</font>',
+				style:'margin-left:750px;',
+				icon: '../images/approval.png',
+				 listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("approvalSC").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("approvalSC").style.color = "black";
+					 }
+						
+				 },
+				handler:function(){
+					var rows=dataGrid.getSelectionModel().getSelection();
+					 var scId;
+					 if(rows.length > 0){
+					 scId=rows[0].get('id');
+					 var record = v_serviceCatalogStore.getById(scId);
+					 if(record.get('status')!=0){
+						 showMsg(i18n._('approvalTip'));
+						 return;
+					 }
+					 Ext.MessageBox.show({
+				                  // title:'提示',
+				                   //msg: '确定审批吗',
+								    title: i18n._('notice'),
+								    msg:i18n._('are you sure to approve'),
+				                   buttons: Ext.MessageBox.YESNO,
+				                   icon: Ext.MessageBox.QUESTION,
+				                   fn:function(e){
+				                	   if(e=="no"){
+				                		   return;
+				                	   }else if(e=='yes'){
+				                		   Ext.Ajax.request({
+												url: path+'/sc/sc!approve.action',
+													method: 'POST',
+												params:{
+												'serviceCatalog.id':scId
+												},
+												callback: function (options, success, response) {
+												if(success){　　　　　　　　　　
+												 Ext.MessageBox.show({
+			                                         // title: '提示',
+													  title: i18n._('notice'),
+			                                          //msg: '审批成功',
+													 msg:i18n._('approve success'),
+			                                          icon:Ext.MessageBox.INFO,
+			                                          buttons: Ext.MessageBox.OK
+			           
+													}); 
+												v_serviceCatalogStore.load();
+													}
+													}
+													});
+				                	   }
+				                	 
+				                	}
+				    		});	 	
+						}else{
+							showMsg(i18n._('please choose one column'));
+							return;
+				    	}
+				}
+   
+            },
+            { 
+				xtype:'button',
+			    margin:'0 0 0 0',
+			    text:'<font id="copySC" color="white" >' + i18n._('CopyServiceCatalog') + '</font>',
+				style:'margin-left:750px;',
+				icon: '../images/copySc.png',
+				listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("copySC").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("copySC").style.color = "black";
+					 }
+				},
+				handler:function(){
+					var rows=dataGrid.getSelectionModel().getSelection();
+					 var scId;
+					 if(rows.length > 0){
+						 scId=rows[0].get('id');
+						 var scName=rows[0].get('name');
+							var copyScWin=Ext.create('Ext.window.Window', {
+							    title:i18n._('CopyScWin'),
+								layout:'fit',
+							    height: 115,
+								modal:true,
+							    width: 310,
+							    constrain:true,
+								closable:false,
+								tools:[{
+								  type:'close',
+								  handler:function(){
+									  copyScWin.destroy();
+								  }
+								}],
+							    items: {  
+							        xtype: 'form',
+									height:'100%',
+									width:'100%',
+									id:'restForm',
+									fieldDefaults:{
+										msgTarget:'side',
+										autoFitErrors:false
+									},
+							        border: false,
+							        dockedItems: [{
+							            xtype: 'toolbar',
+							            dock: 'bottom',
+							            ui: 'footer',
+							            layout: {
+							                pack: 'left'
+							            },
+							            items: [{
+											margin:'0 0 0 100',
+							                minWidth: 80,
+										    text: i18n._('OK'),
+							                handler:function(){
+							                	if(Ext.getCmp("copyScField").isValid()){
+							                		Ext.Ajax.request({
+											        	   url: path+'/sc/sc!checkServiceCatalogName.action',
+												    	    params: {
+												    	        'serviceCatalog.name': Ext.getCmp('copyScField').getValue().trim()
+												    	    },
+												    	    success: function(response){
+												    	    	var rs=Ext.JSON.decode(response.responseText);
+												    	    	if(rs.resultObject=='false'){
+												    	    		Ext.Ajax.request({
+																		url: path+'/sc/sc!copySc.action',
+																		method: 'POST',
+																	params:{
+																	'serviceCatalog.id':scId,
+																	'copySCName':Ext.getCmp('copyScField').getValue()
+																	},
+																	success: function (response) {
+																		var obj = Ext.decode(response.responseText);
+											                	    	if(obj.success){　　　
+											                	    		showMsg(i18n._('copySCSuccess'));　　　　　　
+																			v_serviceCatalogStore.load();
+																		}else{
+																			showMsg(obj.resultMsg);   
+																		}
+																	}
+															    }); 
+												    	    		 copyScWin.destroy();
+												    	    	}else{
+												    	    		 Ext.getCmp('copyScField').textValid=i18n._('ServiceCatalog_name exist');
+												    	    		 Ext.getCmp('copyScField').markInvalid(i18n._('ServiceCatalog_name exist'));
+												    	    	}
+												    	    	}
+											           });
+							                		
+							                	}
+							                }
+											
+							           }
+							           ]
+							        }],
+							        items:[
+									{
+									xtype:'textfield',
+									margin:'10 10 5 10',
+									width:250,
+									labelWidth:70,
+									fieldLabel: i18n._('newSCName'),
+									allowBlank: false,
+									id:'copyScField',
+									maxLength:50,
+									regex:/^[\u4e00-\u9fa5A-Za-z0-9_]+$/,
+									regexText:i18n._('The name contains an illegal character'),
+									value:scName+"_copy",
+									validateOnBlur:true,
+								    textValid: true,
+								    validator: function(){
+								        return this.textValid;
+								    },
+									listeners : {
+								        'change': function(textfield,newValue,oldValue) {
+								           Ext.Ajax.request({
+								        	   url: path+'/sc/sc!checkServiceCatalogName.action',
+									    	    params: {
+									    	        'serviceCatalog.name': Ext.String.trim(newValue)
+									    	    },
+									    	    scope: textfield,
+									    	    success: function(response){
+									    	    	var rs=Ext.JSON.decode(response.responseText);
+									    	    	if(rs.resultObject=='false'){
+							   	                  		this.textValid = true;
+									    	    		this.clearInvalid();
+									    	    	}else{
+														this.textValid=i18n._('ServiceCatalog_name exist');
+							                            this.markInvalid(i18n._('ServiceCatalog_name exist'));
+									    	    	}
+									    	    	}
+								           });
+								         }       
+								      }
+									}
+									]
+							    }
+							});
+							copyScWin.show();
+					}else{
+							Ext.MessageBox.show({
+								    title: i18n._('notice'),
+								    msg:i18n._('please choose one column'),
+	                                icon:Ext.MessageBox.WARNING,
+	                                buttons: Ext.MessageBox.OK
+							}); 
+							return;
+				    	}
+				}
+   
+            }
+            ,
+            {
+                itemId: 'EnableButton',
+                margin:'0 0 0 0',
+				text:'<font id="EnableSC" color="white" >' +i18n._('Enable') + '</font>',
+                icon: '../images/enableSC.png',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("EnableSC").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("EnableSC").style.color = "black";
+					 }
+						
+				 },
+				handler:function(){
+				var rows=dataGrid.getSelectionModel().getSelection();
+				 var scId;
+				 if(rows.length > 0){
+				 scId=rows[0].get('id');
+				 var record = v_serviceCatalogStore.getById(scId);
+				 if(record.get('status')!=2){
+					 showMsg(i18n._('enableTip'));
+					 return;
+				 }
+				 Ext.MessageBox.show({
+							    title: i18n._('notice'),
+								msg:i18n._('confirmEnableSC'),
+			                   buttons: Ext.MessageBox.YESNO,
+			                   icon: Ext.MessageBox.QUESTION,
+			                   fn:function(e){
+			                	   if(e=="no"){
+			                		   return;
+			                	   }else if(e=='yes'){
+			                		   Ext.Ajax.request({
+											url: path+'/sc/sc!enable.action',
+												method: 'POST',
+											params:{
+											'serviceCatalog.id':scId
+											},
+											callback: function (options, success, response) {
+											if(success){　　　　　　　　　　
+											 Ext.MessageBox.show({
+												  title: i18n._('notice'),
+												 msg:i18n._('enableSCSuccess'),
+		                                          icon:Ext.MessageBox.INFO,
+		                                          buttons: Ext.MessageBox.OK
+		           
+												}); 
+											v_serviceCatalogStore.load();
+												}
+												}
+												});
+			                	   }
+			                	 
+			                	}
+			    		});	 	
+					}else{
+						 Ext.MessageBox.show({
+							    title: i18n._('notice'),
+							    msg:i18n._('please choose one column'),
+                                icon:Ext.MessageBox.WARNING,
+                                buttons: Ext.MessageBox.OK
+						}); 
+						return;
+			    	}		           
+			        }
+            },
+			{
+                itemId: 'removeButton',
+                margin:'0 0 0 0',
+				text:'<font id="deleteSC" color="white" >' +i18n._('Disable_ServiceCatalog') + '</font>',
+                icon: '../images/disableSC.png',
+                listeners: {
+					 "mouseout" : function() {
+						 document.getElementById("deleteSC").style.color = "white";
+					 },
+					 "mouseover" : function() {
+						 document.getElementById("deleteSC").style.color = "black";
+					 }
+						
+				 },
+				handler:function(){
+				var rows=dataGrid.getSelectionModel().getSelection();
+				 var scId;
+				 if(rows.length > 0){
+				 scId=rows[0].get('id');
+				 var record=v_serviceCatalogStore.getById(scId);
+				 if(record.get('status')!=1){
+					 showMsg(i18n._('disableTip'));
+					 return;
+				 }
+				 Ext.MessageBox.show({
+							    title: i18n._('notice'),
+								msg:i18n._('confirmDisableSC'),
+			                   buttons: Ext.MessageBox.YESNO,
+			                   icon: Ext.MessageBox.QUESTION,
+			                   fn:function(e){
+			                	   if(e=="no"){
+			                		   return;
+			                	   }else if(e=='yes'){
+			                		   Ext.Ajax.request({
+											url: path+'/sc/sc!disable.action',
+												method: 'POST',
+											params:{
+											'serviceCatalog.id':scId
+											},
+											callback: function (options, success, response) {
+											if(success){　　　　　　　　　　
+											 Ext.MessageBox.show({
+												  title: i18n._('notice'),
+												 msg:i18n._('disableSCSuccess'),
+		                                          icon:Ext.MessageBox.INFO,
+		                                          buttons: Ext.MessageBox.OK
+		           
+												}); 
+											v_serviceCatalogStore.load();
+												}
+												}
+												});
+			                	   }
+			                	 
+			                	}
+			    		});	 	
+					}else{
+						 Ext.MessageBox.show({
+							    title: i18n._('notice'),
+							    msg:i18n._('please choose one column'),
+                                icon:Ext.MessageBox.WARNING,
+                                buttons: Ext.MessageBox.OK
+						}); 
+						return;
+			    	}		           
+			        }
+            },
+			{xtype:'tbfill'},
+			{
+				xtype:'displayfield',
+				hideLabel:true,
+				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('domain')+':'+'</font></span>'
+			},
+			query_domain,
+			{
+				xtype:'displayfield',
+				hideLabel:true,
+				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('zone name')+':'+'</font></span>'
+			},
+			query_zone,
+			 {
+				xtype:'displayfield',
+				hideLabel:true,
+				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('brand')+':'+'</font></span>'
+			},query_userLevel,
+			{
+				xtype:'displayfield',
+				hideLabel:true,
+				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('QuickSearch')+':'+'</font></span>'
+			},
+			{    
+				xtype: 'searchfield',
+			    hideLabel:true,
+				hasSearch:true,
+				emptyText:i18n._('taocanCode'), // i18n._('ServiceCatalog_name') + '/' + 
+				store: v_serviceCatalogStore
+			}]}],
+    plugins: [
+        Ext.create('Ext.grid.plugin.CellEditing', {
+            clicksToEdit: 1
+        })
+    ],
+    // height:600,
+    width: '100%'
+    
+})
+
+
+
+//v_extDiskStore.load();
+v_cpuStore.load();v_ramStore.load();
+v_diskStore.load();v_networkStore.load();
+v_osStore.load();domainStore.load();
+zoneGroupStore.load();
+
+
+var v_name=Ext.create('Ext.form.Text',{    
+	//height:v_height,
+	width:328,
+	    fieldLabel:i18n._('ServiceCatalog_name'),
+	    style:{
+	    	marginLeft:'5px'
+	    },//'margin:5 5 5 5',
+	    allowBlank: false ,
+		maxLength:50,
+		enforceMaxLength:true,
+		blankText:i18n._('ServiceCatalog_name can not be empty'),
+	  	validateOnBlur:true,
+	    textValid: true,
+	    validator: function(){
+	        return this.textValid;
+	    },
+	    listeners : {
+	        'change': function(textfield,newValue,oldValue) {
+	           Ext.Ajax.request({
+	        	   url: path+'/sc/sc!checkServiceCatalogName.action',
+		    	    params: {
+		    	        'serviceCatalog.name': Ext.String.trim(newValue)
+		    	    },
+		    	    scope: textfield,
+		    	    success: function(response){
+		    	    	var rs=Ext.JSON.decode(response.responseText);
+		    	    	//alert(rs.resultObject);
+		    	    	if(rs.resultObject=='false'){
+   	                  		this.textValid = true;
+		    	    		this.clearInvalid();
+		    	    	}else{
+							this.textValid=i18n._('ServiceCatalog_name exist');
+                            this.markInvalid(i18n._('ServiceCatalog_name exist'));
+		    	    	}
+		    	    	}
+	           });
+	         }       
+	      }
+
+   });
+var v_desc=Ext.create('descPanel');
+
+var v_cpu=Ext.create('Ext.form.ComboBox',{
+    style:{
+        marginLeft:'5px'	
+      },
+  	height:v_height,
+  	width:328,
+  	listConfig: {  
+        getInnerTpl: getQosTpl
+    },
+  	store: v_cpuStore,
+  	fieldLabel: 'CPU',
+  	displayField: 'name',
+  	emptyText:i18n._('Please Select'),
+  	allowBlank:false,
+  	editable:false,
+    valueField: 'id',
+  	forceSelection:true,
+	listeners:{
+		'change':{
+			fn:function(){			
+				var cpu_tmp = v_cpuStore.getById(this.getValue()) ;
+				if(cpu_tmp){
+					var qos = cpu_tmp.getQos() ; //qos策略
+					if(qos.length>0){
+						for (var i = 0; i < qos.length; i++) { 
+							  var key = qos[i].key ;  
+							  var value = qos[i].value ; 
+							  if(key == 'cpu_quota'){
+								  d_cpuQuotaNumField.setValue(value);
+							  }else if(key == 'cpu_period'){
+								  d_cpuPeriodNumField.setValue(value);
+							  }
+						}
+					}
+				}
+			}
+	  	}
+	}
+});
+
+
+var v_extDiskPanel=Ext.create('Ext.panel.Panel',{
+	border:false,
+	items:[]
+});
+
+var v_feeType=Ext.create('Ext.panel.Panel',{
+	frame:false,
+	border:false,
+	items:[{
+		xtype:'fieldcontainer',
+		itemId:'oneWeek',
+		layout:'hbox',
+		width:360,
+		style:{
+			marginLeft:'5px'
+		},
+		items:[
+		  {
+			 xtype:'checkboxfield',
+			 name:'feeType',
+			 width:202,
+			 labelWidth:99,
+			 boxLabel:i18n._('one-week'),     //i18n._('twelve-month'), 1 one-month  3 three-month 6  six-month    12  twelve-month
+			 fieldLabel:i18n._('billing rule') 
+		  },{
+			  xtype:'numberfield',
+			  width:125,
+			  minValue: 0,
+			  maxValue: 1000000,
+			  name:'oneWeekFee'
+		  },{
+			  xtype:'displayfield',
+			  margin:'0 0 0 8',
+			  hideLabel:true,
+			  width:78,
+			  value:i18n._('cny')
+		  }    
+		]
+	}
+	,{
+		xtype:'fieldcontainer',
+		itemId:'oneMonth',
+		layout:'hbox',
+		width:360,
+		style:{
+			marginLeft:'27px'
+		},
+		items:[
+		  {
+			 xtype:'checkboxfield',
+			 name:'feeType',
+			 width:180,
+			 hideEmptyLabel: false,
+			 labelWidth:77,
+			 labelSeparator: '',
+			 boxLabel:i18n._('one-month'),
+			 fieldLabel:''
+		  },{
+			  xtype:'numberfield',
+			  width:125,
+			  minValue: 0,
+			  maxValue: 1000000,
+			  name:'oneMonthFee'
+		  },{
+			  xtype:'displayfield',
+			  margin:'0 0 0 8',
+			  hideLabel:true,
+			  width:78,
+			  value:i18n._('cny')
+		  }    
+		]
+	}
+	,{
+		xtype:'fieldcontainer',
+		itemId:'threeMonth',
+		layout:'hbox',
+		width:360,
+		style:{
+			marginLeft:'27px'
+		},
+		items:[
+		  {
+			 xtype:'checkboxfield',
+			 name:'feeType',
+			 width:180,
+			 hideEmptyLabel: false,
+			 labelWidth:77,
+			 labelSeparator: '',
+			 boxLabel:i18n._('three-month'),
+			 fieldLabel:''
+		  },{
+			  xtype:'numberfield',
+			  width:125,
+			  minValue: 0,
+			  maxValue: 1000000,
+			  name:'threeMonthFee'
+		  },{
+			  xtype:'displayfield',
+			  margin:'0 0 0 8',
+			  hideLabel:true,
+			  width:78,
+			  value:i18n._('cny')
+		  }    
+		]
+	},{
+		xtype:'fieldcontainer',
+		itemId:'sixMonth',
+		layout:'hbox',
+		width:360,
+		style:{
+			marginLeft:'27px'
+		},
+		items:[
+		  {
+			 xtype:'checkboxfield',
+			 name:'feeType',
+			 width:180,
+			 hideEmptyLabel: false,
+			 labelWidth:77,
+			 labelSeparator: '',
+			 boxLabel:i18n._('six-month'),
+			 fieldLabel:''
+		  },{
+			  xtype:'numberfield',
+			  width:125,
+			  minValue:0,
+			  maxValue: 1000000,
+			  name:'sixMonthFee'
+		  },{
+			  xtype:'displayfield',
+			  margin:'0 0 0 8',
+			  hideLabel:true,
+			  width:78,
+			  value:i18n._('cny')
+		  }    
+		]
+	},{
+		xtype:'fieldcontainer',
+		itemId:'twevelMonth',
+		layout:'hbox',
+		width:360,
+		style:{
+			marginLeft:'27px'
+		},
+		items:[
+		  {
+			 xtype:'checkboxfield',
+			 name:'feeType',
+			 width:180,
+			 hideEmptyLabel: false,
+			 labelWidth:77,
+			 labelSeparator: '',
+			 boxLabel:i18n._('twelve-month'),
+			 fieldLabel:''
+		  },{
+			  xtype:'numberfield',
+			  width:125,
+			  minValue: 0,
+			  maxValue: 1000000,
+			  name:'twevelMonthFee'
+		  },{
+			  xtype:'displayfield',
+			  margin:'0 0 0 8',
+			  hideLabel:true,
+			  width:78,
+			  value:i18n._('cny')
+		  }    
+		]
+	}]
+});
+var v_ram=Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	//width:290,
+	border:false,
+	style:{
+		marginLeft:'5px'
+	},
+	layout:'hbox',
+	items:[
+	{
+	xtype:'sliderfield',
+	fieldLabel: 'MEM',
+	width:328,
+	increment: 1,
+    minValue: 1,
+    value:1,
+	tipText: function(thumb){	
+        return Ext.String.format('<b>{0}</b>', v_ramStore.getAt(thumb.value-1).get('size'));
+	},
+	listeners:{
+		'change':{
+			fn:function(){			
+				this.getBubbleTarget().getComponent(1).setValue(v_ramStore.getAt(this.getValue()-1).get('size')+'M');
+				//alert('**'+this.getBubbleTarget().getComponent(0).getValue());
+			}
+	  	},
+	  	'changecomplete':{
+	  		fn:function(){
+	  			var ramValue=v_ramStore.getAt(this.getValue()-1).get('size');
+	  			/* 内存小于等于1024M的：{'ip_in': 3500, 'ip_out':1500, 'tcp_in': 2500, 'tcp_out': 1000, 'udp_in': 1000, 'udp_out': 500}
+					其它：{'ip_in': 6000, 'ip_out':2500, 'tcp_in': 4000, 'tcp_out': 2000, 'udp_in': 2000, 'udp_out': 500}
+ 				
+	  			if(ramValue<=1024){
+	  				IPUpTextField.setValue(1500);
+	  				IPDownTextField.setValue(3500);
+	  				TCPUpTextField.setValue(1000);
+	  				TCPDownTextField.setValue(2500);
+	  				UDPUpTextField.setValue(500);
+	  				UDPDownTextField.setValue(1000);
+	  			}else{
+	  				IPUpTextField.setValue(2500);
+	  				IPDownTextField.setValue(6000);
+	  				TCPUpTextField.setValue(2000);
+	  				TCPDownTextField.setValue(4000);
+	  				UDPUpTextField.setValue(500);
+	  				UDPDownTextField.setValue(2000);
+	  			}	 
+	  			*/
+	  		}
+	  	}
+	}
+    },{
+		xtype: 'displayfield',
+		margin:'0 0 0 8',
+		width:20,
+		value:0
+	}],
+	setValue:function(value){
+	this.getComponent(0).setValue(value);
+	this.getComponent(1).setValue(value);
+	},
+	getRawValue:function(){
+	return v_ramStore.getAt(this.getComponent(0).getValue()-1).get('size');
+	},
+	getValue:function(){
+	return v_ramStore.getAt(this.getComponent(0).getValue()-1).get('id');
+	}
+});
+
+var v_disk=Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	border:false,
+	style:{
+		marginLeft:'5px'
+	},
+	layout:'hbox',
+	items:[
+	{
+		xtype:'combobox',
+		width:328,
+		store: v_diskStore,
+		fieldLabel: 'DISK',
+		listConfig: {  
+            getInnerTpl: getQosTpl
+        },
+		displayField: 'name',
+		emptyText:i18n._('Please Select'),
+		allowBlank:false,
+		editable:false,
+	    valueField: 'id',
+		forceSelection:true,
+		listeners:{
+			'change':{
+				fn:function(){			
+					var disk_tmp = v_diskStore.getById(this.getValue()) ;
+					if(disk_tmp){
+						this.getBubbleTarget().getComponent(1).setValue(disk_tmp.get('capacity')+'G');
+						var qos = disk_tmp.getQos() ; //qos策略
+						if(qos.length>0){
+							for (var i = 0; i < qos.length; i++) { 
+								  var key = qos[i].key ;  
+								  var value = qos[i].value ; 
+								  if(key == 'disk_read_bytes_sec'){
+									  d_diskRLimitNumField.setValue(value);
+								  }else if(key == 'disk_write_bytes_sec'){
+									  d_diskWLimitNumField.setValue(value);
+								  }else if(key == 'disk_read_iops_sec'){
+									  d_iopsRLimitNumField.setValue(value);
+								  }else if(key == 'disk_write_iops_sec'){
+									  d_iopsWLimitNumField.setValue(value);
+								  }
+							}
+						}
+					}
+				}
+		  	}
+		}
+    },{
+		xtype: 'displayfield',
+		margin:'0 0 0 8',
+		width:23,
+		value:0
+	}],
+	setValue:function(value){
+		this.getComponent(0).setValue(value);
+		this.getComponent(1).setValue(v_diskStore.getById(value).get('capacity')+'G');
+	},
+	getRawValue:function(){
+		return v_diskStore.getById(this.getComponent(0).getValue()).get('capacity');
+	},
+	getValue:function(){
+		return this.getComponent(0).getValue();
+	},
+	getPrice:function(){
+		return v_diskStore.getById(this.getComponent(0).getValue()).get('price');
+	}
+});
+
+var v_networkSlider = Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	style:{
+		marginLeft:'5px'
+	},
+	border:false,
+	layout:'hbox',
+	items:[
+	{
+		xtype:'combobox',
+		width:328,
+		store: v_networkStore,
+		listConfig: {  
+            getInnerTpl: getQosTpl
+        },
+		fieldLabel: i18n._('Bandwidth'),
+		displayField: 'name',
+		emptyText:i18n._('Please Select'),
+		allowBlank:false,
+		editable:false,
+	    valueField: 'id',
+		forceSelection:true,
+		listeners:{
+			'change':{
+				fn:function(){
+					var network_tmp = v_networkStore.getById(this.getValue()) ;
+					if(network_tmp){
+						this.getBubbleTarget().getComponent(1).setValue(network_tmp.get('bandWidth')+'M');
+						var qos = network_tmp.getQos() ; //qos策略
+						if(qos.length>0){
+							for (var i = 0; i < qos.length; i++) { 
+								  var key = qos[i].key ;  
+								  var value = qos[i].value ; 
+								  if(key == 'wan_bw_out'){
+									  d_bandWidthUpTextField.setValue(value);
+								  }else if(key == 'wan_bw_in'){
+									  d_bandWidthDownTextField.setValue(value);
+								  }else if(key == 'all_bw_out'){
+									  d_linkUpTextField.setValue(value);
+								  }else if(key == 'all_bw_in'){
+									  d_linkDownTextField.setValue(value);
+								  }else if(key == 'ip_out'){
+									  d_IPUpTextField.setValue(value);
+								  }else if(key == 'ip_in'){
+									  d_IPDownTextField.setValue(value);
+								  }else if(key == 'tcp_out'){
+									  d_TCPUpTextField.setValue(value);
+								  }else if(key == 'tcp_in'){
+									  d_TCPDownTextField.setValue(value);
+								  }else if(key == 'udp_out'){
+									  d_UDPUpTextField.setValue(value);
+								  }else if(key == 'udp_in'){
+									  d_UDPDownTextField.setValue(value);
+								  }
+							}
+						}
+					}
+				}
+		  	}
+		}
+    },{
+		xtype: 'displayfield',
+		margin:'0 0 0 8',
+		width:20,
+		value:0
+	}],
+	setValue:function(value){
+		this.getComponent(0).setValue(value);
+		this.getComponent(1).setValue(v_networkStore.getById(value).get('bandWidth')+'M');
+	},
+	getRawValue:function(){
+		return v_networkStore.getById(this.getComponent(0).getValue()).get('bandWidth');
+	},
+	getValue:function(){
+		return this.getComponent(0).getValue();
+	},
+	getPrice:function(){
+		return v_networkStore.getById(this.getComponent(0).getValue()).get('price');
+	}
+});
+
+var vmCreateDiskAddFieldContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	items : [ {
+		xtype : 'label',
+		width : 110
+	}, 
+	{
+		xtype:'button',
+		height:20,
+		width:20,
+		style:{
+			marginRight:'5px'
+		},
+		text:'+',
+	 	handler : function() {
+	 	if(addDiskCount==4){
+	 		Ext.Msg.alert(i18n._('notice'),i18n._("addExtDiskTip"));
+	 		return;
+	 	}
+		vmCreateDiskCreateCount = vmCreateDiskCreateCount + 1;		
+		addDiskCount = addDiskCount + 1;
+		var ext_disk=Ext.create('Ext.panel.Panel',{
+			id:'diskSliderPanel'+vmCreateDiskCreateCount,
+			height:v_height,
+			border:false,
+			style:{
+				marginLeft:'5px'
+			},
+			layout:'hbox',
+			items:[
+			{
+			xtype:'sliderfield',
+			fieldLabel: 'EXTDISK',
+			width:328,
+			increment: 1,
+		    minValue: 1,
+		    value:1,
+			tipText: function(thumb){	
+		        return Ext.String.format('<b>{0}</b>', v_extDiskStore.getAt(thumb.value-1).get('capacity')+'G');
+			},
+			listeners:{
+				'change':{
+					fn:function(){			
+						this.getBubbleTarget().getComponent(1).setValue(v_extDiskStore.getAt(this.getValue()-1).get('capacity')+'G');
+					}
+			  	}
+			}
+		    },{
+				xtype: 'displayfield',
+				width:80,
+				margin:'0 10 0 8',
+				value:0
+			},{
+				xtype:'button',
+				text : '×',
+				width: 20,
+				height:20,
+				handler : function() {				
+					addDiskCount=addDiskCount-1;
+					this.getBubbleTarget().getComponent(1).setValue(0);
+					this.getBubbleTarget().getComponent(0).setDisabled(true);
+					this.getBubbleTarget().hide();
+				}
+			}],
+			setValue:function(value){
+			this.getComponent(0).setValue(value);
+			this.getComponent(1).setValue(value);
+			},
+			getRawValue:function(){
+			return this.getComponent(1).getValue();//v_diskStore.getAt(this.getComponent(0).getValue()-1).get('capacity');
+			},
+			getValue:function(){
+			return v_extDiskStore.getAt(this.getComponent(0).getValue()-1).get('id');
+			},
+			getPrice:function(){
+			return v_extDiskStore.getAt(this.getComponent(0).getValue()-1).get('price');
+			}
+		});
+		
+		setMaxValue(ext_disk.getComponent(0),v_extDiskStore.getCount());
+		ext_disk.getComponent(1).setValue(v_extDiskStore.getAt(0).get('capacity')+'G');
+		v_extDiskPanel.add(ext_disk);
+	}
+	},
+	{
+		xtype : 'displayfield',
+		width : 200,
+		value : i18n._('Add a new disk')
+	} ]
+});
+
+
+
+v_os=Ext.create('Ext.form.ComboBox',{
+	height:v_height,
+	width:328,
+	style:{
+		marginLeft:'5px'
+	},
+	multiSelect:true,
+	fieldLabel: "OS",
+	store: v_osStore,
+	displayField: 'name',
+	emptyText:i18n._('Please Select'),
+	editable:false,
+	allowBlank:false,
+    valueField: 'id',
+	forceSelection:true
+});
+
+ var v_code = Ext.create('Ext.form.field.Text',{
+	 //labelAlign : 'right',
+	 title:i18n._('taocanCode'),//套餐code
+	 labelWidth : 100,
+	 width:200,
+	 style:{
+	    	marginLeft:'5px'
+	    },
+	 allowBlank: false,
+	 maxLength:8,
+	 regex:/^[A-Za-z0-9]{8}$/,//字母+数字混合8位数
+	 regexText:i18n._('ServiceCatalogCode'),
+	 fieldLabel: i18n._('taocanCode')
+ });
+
+v_userLevel=Ext.create('Ext.form.ComboBox',{
+	height:v_height,
+	width:328,
+	style:{
+		marginLeft:'5px'
+	},
+	fieldLabel: i18n._('brand'),//"用户级别"
+	store: brandStore,
+	multiSelect:true,
+	queryMode: 'local',
+	displayField: 'name',
+	emptyText:i18n._('Please Select'),
+	editable:false,
+	//allowBlank:false,
+    valueField: 'id',
+	forceSelection:true
+});
+
+
+v_domain=Ext.create('Ext.form.ComboBox',{
+	height:v_height,
+	width:328,
+	style:{
+		marginLeft:'5px'
+	},
+	store: domainStore,
+	multiSelect:true,
+	fieldLabel: i18n._('domain'),
+	store: domainStore,
+	displayField: 'name',
+	emptyText:i18n._('Please Select'),
+	editable:false,
+	allowBlank:false,
+    valueField: 'id',
+	forceSelection:true
+});
+v_osVersion=Ext.create('displayPanel');
+v_osVersion.setLabel(i18n._('version'));
+
+var v_try=Ext.create('Ext.form.FieldContainer',{
+	layout:'hbox',
+	hidden:true,
+	style:{
+		marginLeft:'5px'
+	},
+	items:[{
+		xtype:'checkboxfield',
+		name:'tryOrNo',
+		fieldLabel:i18n._('PackageTrial'),//'套餐试用'
+		boxLabel:'可试用'
+		
+	},{
+		xtype:'numberfield',
+		name:'tryDuration',
+		allowDecimals:false,
+		fieldLabel:i18n._('TryDays'),//'试用天数'
+		style:{
+			marginLeft:'5px'
+		},
+		labelWidth:60,
+		width:120,
+		editable:false,
+		value:1,
+		minValue: 1,
+		increment:1,
+        maxValue: 30
+	},{
+		xtype:'displayfield',
+		hideLabel:'true',
+		style:{
+			marginLeft:'5px'
+		},
+		value:i18n._('Day')//'天'
+	},{
+		xtype:'checkboxfield',
+		style:{
+			marginLeft:'5px'
+		},
+		name:'tryApproveOrNo',
+		boxLabel:i18n._('tryApproveOrNo')   
+	}
+	]
+})
+
+var v_coupons = new Ext.form.RadioGroup({
+    xtype:'radiogroup',
+    margin:'10 0 0 4',
+    columns:2,
+    id:'usecoupons',
+    fieldLabel:i18n._('usecoupons'),
+    width:320,//328
+    items:[
+        {name:"coupons",inputValue:true,boxLabel:i18n._('Yes'),checked:true},
+        {name:"coupons",inputValue:false,boxLabel:i18n._('No')}
+    ]});
+
+var v_gifts = new Ext.form.RadioGroup({
+    xtype:'radiogroup',
+    margin:'10 0 0 4',
+    columns:2,
+    id:'usegifts',
+    fieldLabel:i18n._('usegifts'),
+    width:320,//328
+    items:[
+        {name:"gifts",inputValue:true,boxLabel:i18n._('Yes'),checked:true},
+        {name:"gifts",inputValue:false,boxLabel:i18n._('No')}
+    ]});
+    
+var v_effectiveDate=Ext.create('Ext.form.field.Date',
+				{               
+	            margin:'5 5 5 5',
+                fieldLabel:i18n._('effective date'),
+				value:new Date(),
+				width:328,
+	            minValue: new Date(),
+	            format:'Y-m-d',
+	            editable:false
+	            });
+	            
+var v_expirationDate=Ext.create('Ext.form.field.Date',
+				{               
+	            margin:'5 5 5 5',
+	            width:328,
+                fieldLabel:i18n._('expiry date'),
+				minValue:v_effectiveDate.getValue(),
+				format:'Y-m-d',
+				editable:false
+	            });
+				
+var v_priceType=Ext.create('Ext.form.ComboBox',{
+	style:{
+		marginTop:v_margin,
+		marginLeft:'5px'
+	},
+	height:v_height,
+	width:328,
+	fieldLabel: i18n._('billing rule'),
+	store: v_priceTypeStore,
+	displayField: 'name',
+	value:v_priceTypeStore.getAt(0),
+    valueField: 'id',
+	forceSelection:true,
+	listeners:{
+		select:function(combo){
+		if(combo.value==1){
+		v_period.show();
+		d_period.show();
+		}else{
+		v_period.getComponent(1).reset();
+		v_period.hide();d_period.hide();
+		}
+		}
+	}
+});
+
+var v_period=Ext.create('Ext.panel.Panel',{
+
+	height:v_height,
+	border:false,
+	layout:'hbox',
+	style:{
+		marginTop:'5px',
+		marginLeft:'5px'
+	},
+	items:[
+		{
+		xtype:'numberfield',
+		width:250,
+		minValue: 0,
+		allowDecimals:false,
+		fieldLabel:i18n._('period')
+		},{
+		xtype:'combobox',
+		id:'v_periodType',
+		width:78,
+		store: v_periodTypeStore,
+		displayField: 'name',
+		valueField: 'id',
+		forceSelection:true	
+		}],
+	getValue:function(){
+	return this.getComponent(0).getValue();
+	},
+	getRawValue:function(){
+	return this.getComponent(0).getValue()+this.getComponent(1).getRawValue();
+	},
+	setValue:function(value,value1){
+		this.getComponent(0).setValue(value);
+		this.getComponent(1).setValue(value1);
+	}
+	
+});
+
+v_period.hide();
+
+var v_price=Ext.create('pricePanel');
+
+
+var d_name=Ext.create('displayPanel');
+d_name.setLabel(i18n._('ServiceCatalog_name'));
+d_name.setWidth(520);
+var d_desc=Ext.create('descPanel');
+d_desc.getComponent(0).setReadOnly(true);
+d_desc.getComponent(0).setFieldLabel(i18n._('ExpensesDesc'));
+var d_cpu=Ext.create('displayPanel');
+d_cpu.setLabel("CPU");
+var d_ram=Ext.create("displayPanel");
+d_ram.setLabel("MEM");
+var d_disk=Ext.create("displayPanel");
+d_disk.setLabel("DISK");
+var d_os=Ext.create('descPanel');
+d_os.getComponent(0).setReadOnly(true);
+d_os.getComponent(0).setFieldLabel("OS");
+var d_userLevel=Ext.create('descPanel');
+d_userLevel.getComponent(0).setReadOnly(true);
+d_userLevel.getComponent(0).setFieldLabel(i18n._('brand'));
+var d_domain=Ext.create('descPanel');
+d_domain.getComponent(0).setReadOnly(true);
+d_domain.getComponent(0).setFieldLabel(i18n._('domain'));
+var d_network=Ext.create("displayPanel");
+d_network.setLabel(i18n._("Bandwidth"));
+var d_effectiveDate=Ext.create('displayPanel');
+d_effectiveDate.setLabel(i18n._('effective date'));
+var d_expirationDate=Ext.create('displayPanel');
+d_expirationDate.setLabel(i18n._('expiry date'));
+var d_zoneGroupName=Ext.create('displayPanel');
+d_zoneGroupName.setLabel(i18n._('Release zoneGroup'));
+var d_zoneName=Ext.create('displayPanel');
+d_zoneName.setLabel(i18n._('Release zone'));
+var d_tryOrNo=Ext.create("displayPanel");
+d_tryOrNo.setLabel(i18n._('PackageTrial'));//"套餐试用"
+
+var d_tryDuration=Ext.create("displayPanel");
+
+d_tryDuration.setLabel(i18n._('TryDays'));//"试用天数"
+var d_tryApproveOrNo=Ext.create("displayPanel");
+d_tryApproveOrNo.setLabel(i18n._('tryApproveOrNo'));
+
+var d_time=Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	width:590,
+	border:false,
+	layout:'hbox',
+	items:[
+		d_effectiveDate,d_expirationDate]
+	});
+var d_try=Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	width:590,
+	border:false,
+	layout:'hbox',
+	items:[
+		d_tryOrNo,d_tryDuration,d_tryApproveOrNo]
+	});
+
+var d_priceType=Ext.create('descPanel');
+d_priceType.getComponent(0).setReadOnly(true);
+d_priceType.getComponent(0).setFieldLabel(i18n._('billing rule'));
+
+var d_coupons    =Ext.create('displayPanel');
+d_coupons.setLabel(i18n._('usecoupons'));
+
+var d_gifts    =Ext.create('displayPanel');
+d_gifts.setLabel(i18n._('usegifts'));
+
+var d_code    =Ext.create('displayPanel');
+d_code.setLabel(i18n._('taocanCode'));
+d_code.setWidth(500);
+
+var d_try=Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	hidden:true,
+	width:590,
+	border:false,
+	layout:'hbox',
+	items:[
+		d_tryOrNo,d_tryDuration,d_tryApproveOrNo]
+	});
+	
+var d_nameAndCode=Ext.create('Ext.panel.Panel',{
+	height:v_height,
+	width:500,
+	border:false,
+	layout:'hbox',
+	items:[
+	       d_name,d_code]
+});
+
+/*套餐详情资源隔离参数元素
+ * 
+ */
+ var d_cpuQuotaNumField = Ext.create('Ext.form.field.Display', {
+		//name : 'Disk',
+		//labelAlign : 'right',
+		labelWidth : 80,
+		fieldLabel : '配额',//
+		width : 200
+	});
+	var d_cpuPeriodNumField = Ext.create('Ext.form.field.Display', {
+		//name : 'Disk',
+		//labelAlign : 'right',
+		labelWidth : 60,
+		fieldLabel : '周期',//
+		width : 200
+	});
+
+	var d_cpuLimitContainer = Ext.create('Ext.form.FieldContainer', {
+		layout : 'hbox',
+		fieldLabel : i18n._('CPU'),
+		items : [d_cpuPeriodNumField,d_cpuQuotaNumField]
+	});
+	
+var d_diskRLimitNumField = Ext.create('Ext.form.field.Display', {
+	//name : 'Disk',
+	//labelAlign : 'right',
+	labelWidth : 60,
+	fieldLabel : '读',//
+	width : 200
+});
+var d_diskWLimitNumField = Ext.create('Ext.form.field.Display', {
+	//name : 'Disk',
+	//labelAlign : 'right',
+	labelWidth : 80,
+	fieldLabel : '写',//
+	width : 200
+});
+
+var d_diskRLimitContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	fieldLabel : '硬盘速度',
+	//margin:'5 0 5 45',
+	items : [d_diskRLimitNumField,d_diskWLimitNumField]
+});
+
+var d_iopsRLimitNumField = Ext.create('Ext.form.field.Display', {
+	//name : 'Disk',
+	//labelAlign : 'right',
+	labelWidth : 60,
+	fieldLabel : '读',//
+	width : 200
+});
+var d_iopsWLimitNumField = Ext.create('Ext.form.field.Display', {
+	//name : 'Disk',
+	//labelAlign : 'right',
+	labelWidth : 80,
+	fieldLabel : '写',//
+	width : 200
+});
+
+var d_iopsLimitContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	fieldLabel : '硬盘IOPS',
+	//margin:'5 0 5 45',
+	items : [d_iopsRLimitNumField,d_iopsWLimitNumField]
+});
+
+var d_bandWidthUpTextField=Ext.create('Ext.form.field.Display',{
+   // labelAlign : 'right',
+	labelWidth : 60,
+    fieldLabel: i18n._('Up'),//
+    width:200
+    //emptyText:'10'
+});
+var d_bandWidthDownTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 80,
+    fieldLabel: i18n._('Down'),//
+    width:200
+    //emptyText:'10'
+});
+var d_bandWidthContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	fieldLabel:i18n._('Bandwidth')+'(Mbps)',//带宽
+	items : [d_bandWidthUpTextField,d_bandWidthDownTextField]//d_bandWidthLabel,
+});
+
+var d_linkUpTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 60,
+    fieldLabel: i18n._('Up'),//
+    width:200
+    //emptyText:'10'
+});
+var d_linkDownTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 80,
+    fieldLabel: i18n._('Down'),//
+    width:200
+    //emptyText:'10'
+});
+var d_linkContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	fieldLabel:i18n._('link')+'(Mbps)',//带宽
+	items : [d_linkUpTextField,d_linkDownTextField]
+});
+
+var d_IPUpTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 60,
+    fieldLabel: i18n._('Up'),//
+    width:200
+});
+var d_IPDownTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 80,
+    fieldLabel: i18n._('Down'),//
+    width:200
+});
+var d_IPContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	fieldLabel:i18n._('IPConnections'),
+	items : [d_IPUpTextField,d_IPDownTextField]//d_IPLabel,
+});
+
+var d_TCPUpTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 60,
+    fieldLabel: i18n._('Up'),//
+    width:200
+});
+var d_TCPDownTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 80,
+    fieldLabel: i18n._('Down'),//
+    width:200
+});
+var d_TCPContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	fieldLabel:i18n._('TCPConnections'),//TCP连接数
+	items : [d_TCPUpTextField,d_TCPDownTextField]//d_TCPLabel,
+});
+
+var d_UDPUpTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 60,
+    fieldLabel: i18n._('Up'),//	
+    width:200
+});
+var d_UDPDownTextField=Ext.create('Ext.form.field.Display',{
+    //labelAlign : 'right',
+	labelWidth : 80,
+    fieldLabel: i18n._('Down'),//
+    width:200
+});
+var d_UDPContainer = Ext.create('Ext.form.FieldContainer', {
+	layout : 'hbox',
+	fieldLabel:i18n._('UDPConnections'),//UDP连接数
+	items : [d_UDPUpTextField,d_UDPDownTextField]//d_UDPLabel,
+});	
+var d_isolationSet= Ext.create('Ext.form.FieldSet', {
+	title:i18n._('qos_policies'),//QOS
+	//padding:'0 150 0 20',
+	collapsed:true,
+	collapsible:true,
+	items : [d_cpuLimitContainer,d_diskRLimitContainer,d_iopsLimitContainer,d_bandWidthContainer,d_linkContainer,d_IPContainer,d_TCPContainer,d_UDPContainer]
+});
+//define form and window
+var v_step1=Ext.create('commonForm',{
+	height: 378,
+});
+
+v_step1.getComponent(0).setHeight(372);
+//step1 添加套餐 cpu rom disk os
+
+v_step1.setLabel(i18n._("step1"));
+v_step1.addCmp([v_zoneGroupCombo,v_zoneCombo,v_os,v_cpu,v_ram,v_disk,vmCreateDiskAddFieldContainer,v_extDiskPanel,v_networkSlider]);
+
+var v_buttonNext1=Ext.create('button');
+v_buttonNext1.setText(i18n._('Next'));
+/*  buttonNext1 handler begin  */
+v_buttonNext1.setHandler(
+function(){
+	if(!v_zoneGroupCombo.isValid()||!v_os.isValid()||!v_cpu.isValid()){
+		return;
+	}
+	v_temp_disk=v_diskStore.getById(v_disk.getValue());
+	var capacity=v_temp_disk.get('capacity');
+	var osIdArr=v_os.getValue();
+	for(var i=0;i<osIdArr.length;i++){
+		v_temp_os=v_osStore.getById(osIdArr[i]);
+		var imageSize=v_temp_os.get("imageSize");
+		if(imageSize>capacity){
+			showMsg(i18n._("imageSizeDiskCapacityTip1")+imageSize+i18n._("imageSizeDiskCapacityTip2"));
+			return;
+		}
+	}
+
+v_window1.hide();
+v_window3.show();
+
+}
+
+);
+/*  buttonNext1 handler end  */
+
+var v_window1=Ext.create('commonWindow',{
+buttons:[v_buttonNext1]
+});
+
+v_window1.add(v_step1);
+
+/*window3*/
+var v_step3=Ext.create('commonForm',{
+	height: 460,
+});
+v_step3.getComponent(0).setHeight(392);
+v_step3.setLabel(i18n._('step2'));
+v_step3.addCmp([v_effectiveDate,v_expirationDate,v_coupons,v_gifts,v_feeType,v_userLevel,v_domain,v_try]);//v_priceType,v_period,v_price,
+var v_buttonNext3=Ext.create('button');
+v_buttonNext3.setText(i18n._('Next'));
+v_buttonNext3.setHandler(
+function(){
+	if(v_expirationDate.getRawValue().length==0){
+		showMsg(i18n._('please select the expiry date'));
+		return;
+	}
+	if(v_expirationDate.getValue()<v_effectiveDate.getValue()){
+		showMsg(i18n._('the expiry date should be later than effective date'));
+		return;
+	}
+	var verifyFeeTypeResult=verifyFeeType();
+	if(verifyFeeTypeResult!='passed'){
+		showMsg(verifyFeeTypeResult);
+		return;
+	}
+	
+	if(!v_domain.isValid()){
+		return;
+	}
+v_window3.hide();
+v_window4.show();
+}
+);
+
+var v_buttonPre3=Ext.create('button');
+v_buttonPre3.setText(i18n._('Previous'));
+
+v_buttonPre3.setHandler(
+function(){
+v_window3.hide();
+v_window1.show();
+}
+);
+
+
+var v_window3=Ext.create('commonWindow',{
+	height: 460,
+	buttons:[v_buttonPre3,v_buttonNext3]
+});
+v_window3.add(v_step3);
+
+/*window4*/
+var v_step4=Ext.create('commonForm');
+v_step4.setLabel(i18n._('step3'));
+v_step4.addCmp([v_name,v_code,v_desc]);
+var v_buttonNext4=Ext.create('button');
+v_buttonNext4.setText(i18n._('Next'));
+v_buttonNext4.setHandler(
+function(){
+ if(v_name.getValue().replace(/^\s*((?:[\S\s]*\S)?)\s*$/, '$1').length==0){//
+	showMsg(i18n._('ServiceCatalog_name can not be empty'));
+	return;}
+	if(!/^[^<>\&\*\^\$@#%]+$/gi.test(v_name.getValue())){
+		showMsg(i18n._('ServiceCatalog_name')+i18n._('InvalidCharacters'));
+		return;
+	}
+ if(v_desc.getValue().length>0&&v_desc.getValue().length>200){
+ 	showMsg(i18n._('ServiceCatalog_description'));
+ return;}
+ 
+ if(v_code.getValue().length == 0 ){
+	 showMsg(i18n._('ServiceCatalogCodeNotNull'));
+	 return;
+ }
+
+ if(!/^[^<>\&\*\^\$@#%!]+$/gi.test(v_code.getValue())){
+		showMsg(i18n._('ServiceCatalogCode'));
+		return;
+	}
+ 
+ if(v_code.getValue().length < 8){
+	 showMsg(i18n._('ServiceCatalogCodeIsLess'));
+	 return;
+ }
+ 
+ if(v_code.getValue().length > 8){
+	 showMsg(i18n._('ServiceCatalogCodeIsMore'));
+	 return;
+ }
+ 
+
+ 
+ if(v_name.textValid!=true){return;}
+v_window4.hide();
+d_name.setValue(v_name.getValue());
+d_code.setValue(v_code.getValue());
+d_zoneGroupName.setValue(v_zoneGroupCombo.getRawValue());
+d_zoneName.setValue(v_zoneCombo.getRawValue());
+d_desc.setValue(v_desc.getValue());
+d_cpu.setValue(v_cpu.getRawValue());
+d_ram.setValue(v_ram.getRawValue()+'M');
+d_disk.setValue(v_disk.getRawValue()+'G');
+d_os.setValue(v_os.getRawValue());
+if(v_try.getComponent(0).getValue()){
+	d_tryOrNo.setValue(i18n._('Yes'));//"是"
+	d_tryDuration.setValue(v_try.getComponent(1).getValue()+i18n._('Day'));//'天'
+}else{
+	d_tryOrNo.setValue(i18n._('No'));//"否"
+	d_tryDuration.setValue(i18n._('None'));//'无'
+}
+if(v_try.getComponent(3).getValue()){
+	d_tryApproveOrNo.setValue(i18n._('Yes'));//"是"
+}else{
+	d_tryApproveOrNo.setValue(i18n._('No'));//"否"
+}
+d_userLevel.setValue(v_userLevel.getRawValue());
+d_domain.setValue(v_domain.getRawValue());
+d_network.setValue(v_networkSlider.getRawValue()+'M');
+d_effectiveDate.setValue(v_effectiveDate.getRawValue());
+d_expirationDate.setValue(v_expirationDate.getRawValue());
+d_priceType.setValue(getPriceData('string'));
+if(v_coupons.getValue()["coupons"]==true){
+	d_coupons.setValue(i18n._('Yes'));//"是"
+}else{
+    d_coupons.setValue(i18n._('No'));//"否"
+}
+
+if(v_gifts.getValue()["gifts"]==true){
+	d_gifts.setValue(i18n._('Yes'));//"是"
+}else{
+    d_gifts.setValue(i18n._('No'));//"否"
+}
+
+if (vmCreateDiskCreateCount > 0) {
+	extDiskDetailContainer.removeAll(true);
+	var extDiskDetailLabel=Ext.create('Ext.form.field.Display',{
+		fieldLabel:'ExtDisk',
+	    style:{
+	    	marginLeft:'5px'
+	    },
+		width:100,
+		border:false,
+		height:v_height,
+		value:''
+	});
+	extDiskDetailContainer.add(extDiskDetailLabel);
+	
+	for ( var i = 1; i < vmCreateDiskCreateCount + 1; i++) {							
+		var addDisk =Ext.getCmp('diskSliderPanel' + i).getRawValue();
+		if(Ext.getCmp('diskSliderPanel' + i).getRawValue()!=0){
+			var temp_disk=Ext.create("extDiskDetailfield");
+			
+			temp_disk.setLabel("DISK"+i);
+			temp_disk.setValue(addDisk);
+			extDiskDetailContainer.add(temp_disk);
+		}
+	}
+}
+v_displayForm.setLabel(i18n._('detail infomation of service catalog'));
+v_displayWindow.setTitle(i18n._('Add_ServiceCatalog'));
+v_displayWindow.show();
+}
+);
+
+var v_buttonPre4=Ext.create('button');
+v_buttonPre4.setText(i18n._('Previous'));
+v_buttonPre4.setHandler(
+function(){
+v_window4.hide();
+v_window3.show();
+}
+);
+var v_window4=Ext.create('commonWindow',{
+buttons:[v_buttonPre4,v_buttonNext4]
+});
+v_window4.add(v_step4);
+
+//confirm window
+var v_displayForm=Ext.create('commonFormScroll');//d_period,d_price,
+v_displayForm.addCmp([d_name,d_code,d_try,d_desc,d_cpu,d_ram,d_disk,extDiskDetailContainer,d_os,d_network,d_time,d_priceType,d_coupons,d_gifts,d_zoneGroupName,d_zoneName,d_userLevel,d_domain,d_isolationSet]);//
+var v_buttonPre9=Ext.create('button');
+v_buttonPre9.setText(i18n._('Previous'));
+v_buttonPre9.setHandler(
+function(){
+v_displayWindow.hide();
+v_window4.show();
+}
+);
+var v_confirmButton=Ext.create('button');
+v_confirmButton.setText(i18n._('Completed'));
+v_confirmButton.setHandler(
+function(){
+	var v_mask = new Ext.LoadMask(Ext.get(v_displayWindow.getEl()), {
+		msg:i18n._('ServiceCatalog is saving,please wait!'),
+        removeMask: true //完成后移除
+    });
+v_mask.show();	
+var v_items=new Array();
+if (vmCreateDiskCreateCount > 0) {
+	for ( var i = 1; i < vmCreateDiskCreateCount + 1; i++) {							
+		var addDisk =Ext.getCmp('diskSliderPanel' + i).getValue();
+		if(Ext.getCmp('diskSliderPanel' + i).getRawValue()!=0){
+			v_items.push({'id':addDisk,'serviceType':8});
+		}
+	}
+}
+ var osIdArrTemp=v_os.getValue();
+ for(var i=0;i<osIdArrTemp.length;i++){
+	v_items.push({'id':osIdArrTemp[i],'serviceType':4});
+ }
+v_items.push({'id':v_cpu.getValue(),'serviceType':1});
+v_items.push({'id':v_ram.getValue(),'serviceType':2});
+v_items.push({'id':v_disk.getValue(),'serviceType':3});
+v_items.push({'id':v_networkSlider.getValue(),'serviceType':5});
+//var oneMonthPrice=getFeeTypePrice("oneMonth");
+//var threeMonthPrice=getFeeTypePrice("threeMonth");
+//var sixMonthPrice=getFeeTypePrice("sixMonth");
+//var twevelMonthPrice=getFeeTypePrice("twevelMonth");
+//var v_feeTypes=new Array();
+v_feeTypes=getPriceData('array');
+// var nodeName=v_nodeCombo.getRawValue();
+// var zoneName=v_zoneCombo.getValue();
+// var releaseNode='';
+//  if(zoneName!=''&&zoneName!=null&&nodeName==''){
+// 	releaseNode=zoneName;
+// }else if(zoneName!=''&&zoneName!=null&&nodeName!=''){
+// 	releaseNode=zoneName+'$'+nodeName;
+// } 
+var brandArray=v_userLevel.getValue();
+tmp_brand=[];
+for(var i=0;i<brandArray.length;i++){
+	tmp_brand.push({'id':brandArray[i]});
+}
+
+var domainArray=v_domain.getValue();
+tmp_domain=[];
+for(var i=0;i<domainArray.length;i++){
+	tmp_domain.push({'id':domainArray[i]});
+}
+
+var zoneArray=v_zoneCombo.getValue();
+tmp_zone=[];
+/* if(zoneArray.length>0){
+	for(var i=0;i<zoneArray.length;i++){
+		tmp_zone.push({'id':zoneArray[i]});
+	}
+}else{
+	var zoneRecordNum=zoneStore.getCount();
+	for(var i=0;i<zoneRecordNum;i++){
+		var tempZoneRecord=zoneStore.getAt(i);
+		tmp_zone.push({'id':tempZoneRecord.get('id')});
+	}
+} */
+				if(zoneArray>-1)
+					tmp_zone.push({'id':zoneArray});
+				Ext.Ajax.request({
+					url: path+'/sc/sc!save.action',	
+					params:{
+						effectiveDateParam:v_effectiveDate.getRawValue(),
+						experitionDateParam:v_expirationDate.getRawValue()
+					},
+					jsonData:{
+					name:Ext.String.trim(v_name.getValue()),
+					catalogCode:v_code.getValue(),
+					description:v_desc.getValue(),
+					items:v_items,
+					feeTypes:v_feeTypes,
+					userBrand:tmp_brand,
+					domainList:tmp_domain,
+					tryOrNo:v_try.getComponent(0).getValue(),
+					usePointOrNot:v_coupons.getValue()["coupons"],
+					useGiftOrNot:v_gifts.getValue()["gifts"],
+					tryDuration:v_try.getComponent(1).getValue(),
+					tryApproveOrNo:v_try.getComponent(3).getValue(),
+					zoneList:tmp_zone
+					},
+					success:function(response){
+						v_mask.hide();
+          					var result=Ext.JSON.decode(response.responseText);
+          					if(result.success==false){
+	           				showMsg(result.resultMsg);
+          					}else{
+						formReset();
+						v_displayWindow.hide();
+						v_serviceCatalogStore.load();
+						}
+					}	
+				});	
+}
+);
+var v_cancelButton=Ext.create('button');
+v_cancelButton.setText(i18n._('Cancel'));
+v_cancelButton.setHandler(
+function(){
+formReset();
+v_displayWindow.hide();
+}
+);
+var v_displayWindow=Ext.create('commonWindowScroll',{
+	buttons:[v_buttonPre9,v_confirmButton,v_cancelButton],
+	tools:[{
+		type:'close',
+		handler:function(){					
+			formReset();
+			this.getBubbleTarget().getBubbleTarget().hide();
+		}
+	}]
+});
+v_displayWindow.add(v_displayForm);
+
+ Ext.create('Ext.Viewport',{
+ layout:'fit',
+ items: dataGrid,
+	sortableColumns:true,
+	autoHeight:true
+});
+ 
+ 
+ function verifyFeeType(feeTypePanel){
+	 var msg="passed";
+	 var oneWeekSelect=getFeeTypeIfSelect('oneWeek',feeTypePanel);
+	 var oneMonthSelect=getFeeTypeIfSelect('oneMonth',feeTypePanel);
+	 var threeMonthSelect=getFeeTypeIfSelect('threeMonth',feeTypePanel);
+	 var sixMonthSelect=getFeeTypeIfSelect('sixMonth',feeTypePanel);
+	 var twevelMonthSelect=getFeeTypeIfSelect('twevelMonth',feeTypePanel);
+     if(oneWeekSelect||oneMonthSelect||threeMonthSelect||sixMonthSelect||twevelMonthSelect){
+    	 if(!confirmPriceBlank("oneWeek",feeTypePanel)||!confirmPriceBlank("oneMonth",feeTypePanel)||!confirmPriceBlank("threeMonth",feeTypePanel)||!confirmPriceBlank("sixMonth",feeTypePanel)||!confirmPriceBlank("twevelMonth",feeTypePanel)){
+    		msg=i18n._('Please fill in the correct price');//"选择计费方式后，请正确填写价格。";;
+    	 }
+     }else{
+    	 msg=i18n._('Please select one billing at least');//"请至少选择一种计费方式";
+     }
+     
+     return msg;
+ }
+ function priceRenderer(value,metedata,record,rowIndex,colIndex,store){
+	 var feeTypes=record.getFeeTypes();
+	 var priceResult='';
+	 if(feeTypes!=null&&feeTypes.length>0){
+		 priceResult=feeTypes[0].price;
+		 for(var i=1;i<feeTypes.length;i++){
+			 priceResult+=(";"+feeTypes[i].price);
+		 }
+	 }
+	 return priceResult;
+ }
+ 
+ function userBrandRenderer(value,metedata,record,rowIndex,colIndex,store){
+	 var brandList=record.getUserBrand();
+	 var brandResult='';
+	 if(brandList!=null&&brandList.length>0){
+		 for(var i=0;i<brandList.length;i++){
+			 brandResult+=brandList[i].name+" ";
+		 }
+		 metedata.tdAttr = 'data-qtip="' + brandResult + '"';
+	 }
+	 return brandResult;
+ }
+ function getFeeTypeContainer(feeType,feeTypePanel){
+	 if(feeTypePanel){
+		 return feeTypePanel.getComponent(feeType);
+	 }else{
+		 return v_feeType.getComponent(feeType);
+	 }
+ }
+ 
+ function getFeeTypeIfSelect(feeType,feeTypePanel){
+	 return getFeeTypeContainer(feeType,feeTypePanel).getComponent(0).getValue();
+ }
+ 
+ function getFeeTypePrice(feeType,feeTypePanel){
+	 var priceResult='';
+	 if(getFeeTypeIfSelect(feeType,feeTypePanel)){
+		 var priceLocal=getFeeTypeContainer(feeType,feeTypePanel).getComponent(1).getValue();
+		 if(priceLocal){
+			 priceResult=priceLocal;
+		 }
+	 }
+	 return priceResult;
+ }
+ 
+ function confirmPriceBlank(feeType,feeTypePanel){
+	 var booleanResult=true;
+	 var feeIfSelect=getFeeTypeIfSelect(feeType,feeTypePanel);
+	 var feePrice=getFeeTypePrice(feeType,feeTypePanel);
+	 if(feeIfSelect){
+		 if(feePrice==null||feePrice==''||!(getFeeTypeContainer(feeType,feeTypePanel).getComponent(1).isValid())){
+			 booleanResult=false;
+		 }
+	 }
+	 
+	 return booleanResult;
+ }
+ 
+ function getPriceData(value,feeTypePanel){
+	 var result=null;
+	 var oneWeekPrice=getFeeTypePrice("oneWeek",feeTypePanel);
+	 var oneMonthPrice=getFeeTypePrice("oneMonth",feeTypePanel);
+	 var threeMonthPrice=getFeeTypePrice("threeMonth",feeTypePanel);
+	 var sixMonthPrice=getFeeTypePrice("sixMonth",feeTypePanel);
+	 var twevelMonthPrice=getFeeTypePrice("twevelMonth",feeTypePanel);
+	 if(value=='array'){
+		 var v_feeTypes=new Array();
+		 if(oneWeekPrice){
+			v_feeTypes.push({'period':1,'price':oneWeekPrice,'pricePeriodType':'2'});
+		 }
+		 if(oneMonthPrice){
+		 	v_feeTypes.push({'period':1,'price':oneMonthPrice});
+		 }
+		 if(threeMonthPrice){
+		 	v_feeTypes.push({'period':3,'price':threeMonthPrice});
+		 }
+		 if(sixMonthPrice){
+		 	v_feeTypes.push({'period':6,'price':sixMonthPrice});
+		 }
+		 if(twevelMonthPrice){
+		 	v_feeTypes.push({'period':12,'price':twevelMonthPrice});
+		 }
+		 result=v_feeTypes;
+	 }else if(value=='string'){
+		 	 var feeTypesStr='';
+		 	 if(oneWeekPrice){
+		 		feeTypesStr+=i18n._('one-week')+''+oneWeekPrice+""+i18n._('cny')+";\n"
+			 }
+		 	 if(oneMonthPrice){
+		 		feeTypesStr+=i18n._('one-month')+''+oneMonthPrice+""+i18n._('cny')+";\n"
+			 }
+			 if(threeMonthPrice){
+				 feeTypesStr+=i18n._('three-month')+''+threeMonthPrice+""+i18n._('cny')+";\n"
+			 }
+			 if(sixMonthPrice){
+				 feeTypesStr+=i18n._('six-month')+''+sixMonthPrice+""+i18n._('cny')+";\n"
+			 }
+			 if(twevelMonthPrice){
+				 feeTypesStr+=i18n._('twelve-month')+''+twevelMonthPrice+""+i18n._('cny')+";\n"
+			 }
+			 result= feeTypesStr
+	 }
+	 
+	 return result;
+ }
+ 
+ function getPriceDataForDetail(feeTypes){
+	 if(feeTypes==null||feeTypes.length==0){
+		 return '';
+	 }
+	 var priceDateStr='';
+	 for(var i=0;i<feeTypes.length;i++){
+		 priceDateStr+='('+feeTypes[i].period+''+getPricePeriodTypeDisplayValue(feeTypes[i].pricePeriodType)+')'+feeTypes[i].price+""+i18n._('cny')+";\n"
+	 }
+	 return priceDateStr;
+ }
+;
+
+            }
+        };
+    })();
+
+     MultiLang.init();  
+ });
+ 
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+ function list_taocan_config(id){
+	if(id!=""){
+		alert(id);
+		
+		
+	}else{
+		alert("亲，请选择一行好不好？能不能愉快的玩耍了？");
+	}
+ }
+</script>
+</head>
+
+<body>
+</body>
+</html>

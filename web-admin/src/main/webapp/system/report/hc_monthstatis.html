@@ -1,0 +1,299 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> ttcloud</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel='stylesheet' type="text/css" href="../../extjs-4.1.0/resources/css/ext-all-gray.css"/>
+  <script type="text/javascript" src="../../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../../js/head.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../../js/ux/RowExpander.js"></script>
+  <script type="text/javascript" src="../../js/ux/form/MonthField.js"></script>
+  <script type="text/javascript" src="../../js/jquery-1.7.2.min.js" ></script>
+  <script type="text/javascript" charset="utf-8" src="../../js/i18n.js"></script>
+  <script type="text/javascript">
+
+     Ext.onReady(function(){
+    	 Ext.QuickTips.init(true,{dismissDelay:600000});
+    		Ext.apply(Ext.QuickTips.getQuickTip(), {
+    		    maxWidth: 1000,
+    		    trackMouse: true,
+    		    dismissDelay: 0
+    	});
+    	 var params;
+    	 var yearMonth = "";
+    	 var platformid = "";
+    	 MultiLang =(function(){
+            return {
+                init: function() {
+                    params = getCookie("lang");
+                    i18n.set({
+      				  lang: params, 
+      				  path: '../../resources'
+      				});
+                    if (params) {
+                        var url = Ext.util.Format.format('../../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                        Ext.Ajax.request({
+                            url: url,
+                            success: this.onLoadExtLocaleSuccess,
+                            failure: this.onLoadExtLocaleFailure,
+                            scope: this
+                        });
+                    } else {
+                    	this.setup();
+                    }
+                },
+                onLoadExtLocaleSuccess: function(response) {
+                    try {
+                        eval(response.responseText);
+                    } catch (e) {
+                    }
+                    this.setup();
+                },
+                onLoadExtLocaleFailure: function() {
+                    this.setup();
+                },
+                setup: function() {
+    				
+                	Ext.define('MonthStatisVO',{
+						 extend: 'Ext.data.Model',
+						 fields:[
+                         {name:'statisDay',type:'date', dateFormat:'time'},
+						 {name:'orderCNT',type:'int'},
+						 {name:'positiveCNT',type:'int'},
+						 {name:'renewCNT',type:'int'},
+						 {name:'refundCNT',type:'int'},
+						 {name:'expiredCNT',type:'int'},
+						 {name:'consumeAmoutStr',type:'string'},
+						 {name:'refundFeeStr',type:'string'},
+						 {name:'incomingStr',type:'string'},
+						 {name:'domainName',type:'string'},
+						 {name:'abbName',type:'string'}
+						 ]
+			        });
+                	//定义平台
+                	  Ext.define('Domain',{
+                	               extend: 'Ext.data.Model',
+                	               fields:[
+                	               {name:'id',type:'long'},
+                	               {name:'name',type:'string'},
+                	               {name:'abbreviation',type:'string'}
+                	               ]
+                	  });
+
+                	var domainArr=[];
+                	$.ajax({
+                	      url:'../../admin_mgmt/basicData!loadDomain.action',
+                	      async:false,
+                	      dataType:'json',
+                	      type:'POST',
+                	      success:function(domainObj){
+                	          
+                	          if(domainObj.success){
+                	              var domainArrTemp=domainObj.resultObject;
+                	              domainArr.push({id:'',abbreviation:'全部'});
+                	              for(var i=0;i<domainArrTemp.length;i++){
+                	              	domainArr.push(domainArrTemp[i]);
+                	              }
+                	          }else{
+                	              alert("load domain failure");
+                	          }
+                	      },
+                	      failure:function(){
+                	          alert("load domain failure");
+                	      }
+                	}); 
+                   
+                	var domainStore = Ext.create("Ext.data.Store",{
+                	     model:"Domain",
+                	     data:domainArr
+                	});
+                	
+                    var monthStatis =Ext.create('Ext.data.Store', {
+     					pageSize: pageSize,
+     					autoLoad:false,
+     					model: 'MonthStatisVO',
+     					sorters: [{
+     					      property : 'month',
+     					      direction: 'DESC'
+     					}],
+     					remoteSort:true,
+     				    proxy: new Ext.data.proxy.Ajax({
+     					     actionMethods: { read: 'POST' },
+     					     url : '../../bss/responsibility!monthStatis.action',
+     						 reader: {
+     					         type: 'json',    
+     					         root: 'resultObject.result',
+     					         totalProperty: 'resultObject.totalCount'
+     					     }
+     					})
+     		        }); 
+     		        
+                    monthStatis.load();
+        			var sm = Ext.create('Ext.selection.RowModel');
+        			var imgb = new Ext.Button({  
+        		        text: '<font color="#ee7700">'+i18n._('Search')+'</font>',
+        		        icon: "images/search.png",
+        		        handler :function(btn) { 
+        		        	var proxy = monthStatis.getProxy();
+							proxy.setExtraParam('queryVO.startTime',yearMonth);
+        		        	proxy.setExtraParam('queryVO.domainId',platformid);
+							proxy.extraParams.start = 0;
+							monthStatis.loadPage(1,null);
+        	            }
+        		    }); 
+        		    
+        			//日志列表
+        			Ext.create('Ext.Viewport',{
+        			    layout:'fit',
+        			    width:'100%',
+        				height:'100%',
+        			    items: Ext.create('Ext.grid.Panel', {
+            			    id:'monthReportList',
+	        				height:900,
+	        				sortableColumns:false,
+	        				width:'100%',
+	        				title: i18n._('statisticsReport') +'&nbsp; &nbsp;>&nbsp;&nbsp;' +i18n._('monthStatis'),
+	        			    store: monthStatis,
+	        				selModel: sm,
+	        				listeners:{
+	        				},
+	        				bbar: Ext.create('Ext.toolbar.Paging', {
+	        					store: monthStatis,		
+	        					pageSize:0,			
+	        					displayInfo: true					
+	        				}),
+	        				viewConfig: {
+	        					   stripeRows: true						
+	        				},
+	        				dockedItems : [ {
+	        					xtype : 'toolbar',
+	        					cls: 'toolbarCSS',
+	        					dock : 'top',
+	        					items : [{
+									xtype:'button',//导出
+								    text:'<font id="export" color="white">'+i18n._('export')+'</font>',
+								    listeners: {
+										 "mouseout" : function() {
+											 document.getElementById("export").style.color = "white";
+										 },
+										 "mouseover" : function() {
+											 document.getElementById("export").style.color = "black";
+										 }
+											
+									},
+								    tooltip:i18n._('export'),
+								    shadow:false,
+								    icon:'images/export.png',
+								    style:'text-align: left;',
+								    handler:function(){
+			        		        	var b = Ext.getCmp('beginDate').getValue();
+                                         var downloadForm = Ext.create('Ext.form.Panel',{
+                                             frame:true,
+                                             standardSubmit:true
+                                         });
+                                         downloadForm.getForm().submit({
+                                             url:path + '../../../../excelExport!monthStatisExcelExport.action',
+                                             method:'post',
+                                             params:{
+                                            	 'queryVO.domainId':platformid,
+                                            	 'queryVO.startTime':Ext.Date.format(yearMonth, 'Y-m-d H:i:s')
+                                         }
+                                         });
+									}
+								},{xtype:'tbfill'},
+								
+					            {
+									xtype:'displayfield',
+									hideLabel:true,
+									value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('domainName')+':'+'</font></span>'
+								},
+	        					{
+	    		    	            xtype:'combobox',
+	    		    	        	margin:'0 5 5 0',
+	    		    	        	id:'platformid',
+	    		    				width:130,
+	    		    				hideLabel:true,
+	    		    	        	store: domainStore,
+	    		    	        	queryMode: 'local',
+	    		    	        	displayField: 'abbreviation',
+	    		    	        	emptyText:i18n._('Please Select'),
+	    		    	            valueField: 'id',	
+	    		    	            listeners:{
+	    		    	        		'change':{
+	    		    	        			fn:function(){
+	    		    	        				platformid = "";
+	    		    	        				platformid = Ext.getCmp('platformid').getValue();
+	    		            		        	var proxy = monthStatis.getProxy();
+	    		    							proxy.setExtraParam('queryVO.startTime',yearMonth);
+	    		            		        	proxy.setExtraParam('queryVO.domainId',platformid);
+	    		    							proxy.extraParams.start = 0;
+	    		    							monthStatis.loadPage(1,null);
+	    		    	        			}
+	    		    	        	  	}
+	    		    	        	}
+	    		    			},
+	        				    {
+	    		    				xtype:'displayfield',
+	    		    				hideLabel:true,
+	    		    				value:'<span style="bottom:3px;position:relative;"><font color="white">'+i18n._('debtperiod')+':'+'</font></span>'
+	    		    			},
+	    		    			{
+	    		    			    xtype: 'monthfield',
+	    		    			    id: 'beginDate',
+	    		    			    width : 90,
+	    		    			    name: 'beginDate',
+	    		    			    emptyText:i18n._('beginMonth'),
+	    		    			    maxValue: new Date(),
+	    		    			    format:'Y-m',
+	    		    			    listeners:{
+	    		    	        		'change':{
+	    		    	        			fn:function(){
+	    		    	        				yearMonth= "";
+	    		    	        				yearMonth = Ext.getCmp('beginDate').getValue();
+	    		            		        	var proxy = monthStatis.getProxy();
+	    		    							proxy.setExtraParam('queryVO.startTime',yearMonth);
+	    		            		        	proxy.setExtraParam('queryVO.domainId',platformid);
+	    		    							proxy.extraParams.start = 0;
+	    		    							monthStatis.loadPage(1,null);
+	    		    	        			}
+	    		    	        	  	}
+	    		    	        	}
+	    		    			}
+	    		    			,imgb]
+	        				}],
+	        			    columns: [
+	      	        			        {xtype: 'rownumberer',width:50},
+	      	        			      {header: i18n._('date'),dataIndex: 'statisDay',align:'left', renderer: Ext.util.Format.dateRenderer('Y-m-d'),flex: 1,width:50},
+	      	        			        {header: i18n._('PromotionDomain'),dataIndex: 'abbName',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('orderCNT'),dataIndex: 'orderCNT',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('positiveCNT'),dataIndex: 'positiveCNT',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('renewCNT'),dataIndex: 'renewCNT',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('refundCNT'),dataIndex: 'refundCNT',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('expiredCNT'),dataIndex: 'expiredCNT',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('ConsumeAccount'),dataIndex: 'consumeAmoutStr',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('refundAmount'),dataIndex: 'refundFeeStr',align:'left', flex: 1,width:50},
+	        				      	    {header: i18n._('incoming'),dataIndex: 'incomingStr',align:'left', flex: 1,width:50}
+	        				]
+        			    })
+        			});
+                    
+                }
+            };
+         })();
+    	 MultiLang.init();
+     });
+
+	 function getCookie(name){
+	         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+	         if(arr != null) return unescape(arr[2]);
+			 return null;
+	 }
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>

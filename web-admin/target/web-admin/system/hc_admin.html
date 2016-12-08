@@ -1,0 +1,1289 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+ <head>
+  <title> New Document </title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <link rel="stylesheet" type="text/css" href="../extjs-4.1.0/resources/css/ext-all.css" />
+  <script type="text/javascript" src="../extjs-4.1.0/ext-all.js"></script>
+  <script type="text/javascript" src="../js/head.js"></script>
+  <script type="text/javascript" src="../js/ux/form/SearchField.js"></script>
+  <script type="text/javascript" src="../js/ux/RowExpander.js"></script>
+  <script src="../js/jquery-1.7.2.min.js" type="text/javascript"></script>
+  <script type="text/javascript" charset="utf-8" src="../js/i18n.js"></script>
+    <style type="text/css">
+        body .x-panel {
+            margin:0 0 20 0;
+			padding:0 0 0 0;
+        }
+
+    </style>
+  <script type="text/javascript">
+     Ext.Loader.setConfig({
+    enabled: true
+});
+
+     Ext.require([
+    'Ext.grid.*',
+    'Ext.form.*',
+    'Ext.data.*',
+	//'Ext.form.field.ComboBox',
+    'Ext.ux.RowExpander',
+	'Ext.ux.form.SearchField'
+    //'Ext.selection.CheckboxModel'
+]);
+
+
+
+    Ext.onReady(function(){
+	   var params;
+       MultiLang = (function() {
+        return {
+            init: function() {
+                // load ExtJS locale
+                params = getCookie("lang");
+                i18n.set({
+  				  lang: params, 
+  				  path: '../resources'
+  				});
+                if (params) {
+                    var url = Ext.util.Format.format('../extjs-4.1.0/locale/ext-lang-{0}.js', params);
+                    Ext.Ajax.request({
+                        url: url,
+                        success: this.onLoadExtLocaleSuccess,
+                        failure: this.onLoadExtLocaleFailure,
+                        scope: this
+                    });
+                } else {
+                    // no language found, locale of ExtJS will be english as default
+                    //this.loadmyprojectLocale();
+                	this.setup();
+                }
+            },
+            onLoadExtLocaleSuccess: function(response) {
+                try {
+                    eval(response.responseText);
+                } catch (e) {
+                    Ext.Msg.alert('Failure', e.toString());
+                }
+                //this.loadmyprojectLocale();
+                this.setup();
+            },
+            onLoadExtLocaleFailure: function() {
+                Ext.Msg.alert('Failure', 'Failed to load locale file.');
+                this.setup();
+                //this.loadmyprojectLocale();
+            },
+            setup: function() {
+			
+              		Ext.define('UserProfile',{
+		      extend: 'Ext.data.Model',
+		      fields:[
+		         {name:'id',type:'long'},
+		         {name:'sex',type:'string'},
+		         {name:'idCard',type:'string'},
+		         {name:'telephone',type:'string'},
+		         {name:'jobTitle',type:'string'},
+		         {name:'address',type:'string'},
+		         {name:'country',type:'string'},
+		         {name:'createDate',mapping: 'createDate',type:'date', dateFormat:'time'},
+		         {name:'updateDate',mapping: 'updateDate',type:'date', dateFormat:'time'}
+		         ],
+		         belongTo: 'User'
+	});
+	
+	//定义user
+	     Ext.define('User',{
+		    extend: 'Ext.data.Model',
+		    fields:[
+		         {name:'id',type:'long'},
+		         {name:'name',type:'string'},
+		         {name:'password',type:'string'},
+		         {name:'email',type:'string'},
+		         {name:'isEnable',type:'boolean'},
+		         {name:'lastLoginDate',mapping: 'lastLoginDate', type:'date',dateFormat:'time'},
+		         {name:'createDate',mapping: 'createDate',type:'date', dateFormat:'time'},
+		         {name:'updateDate',mapping: 'updateDate', type:'date',dateFormat:'time'},
+		         {model:'UserProfile', name:'userProfile'},
+		         {name:'pro_telephone',mapping:'userProfile.telephone'}
+		         ]
+	});
+	    Ext.apply( 
+			  Ext.form.VTypes, 
+			  { 
+			    phonecheck : function(val, field) { 
+			    var str=val;
+			    var reg=/(^[0-9]{3,4}\-[0-9]{7,8}$)|(^[0-9]{7,8}$)|(^0{0,1}1[0-9]{10}$)/; 
+			    	return reg.test(str); 
+			    },
+			    phonecheckText : "phone number is not avaliable! Example: 0510-81128196, 81128196, 15061525555"  
+			   }
+			    
+			); 
+			var store1=Ext.create('Ext.data.Store', {
+		pageSize: pageSize,
+		autoLoad:true,
+		storeId:'loadUserlist',
+		width:'100%',
+		model: 'User',
+		sorters: [{
+		            property : 'createDate',
+		            direction: 'DESC'
+		           }],
+		remoteSort:true,
+			proxy: {
+		        type: 'ajax',
+		        url : path+'/user_mgmt/user!page.action',
+				reader: {
+		            type: 'json',    
+		            root: 'resultObject.result',
+		            totalProperty: 'resultObject.totalCount'
+		        }
+		    }
+		});
+	
+	var itemValue='userName';
+	var pluginExpanded=true;
+	//////////////////////////////////////
+		var add=Ext.create('Ext.window.Window', {
+    title: i18n._('user details'),
+	height: 375,
+	//autoHeight:true,
+	layout:'fit',
+    width: 500,
+    border: false,
+	closable:false,
+	modal:true,
+	tools:[{
+	  type:'close',
+	  handler:function(){
+	  add.hide();
+	  }
+	}],
+    items: [
+	{
+	xtype: 'form',
+	id:'addform',
+	height:'100%',
+	width:500,
+    border: false,
+	dockedItems: [{
+            xtype: 'toolbar',
+            dock: 'bottom',
+            ui: 'footer',
+            layout: {
+                pack: 'left'
+            },
+            items: [
+                    {
+				margin:'0 0 0 158',
+                minWidth: 80,
+                //text: '确定',
+				text:i18n._('OK'),
+                handler:function(){
+                	if(Ext.getCmp('name').isValid() && Ext.getCmp('password').isValid()&& Ext.getCmp('email').isValid()&& Ext.getCmp('telephone').isValid()){
+                	Ext.Ajax.request({
+                		url: path+'/user_mgmt/user!createUser.action',
+                		jsonData: {
+                	    	"name":Ext.getCmp('name').getValue(),
+                	    	"email":Ext.getCmp('email').getValue(),
+                	    	"password": Ext.getCmp('password').getValue(),
+                	    	"userProfile":{
+                	   			"sex": Ext.getCmp('sex').getValue()["rg"],
+                	    		"idCard":Ext.getCmp('idCard').getValue(),
+                	    		"telephone":Ext.getCmp('telephone').getValue(),
+                	    		"jobTitle":Ext.getCmp('jobTitle').getValue(),
+                	    		"country":Ext.getCmp('country').getValue(),
+                	    		"address":Ext.getCmp('address').getValue(),
+                	    	}
+                	    },
+                	    success: function(response){
+                	    	var obj = Ext.decode(response.responseText);
+                	    	if(obj.success){
+                      	    	Ext.Ajax.request({
+                            		url: path+'/bss/getAccount!createAccount.action?user.id='+obj.resultObject.id,
+                            	    success: function(res){
+                            	    	var obj2 = Ext.decode(res.responseText);
+                            	    	if(obj2.success){
+                          					Ext.MessageBox.show({
+      				  		          		// title: '提示',
+      				  		          		// msg: '添加用户成功',
+											 title:i18n._('notice'),
+											 msg:i18n._('add user success!'),
+      				  		          		 icon:Ext.MessageBox.INFO,
+      				  		         		  buttons: Ext.MessageBox.OK
+      				  		           
+      				  		      		 }); 
+                          					Ext.getCmp('addform').getForm().reset();
+                            	       		 add.hide();
+                            	      	 	 store1.load();
+                            	    	}
+                            	    }
+                            	});
+                	    	}else{
+                      			Ext.MessageBox.show({
+   				  		           //title: '提示',
+								   title:i18n._('notice'),
+   				  		           msg: obj.resultMsg,
+   				  		           icon:Ext.MessageBox.WARNING,
+   				  		           buttons: Ext.MessageBox.OK
+   				  		           
+   				  		       }); 
+        						return;
+                	    	}
+                	    }
+/*                 	    failure: function(response){
+                	    	var text = response.responseText;
+                	    	if(text)
+                	    } */
+                	})
+                }
+                }
+				
+		
+            },{
+				margin:'0 0 0 5',
+                minWidth: 80,
+                //text: '重置',
+				text:i18n._('reset'),
+                handler:function(){
+                	this.up('form').getForm().reset();
+           }
+				
+           }]
+        }],
+      items: [
+	{
+	xtype: 'fieldset',
+   // title: '基本信息',
+    title:  i18n._('Basic information'),
+	width:476,
+	margin:'3 0 0 8',
+	items:[
+	{
+	xtype:'textfield',
+	//fieldLabel:'用户姓名',
+    fieldLabel: i18n._('username'),
+	style:'margin-left:20px;',
+	name:'用户姓名',
+	id:'name',
+	//emptyText:'请输入姓名',
+	emptyText:i18n._('please input name'),
+	allowBlank: false,
+	maxLength:6
+	},
+	{
+		xtype:'textfield',
+		//fieldLabel:'登录邮箱',
+		fieldLabel:i18n._('email'),
+		vtype: 'email',
+		style:'margin-left:20px;',
+		name:'登录邮箱',
+		id:'email',
+		//emptyText:'请输入邮箱',
+		allowBlank: false,
+		maxLength:80
+		},
+	{
+		xtype:'textfield',
+		//fieldLabel:'用户密码',
+		 fieldLabel:i18n._('password'),
+		style:'margin-left:20px;',
+		name:'用户密码',
+		id:'password',
+		inputType: 'password',
+		//emptyText:'请输入密码',
+		emptyText:i18n._('please input password'),
+		allowBlank: false,
+		maxLength:6
+	},
+	{
+	xtype:'radiogroup',
+	//fieldLabel:'性别',
+	fieldLabel:i18n._('sex'),
+	style:'margin-left:20px;',
+	columns: 2,
+    vertical: true,
+    id:'sex',
+    items: [
+    { boxLabel: i18n._('male'), name: 'rg', inputValue: 'true',checked:true},
+    { boxLabel: i18n._('female'), name: 'rg', inputValue: 'false'}
+    ]
+	},
+	{
+	xtype:'textfield',
+	//fieldLabel:'身份证号',
+	fieldLabel:i18n._('Id number'),
+	name:'身份证号',
+	vtype: 'alphanum',
+	maxLength: 18,
+	minLength: 15,
+	id:'idCard',
+	style:'margin-left:20px;',
+	//emptyText:'请输入身份证号'
+	},
+	{
+	xtype: 'textfield',
+	
+	style:'margin-left:20px;',
+	//fieldLabel:'联系电话',
+	fieldLabel:i18n._('telephone'),
+	vtype: 'phonecheck',
+	name:'联系电话',
+	id:'telephone',
+	//emptyText:'请输入联系电话'
+	},
+	{
+	xtype: 'textfield',
+	
+	style:'margin-left:20px;',
+	//fieldLabel:'工作职位',
+	fieldLabel:i18n._('position'),
+	name:'工作职位',
+	id:'jobTitle',
+	//emptyText:'请输入工作职位'
+	emptyText:i18n._('please input position')
+	}
+	]
+	//
+},
+{
+xtype: 'fieldset',
+    //title: '住址信息',
+	 title: i18n._('address information'),
+    //layout: 'anchor',
+	width:476,
+	
+	margin:'0 0 0 8',
+   // defaults: {anchor: '30%'},
+	items:[
+	{
+	
+	style:'margin-left:20px;',
+    //fieldLabel: '所在国家',
+	fieldLabel:i18n._('Country'),
+    name: '所在国家',
+    id:'country',
+    value:'中国',
+	xtype:'combo',
+	name:'address',
+	allowBlank: false,
+	mode: 'local',
+    //emptyText:'请选择',
+	emptyText:i18n._('Please Select'),
+    triggerAction:  'all',
+    forceSelection: true,
+    editable: false,
+    displayField: 'name',
+    valueField: 'value',
+	queryMode: 'local',
+	store:Ext.create('Ext.data.Store', {
+	fields : ['name', 'value'],
+	data: [
+	{name : '中国',   value: '中国'},
+	{name : '美国',  value: '美国'},
+	{name : '法国', value: '法国'}
+    ]
+    })
+		
+	},
+	{
+	xtype:'textfield',
+	
+	style:'margin-left:20px;',
+	//fieldLabel:'详细地址',
+	fieldLabel:i18n._('detailed address'),
+	name:'详细地址',
+	id:'address',
+	//emptyText:'请输入地址'
+	emptyText:i18n._('please input address')
+	}
+	]
+}
+
+
+]
+}
+]
+
+});
+////////////////////
+////////////////////
+var sm = Ext.create('Ext.selection.RowModel');
+Ext.create('Ext.Viewport',{
+layout:'fit',
+ width:'100%',
+ items:
+ ///////////////////////////////
+ Ext.create('Ext.grid.Panel', {
+	id:'userList',
+	height:900,
+	//layout:'fit',
+	width:'100%',
+    //title: '用户管理&nbsp; &nbsp;>>&nbsp;&nbsp;用户列表',
+	title: i18n._('userManagement')+'&nbsp; &nbsp;>>&nbsp;&nbsp;'+i18n._('userlist'),
+	tools:[{
+		    type:'pin',
+			handler:function(){
+			  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin_welcome.html';
+			}
+		  },{
+		    type:'refresh',
+			handler:function(){
+			  window.parent.document.getElementsByTagName('iframe')[0].src='hc_admin.html';
+			}
+		  },{
+		    type:'left',
+			handler:function(){
+			  history.go(-1);
+			}
+		  }],
+    store: store1,
+	selModel: sm,
+     columns: [Ext.create('Ext.grid.RowNumberer',{header:i18n._('row_Num'),dataIndex:'item',align:'left',flex:0.05}),
+		{header: i18n._('userID'),  dataIndex: 'id', editor: 'textfield',sortable:true},
+        {header: i18n._('username'),  dataIndex: 'name', editor: 'textfield',sortable:true},
+        {header: i18n._('email'), dataIndex: 'email',sortable:true,flex:1},
+		{header: i18n._('telephone'), dataIndex: 'pro_telephone',sortable:true,flex:1},
+		{header: i18n._('userstate'), dataIndex: 'isEnable',sortable:true,flex:1,
+		renderer: function(value){
+               if (value == false) {
+                 return i18n._('Accounts have been frozen');
+                }else if(value == true){
+                 return i18n._('Account can be used');
+                }
+             } 
+		},
+		{
+		    //text: "上次登录时间",
+			 text: i18n._("The last time login time"),
+		    dataIndex: 'lastLoginDate',
+		  	renderer: Ext.util.Format.dateRenderer('Y-m-d'),
+		    flex: 1,
+		    sortable: true
+		},
+		{
+   			//text: "创建时间",
+			text: i18n._("createDate"),
+   			dataIndex: 'createDate',
+   			renderer: Ext.util.Format.dateRenderer('Y-m-d'),
+    		flex: 1,
+    		sortable: true
+		}
+		
+		],
+		
+    //],
+	////////////////
+    selType: 'cellmodel',
+	bbar: Ext.create('Ext.PagingToolbar', {
+            store:  store1,
+            pageSize:0,
+            displayInfo: true
+            
+           
+        }),
+        /*
+        bbar: Ext.create('Ext.PagingToolbar', 
+		{
+            store: store,
+            displayInfo: true,
+            displayMsg: 'Displaying topics {0} - {1} of {2}',
+         }), 
+
+        */
+////////////////////////////////
+viewConfig: {
+        plugins: {
+           ptype: 'gridviewdragdrop',
+            dragText: 'Drag and drop to reorganize'
+        }
+    },
+////////////////////////////////
+	
+	 dockedItems:[
+
+			{xtype:'toolbar',
+			dock: 'top',
+			items:[
+			
+			{
+               // text:'添加用户',
+				 text:i18n._("add User"),
+                
+				icon: '../images/add.png',
+				handler:function(){
+				add.show();
+		}
+               
+            },
+			/////////////////////
+			
+		
+		{
+		style:'margin-left:10px;',
+		icon: '../images/refresh.png',  // Use a URL in the icon config
+        
+		//text:'修改',
+		text:i18n._("modify"),
+		handler:function(){
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				
+				var record = store1.getById(id);
+				var sex_record ={rg:record.get('userProfile').sex};
+
+
+				
+				//修改窗口开始
+var update=Ext.create('Ext.window.Window', {
+    //title: '用户修改',
+	 title: i18n._('user modify'),
+	height: 318,
+	//autoHeight:true,
+	layout:'fit',
+    width: 500,
+    border: false,
+	closable:false,
+	modal:true,
+	tools:[{
+	  type:'close',
+	  handler:function(){
+	  update.destroy();
+	  }
+	}],
+    items: [
+	{
+	xtype: 'form',
+	height:'100%',
+	width:500,
+    border: false,
+      items: [
+	{
+	xtype: 'fieldset',
+    //title: '基本信息',
+	title: i18n._('Basic information'),
+    //layout: 'anchor',
+	width:476,
+	
+	margin:'3 0 0 8',
+    //defaults: {anchor: '20%'},
+	items:[
+	{
+	xtype:'displayfield',
+	//fieldLabel:'用户姓名',
+	 fieldLabel:i18n._('username'),
+	style:'margin-left:20px;',
+	name:'用户姓名',
+	id: 'name_update',
+	value: record.get('name')
+	},
+	{
+	xtype:'radiogroup',
+	//fieldLabel:'性别',
+	fieldLabel:i18n._('sex'),
+	style:'margin-left:20px;',
+	columns: 2,
+	id:'sex_update',
+    vertical: true,
+     items: [
+    { boxLabel: i18n._('male'), name: 'rg', inputValue: 'true'},
+    { boxLabel: i18n._('female'), name: 'rg', inputValue: 'false'}
+    ]
+	},
+	{
+	xtype:'textfield',
+	//fieldLabel:'身份证号',
+	fieldLabel:i18n._('Id number'),
+	name:'身份证号',
+	vtype: 'alphanum',
+	maxLength: 18,
+	minLength: 15,
+	style:'margin-left:20px;',
+	id: 'idCard_update',
+	value:record.get('userProfile').idCard
+	},
+	{
+	xtype: 'textfield',
+	
+	style:'margin-left:20px;',
+	//fieldLabel:'联系电话',
+	fieldLabel:i18n._('telephone'),
+	vtype: 'phonecheck',
+	name:'联系电话',
+	id: 'telephone_update',
+	value: record.get('pro_telephone')
+	},
+	{
+	xtype: 'textfield',
+	
+	style:'margin-left:20px;',
+	//fieldLabel:'工作职位',
+	fieldLabel:i18n._('position'),
+	name:'工作职位',
+	id: 'jobTitle_update',
+	value:record.get('userProfile').jobTitle
+	}
+	]
+	//
+},
+{
+xtype: 'fieldset',
+    //title: '住址信息',
+	 title: i18n._('address information'),
+    //layout: 'anchor',
+	width:476,
+	
+	margin:'0 0 0 8',
+   // defaults: {anchor: '30%'},
+	items:[
+	{
+	
+	style:'margin-left:20px;',
+    //fieldLabel: '所在国家',
+	fieldLabel: i18n._('Country'),
+    name: '所在国家',
+	xtype:'combo',
+	id:'country_update',
+	allowBlank: false,
+	mode: 'local',
+	value:record.get('userProfile').country,
+    triggerAction:  'all',
+    forceSelection: true,
+    editable: false,
+    displayField: 'name',
+    valueField: 'value',
+	queryMode: 'local',
+	store:Ext.create('Ext.data.Store', {
+	fields : ['name', 'value'],
+	data: [
+	{name : '中国',   value: '中国'},
+	{name : '美国',  value: '美国'},
+	{name : '法国', value: '法国'}
+    ]
+    })
+		
+	},
+	{
+	xtype:'textfield',
+	
+	style:'margin-left:20px;',
+	//fieldLabel:'详细地址',
+	fieldLabel:i18n._('detailed address'),
+	name:'详细地址',
+	id:'address_update',
+	value: record.get('userProfile').address
+	}
+	]
+}
+
+
+],
+dockedItems: [{
+    xtype: 'toolbar',
+    dock: 'bottom',
+    ui: 'footer',
+    layout: {
+        pack: 'left'
+    },
+    items: [{
+		margin:'0 0 0 158',
+        minWidth: 80,
+       // text: '确定',
+	    text: i18n._('OK'),
+        handler:function(){
+        	if(Ext.getCmp('telephone_update').isValid()&& Ext.getCmp('idCard_update').isValid()){
+        		
+	           Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether modify?'), function(btn) {  
+	                if (btn == 'yes') {
+	                  	//alert(sex_record);
+	                	//修改用户信息
+	                	Ext.Ajax.request({
+	                		url: path+'/user_mgmt/user!modifyProfile.action',
+	                	    jsonData: {
+	                	    	//sex保留
+	                	    	"id":record.get('userProfile').id,
+	                	    	"idCard": Ext.getCmp('idCard_update').getValue(),
+	                			"telephone": Ext.getCmp('telephone_update').getValue(),
+	                			"jobTitle": Ext.getCmp('jobTitle_update').getValue(),
+	                			//country 保留
+	                			"country": Ext.getCmp('country_update').getValue(),
+	                			"address": Ext.getCmp('address_update').getValue(),
+	                			"sex": Ext.getCmp('sex_update').getValue()["rg"]
+	                	    },
+	                	    success: function(response){
+	                	    	
+	                	    	var obj = Ext.decode(response.responseText);
+	                	    	if(obj.success){
+	                    		Ext.MessageBox.show({
+	                		           title: i18n._('notice'),
+	                		           msg: i18n._('modify information successfully'),
+	                		           icon:Ext.MessageBox.INFO,
+	                		           buttons: Ext.MessageBox.OK
+	                		           
+	                		       }); 
+	                	        update.hide();
+	                	        store1.load();
+	                	    	}
+	                	    }
+	                	});
+	                	
+	                }});
+        	}
+        	
+  
+        }
+		
+
+    },
+     {
+		margin:'0 0 0 5',
+        minWidth: 80,
+        //text: '重置',
+         text:i18n._('reset'),
+        handler:function(){
+        	this.up('form').getForm().reset();
+   }
+        
+		
+   }]
+}]
+}
+]
+
+});
+				Ext.getCmp('sex_update').setValue({rg: record.get('userProfile').sex+''})
+				update.show();
+	    		//修改窗口结束
+			}else{
+    	    	Ext.MessageBox.show({
+	  		           //title: '提示',
+	  		          // msg: '请选择一个用户',
+					   title:i18n._('notice'),
+					   msg:i18n._('please choose one user'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+				return;
+			}
+				
+		},
+		//{rg:store1.getAt(0).get('userProfile').sex+''}
+
+		
+		},
+		{
+		icon: '../images/delete.png',  // Use a URL in the icon config
+        
+		//text:'删除',
+		text:i18n._('delete'),
+		handler:function(){
+			//删除用户操作
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				
+				var record = store1.getById(id);
+		           Ext.Msg.confirm(i18n._('confirm'),i18n._('Whether delete?'), function(btn) {  
+		                if (btn == 'yes') {  
+		                  Ext.Ajax.request({  
+		                        url : path+'/user_mgmt/user!delete.action',
+		                        jsonData:{
+		                        	id: record.get('id')
+		                        },		
+		                        success : function(response) {
+		                        	var obj = Ext.decode(response.responseText);
+		                        	if(obj.success){
+		              	    	Ext.MessageBox.show({
+		     	  		           //title: '提示',
+		     	  		           //msg: '删除成功',
+								   title:i18n._('notice'),
+								   msg:i18n._('delete successfully'),
+		     	  		           icon:Ext.MessageBox.INFO,
+		     	  		           buttons: Ext.MessageBox.OK
+		     	  		           
+		     	  		       }); 
+		                          store1.load();
+		                        	}
+		                        },  
+		                        failure : function(res) {  
+			              	    	Ext.MessageBox.show({
+				     	  		          // title: '提示',
+				     	  		          // msg: '网络错误',
+										   title:i18n._('notice'),
+										   msg:i18n._('internet error'),
+				     	  		           icon:Ext.MessageBox.INFO,
+				     	  		           buttons: Ext.MessageBox.OK
+				     	  		           
+				     	  		       }); 
+		                        },  
+		                        scope : this  
+		                      });  
+		                }  
+		              }, this);  
+			}else{
+      	    	Ext.MessageBox.show({
+	  		           //title: '提示',
+	  		          // msg: '请选择一个用户',
+					  title:i18n._('notice'),
+			           msg:i18n._('please choose one user'),
+	  		           icon:Ext.MessageBox.INFO,
+	  		           buttons: Ext.MessageBox.OK
+	  		           
+	  		       }); 
+				return;
+			}
+
+			
+		//Ext.MessageBox.confirm('请确认','是否删除？');
+		}
+		},
+		{
+		style:'margin-left:10px;',
+		icon: '../images/application_go.png',  // Use a URL in the icon config
+        text:i18n._('details'),
+		//text:'详情',
+		handler:function(){
+		
+		var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+
+		if(rows.length > 0){
+			var id = rows[0].get('id');
+			var record = store1.getById(id);
+			//用户详情窗口
+			var info =Ext.create('Ext.window.Window', {
+			    //title: '用户详情',
+				title: i18n._('user details'),
+				height: 370,
+				//autoHeight:true,
+				layout:'fit',
+			    width: 500,
+			    border: false,
+				closable:false,
+				modal:true,
+				tools:[{
+				  type:'close',
+				  handler:function(){
+				  info.hide();
+				  }
+				}],
+			    items: [
+				{
+				xtype: 'form',
+				height:'100%',
+				width:390,
+			    border: false,
+			    items:[
+				{
+				margin:'3 0 0 8',
+				xtype: 'fieldset',
+			    //title: '基本信息',
+				 title: i18n._('Basic information'),
+				width:475,
+				items:[
+				{
+				xtype: 'displayfield',
+				//width:'100%',
+				width:490,
+			    //fieldLabel: '用户ID',
+				 fieldLabel: i18n._('userID'),
+			    value: record.get('id')
+				},
+				{
+				xtype:'displayfield',
+				width:490,
+				//fieldLabel:'用户姓名',
+				fieldLabel:i18n._('username'),
+				name:'用户姓名',
+				value:record.get('name')
+				},
+				{
+				xtype: 'displayfield',
+				//width:'100%',
+			    //fieldLabel: '登录邮箱',
+				fieldLabel: i18n._('email'),
+				width:490,
+			    value: record.get('email')
+				},
+				{
+				xtype:'displayfield',
+				name:'性别',
+				//fieldLabel:'性别',
+				fieldLabel:i18n._('sex'),
+				//width:'100%',
+				width:490,
+				value:record.get('userProfile').sex?"男":""
+				},
+				{
+				xtype:'displayfield',
+				//fieldLabel:'身份证号',
+				fieldLabel:i18n._('Id number'),
+				name:'身份证号',
+				//width:'100%',
+				width:400,
+				value:record.get('userProfile').idCard
+				},
+				{
+				xtype:'displayfield',
+				
+				width:200,
+				//fieldLabel:'联系电话',
+				fieldLabel:i18n._('telephone'),
+				name:'联系电话',
+				value:record.get('userProfile').telephone
+				},
+				{
+				xtype:'displayfield',
+				width:490,
+				//fieldLabel:'公司职位',
+				fieldLabel:i18n._('position'),
+				name:'公司职位',
+				value:record.get('userProfile').jobTitle
+				}
+				]
+				//
+			},
+			{
+				margin:'0 0 0 8',
+				xtype: 'fieldset',
+			   // title: '住址信息',
+			    title: i18n._('address information'),
+			    //layout: 'anchor',
+				width:475,
+			   // defaults: {anchor: '30%'},
+				items:[
+				{
+				xtype:'displayfield',
+				width:200,
+				//fieldLabel:'所在国家',
+				fieldLabel:i18n._('Country'),
+				name:'所在国家',
+				value:'中国'
+					
+				},
+				{
+				xtype:'displayfield',
+				width:'100%',
+				//fieldLabel:'详细地址',
+				fieldLabel:i18n._('detailed address'),
+				name:'详细地址',
+				value: record.get('userProfile').address
+				}
+				]
+			},
+			{
+				margin:'0 0 0 8',
+				xtype: 'fieldset',
+				title: i18n._('other information'),
+			    //title: '其它信息',
+			    //layout: 'anchor',
+				width:475,
+				
+				
+			   // defaults: {anchor: '30%'},
+				items:[
+				{
+				xtype:'displayfield',
+				width:'100%',
+			    //fieldLabel: '创建时间',
+				fieldLabel: i18n._('createDate'),
+			    name: '创建时间',
+			   // renderer: Ext.util.Format.dateRenderer('Y-m-d'),
+				value: Ext.Date.format(record.get('createDate'),'Y-m-d H:i:s')
+					
+				},
+				{
+				xtype:'displayfield',
+				width:'100%',
+				//fieldLabel:'上次登录日期',
+			    fieldLabel:i18n._('Last loginDate'),
+				name:'上次登录日期',
+				//renderer: Ext.util.Format.dateRenderer('Y-m-d'),
+				value: record.get('lastLoginDate') == null ?"":Ext.Date.format(record.get('lastLoginDate'),'Y-m-d H:i:s')
+/* 				renderer: function(value){
+					return new Date(value).format('Y-m-d')  
+				} */
+				}
+
+			]	
+
+
+			}
+			]
+			}
+			]
+
+			});
+			//用户详细信息页面结束
+			info.show();
+		}else{
+  	    	Ext.MessageBox.show({
+		          // title: '提示',
+		           //msg: '请选择一个用户',
+				   title:i18n._('notice'),
+			       msg:i18n._('please choose one user'),
+		           icon:Ext.MessageBox.INFO,
+		           buttons: Ext.MessageBox.OK
+		           
+		       }); 
+			return;
+		}
+		
+		}
+		},
+		{
+		style:'margin-left:10px;',
+		icon: '../images/shape_square_key.png',  // Use a URL in the icon config
+        //tooltip: '密码重置',
+		//text:'密码重置',
+		text:i18n._('RetPassword'),
+		handler:function(){
+			var rows = Ext.getCmp('userList').getSelectionModel().getSelection();
+			if(rows.length > 0){
+				var id = rows[0].get('id');
+				var record = store1.getById(id);
+				//密码重置窗口开始
+				var pwd=Ext.create('Ext.window.Window', {
+				   // title: '密码重置',
+				    text:i18n._('RetPassword'),
+					layout:'fit',
+				    height: 130,
+					modal:true,
+				    width: 310,
+					closable:false,
+					tools:[{
+					  type:'close',
+					  handler:function(){
+					    pwd.hide();
+					  }
+					}],
+
+					
+				    items: {  
+				        xtype: 'form',
+						height:'100%',
+						width:'100%',
+						fieldDefaults:{
+							msgTarget:'side',
+							autoFitErrors:false
+						},
+						//style:'margin-top:0px;margin-left:0px;',
+				        border: false,
+				        dockedItems: [{
+				            xtype: 'toolbar',
+				            dock: 'bottom',
+				            ui: 'footer',
+				            layout: {
+				                pack: 'left'
+				            },
+				            items: [{
+								margin:'0 0 0 53',
+				                minWidth: 80,
+				               // text: '确定',
+							    text: i18n._('OK'),
+				                handler:function(){
+
+				                	if(Ext.getCmp('newPass1').isValid() && Ext.getCmp('newPass2').isValid()){
+				                		if(Ext.getCmp('newPass2').getValue()==Ext.getCmp('newPass1').getValue()){
+					                	Ext.Ajax.request({
+					                		url: path+'/user_mgmt/user!resetPassword.action',
+					                	    jsonData: {
+					                	    	"id":record.get('id'),
+					                	    	"password": Ext.getCmp('newPass2').getValue(),
+					                	    },
+					                	    success: function(response){
+					                	    	var obj = Ext.decode(response.responseText);
+					                	    	if(obj.success){
+					                	        Ext.MessageBox.show({
+							         		           //title: '提示',
+							         		          // msg: '修改密码成功！',
+													   title:i18n._('notice'),
+													   msg:i18n._('modify password successfully'),
+							         		           icon:Ext.MessageBox.INFO,
+							         		           buttons: Ext.MessageBox.OK
+							         		           
+							         		       }); 
+					                	        pwd.hide();
+					                	    	}
+					                	    }
+					                	})
+				                	}
+				                	}
+				                	
+				                }
+								
+				           },{
+								margin:'0 0 0 5',
+				                minWidth: 80,
+				                //text: '重置',
+								text:i18n._('reset'),
+				                handler:function(){
+				            	this.up('form').getForm().reset();
+				           }
+				                
+								
+						
+				            }]
+				        }],
+				        items:[
+						{
+						xtype:'textfield',
+						name:'password',
+						margin:'10 0 5 17',
+						//labelAlign:'right',
+						style:'margin-left:0px',
+						//fieldLabel: '新密码',
+						fieldLabel: i18n._('new password'),
+						inputType: 'password',
+						id:'newPass1',
+						emptyText:i18n._('please input password'),
+						allowBlank: false,
+						maxLength:6
+						},
+						{
+						xtype:'textfield',
+						name:'password',
+						//labelAlign:'right',
+						margin:'0 0 5 17',
+						//fieldLabel:'确认新密码',
+						fieldLabel:i18n._('comfirm password'),
+						inputType: 'password',
+						initiaPassField:'pass',
+						style:'margin-left:0px',
+						id:'newPass2',
+						emptyText:i18n._('please input password'),
+						allowBlank: false,
+						maxLength:6
+						}
+						
+						]
+				    }
+				});
+			}else{
+    	        Ext.MessageBox.show({
+  		          // title: '提示',
+				   title:i18n._('notice'),
+  		          // msg: '请选择一个用户',
+				   msg:i18n._('please choose one user'),
+  		           icon:Ext.MessageBox.INFO,
+  		           buttons: Ext.MessageBox.OK
+  		           
+  		       }); 
+				return;
+			}
+			//密码重置页面结束
+		pwd.show();
+		}
+		},
+			//////////////////////
+		{
+		xtype:'tbfill'
+		},
+		{
+        xtype:'splitbutton',
+		//text:'用户姓名',
+        text:i18n._('username'),
+			//   pressed:true,
+		id:'split',
+		margin:'0 0 0 2',
+		menu: new Ext.menu.Menu({
+        items: [
+        
+		{
+		//text: '用户姓名',
+        text:i18n._('username'),
+		handler: function(){
+		Ext.getCmp('split').setText(i18n._('username')); 
+		itemValue='userName';
+		}
+		},
+		{
+		//text: '登录邮箱',
+         text:i18n._('email'),
+		handler: function(){
+		Ext.getCmp('split').setText(i18n._('email')); 
+		itemValue='userEmail';
+		}
+		}
+       ]
+     })
+	 },
+	{	
+    labelWidth: 5,
+    xtype: 'searchfield',
+    store: store1,
+	id:'orderNoField',						
+	onTrigger1Click : function(){
+		var me = this,
+			store = me.store,
+			proxy = store.getProxy(),
+			val;
+			
+		if (me.hasSearch) {
+			me.setValue('');
+			proxy.extraParams[me.paramName] = '';
+			proxy.extraParams['type'] = '';
+			proxy.extraParams.start = 0;
+			store.load();
+			me.hasSearch = false;
+			me.triggerEl.item(0).setDisplayed('none');
+			me.doComponentLayout();
+		}
+	},  
+	  
+	onTrigger2Click : function(){//点击查询按钮或回车调用该方法  
+		var me = this,
+		store = me.store,
+		proxy = store.getProxy(),
+		value = me.getValue();
+			
+		if (value.length < 1) {
+			me.onTrigger1Click();
+			return;
+		}
+		var i = itemValue;
+		store = me.store,
+		proxy = store.getProxy(),
+		proxy.extraParams['query'] = value;
+		proxy.extraParams['type'] = i;
+		proxy.extraParams.start = 0;
+		store.load();
+		this.hasSearch = true;  
+		me.triggerEl.item(0).setDisplayed('block');
+		me.doComponentLayout();
+	}
+	 
+	 
+	}
+	
+           
+            
+	]}
+	]
+})
+});
+
+
+
+	}
+        };
+    })();
+
+    MultiLang.init();
+    
+})
+
+ function getCookie(name){
+         var arr = document.cookie.match(new RegExp("(^| )"+name+"=([^;]*)(;|$)"));
+         if(arr != null) return unescape(arr[2]);
+		 return null;
+ }
+
+</script>   
+ </head>
+
+ <body>
+  
+ </body>
+</html>
